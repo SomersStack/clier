@@ -11,6 +11,7 @@ import { statusCommand } from "./commands/status.js";
 import { logsCommand } from "./commands/logs.js";
 import { reloadCommand } from "./commands/reload.js";
 import { validateCommand } from "./commands/validate.js";
+import { updateCommand } from "./commands/update.js";
 import {
   serviceStartCommand,
   serviceStopCommand,
@@ -108,6 +109,18 @@ export function createCLI(): Command {
       process.exit(exitCode);
     });
 
+  // Update command
+  program
+    .command("update")
+    .description("Update @clier/core to the latest version")
+    .option("-g, --global", "Update global installation (default: true)")
+    .option("--no-global", "Update local installation")
+    .option("-c, --check", "Check for updates without installing")
+    .action(async (options: { global?: boolean; check?: boolean }) => {
+      const exitCode = await updateCommand(options);
+      process.exit(exitCode);
+    });
+
   // Service commands (for controlling individual processes)
   const service = program
     .command("service")
@@ -183,6 +196,53 @@ export function createCLI(): Command {
  * @param argv - Command line arguments
  */
 export async function runCLI(argv: string[] = process.argv): Promise<void> {
+  // Check for updates on startup (unless running the update command itself)
+  const isUpdateCommand = argv.includes("update");
+  if (!isUpdateCommand) {
+    await checkForUpdatesOnStartup();
+  }
+
   const program = createCLI();
   await program.parseAsync(argv);
+}
+
+/**
+ * Check for updates on startup and show a prompt if available
+ */
+async function checkForUpdatesOnStartup(): Promise<void> {
+  try {
+    const { checkForUpdates, shouldShowUpdatePrompt } = await import(
+      "./utils/version-checker.js"
+    );
+    const { printWarning, printInfo } = await import("./utils/formatter.js");
+
+    // Only check once per day
+    if (!shouldShowUpdatePrompt()) {
+      return;
+    }
+
+    // Quick check for updates (with timeout)
+    const updateCheckPromise = checkForUpdates();
+    const timeoutPromise = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), 2000),
+    );
+
+    const updateInfo = await Promise.race([updateCheckPromise, timeoutPromise]);
+
+    // If timed out or no update available, continue
+    if (!updateInfo || !updateInfo.hasUpdate) {
+      return;
+    }
+
+    // Show update notification
+    console.log();
+    printWarning("A new version of @clier/core is available!");
+    console.log(`  Current: ${updateInfo.currentVersion}`);
+    console.log(`  Latest:  ${updateInfo.latestVersion}`);
+    console.log();
+    printInfo("Run 'clier update' to update to the latest version.");
+    console.log();
+  } catch {
+    // Silently fail - don't interrupt the user's workflow
+  }
 }
