@@ -75,6 +75,34 @@ export class DaemonController {
   }
 
   /**
+   * Add a new process to the pipeline
+   */
+  async "process.add"(params: {
+    config: import("../core/managed-process.js").ProcessConfig;
+  }): Promise<{ success: true }> {
+    const manager = this.watcher.getProcessManager();
+    if (!manager) {
+      throw new Error("ProcessManager not initialized");
+    }
+    await manager.startProcess(params.config);
+    return { success: true };
+  }
+
+  /**
+   * Delete a process from the pipeline
+   */
+  async "process.delete"(params: {
+    name: string;
+  }): Promise<{ success: true }> {
+    const manager = this.watcher.getProcessManager();
+    if (!manager) {
+      throw new Error("ProcessManager not initialized");
+    }
+    await manager.deleteProcess(params.name);
+    return { success: true };
+  }
+
+  /**
    * Query logs for a specific process
    */
   async "logs.query"(params: {

@@ -11,6 +11,13 @@ import { statusCommand } from "./commands/status.js";
 import { logsCommand } from "./commands/logs.js";
 import { reloadCommand } from "./commands/reload.js";
 import { validateCommand } from "./commands/validate.js";
+import {
+  serviceStartCommand,
+  serviceStopCommand,
+  serviceRestartCommand,
+  serviceAddCommand,
+  serviceRemoveCommand,
+} from "./commands/service.js";
 
 /**
  * Create and configure the CLI program
@@ -98,6 +105,72 @@ export function createCLI(): Command {
     )
     .action(async (configPath?: string) => {
       const exitCode = await validateCommand(configPath);
+      process.exit(exitCode);
+    });
+
+  // Service commands (for controlling individual processes)
+  const service = program
+    .command("service")
+    .description("Control individual services/processes");
+
+  service
+    .command("start")
+    .description("Start a specific service")
+    .argument("<name>", "Service name")
+    .action(async (name: string) => {
+      const exitCode = await serviceStartCommand(name);
+      process.exit(exitCode);
+    });
+
+  service
+    .command("stop")
+    .description("Stop a specific service")
+    .argument("<name>", "Service name")
+    .action(async (name: string) => {
+      const exitCode = await serviceStopCommand(name);
+      process.exit(exitCode);
+    });
+
+  service
+    .command("restart")
+    .description("Restart a specific service")
+    .argument("<name>", "Service name")
+    .action(async (name: string) => {
+      const exitCode = await serviceRestartCommand(name);
+      process.exit(exitCode);
+    });
+
+  service
+    .command("add")
+    .description("Add a new service to the running pipeline")
+    .argument("<name>", "Service name")
+    .requiredOption("-c, --command <command>", "Command to execute")
+    .option("--cwd <directory>", "Working directory")
+    .option("--type <type>", "Process type (service or task)", "service")
+    .option("-e, --env <KEY=VALUE...>", "Environment variables", [])
+    .option("--no-restart", "Disable auto-restart")
+    .action(
+      async (
+        name: string,
+        options: {
+          command: string;
+          cwd?: string;
+          type: "service" | "task";
+          env: string[];
+          restart: boolean;
+        }
+      ) => {
+        const exitCode = await serviceAddCommand(name, options);
+        process.exit(exitCode);
+      }
+    );
+
+  service
+    .command("remove")
+    .description("Remove a service from the running pipeline")
+    .argument("<name>", "Service name")
+    .action(async (name: string) => {
+      const exitCode = await serviceRemoveCommand(name);
       process.exit(exitCode);
     });
 
