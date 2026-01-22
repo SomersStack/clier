@@ -1,0 +1,48 @@
+{
+  "project_name": "example-app",
+  "global_env": true,
+  "safety": {
+    "max_ops_per_minute": 60,
+    "debounce_ms": 100
+  },
+  "pipeline": [
+    {
+      "name": "lint",
+      "command": "npm run lint",
+      "type": "task",
+      "events": {
+        "on_stdout": [
+          { "pattern": "✓", "emit": "lint:success" }
+        ],
+        "on_stderr": true,
+        "on_crash": true
+      }
+    },
+    {
+      "name": "build",
+      "command": "npm run build",
+      "type": "task",
+      "trigger_on": ["lint:success"],
+      "events": {
+        "on_stdout": [
+          { "pattern": "Build completed", "emit": "build:success" }
+        ],
+        "on_stderr": true,
+        "on_crash": true
+      }
+    },
+    {
+      "name": "api",
+      "command": "node dist/server.js",
+      "type": "service",
+      "trigger_on": ["build:success"],
+      "events": {
+        "on_stdout": [
+          { "pattern": "Server listening on port", "emit": "api:ready" }
+        ],
+        "on_stderr": true,
+        "on_crash": true
+      }
+    }
+  ]
+}

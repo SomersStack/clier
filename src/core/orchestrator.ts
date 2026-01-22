@@ -1,0 +1,411 @@
+/**
+ * Pipeline Orchestrator
+ *
+ * Main orchestration logic for managing pipeline execution.
+ * Tracks process dependencies, handles triggers, and starts dependent processes.
+ */
+
+import type { ClierConfig, PipelineItem } from "../config/types.js";
+import type { ClierEvent } from "../types/events.js";
+import type { ProcessManager, ProcessConfig } from "./process-manager.js";
+import { createContextLogger } from "../utils/logger.js";
+
+const logger = createContextLogger("Orchestrator");
+
+/**
+ * Orchestrator class
+ *
+ * Manages pipeline execution by tracking triggers and starting dependent processes.
+ *
+ * @example
+ * ```ts
+ * const orchestrator = new Orchestrator(processManager);
+ *
+ * orchestrator.loadPipeline(config);
+ * await orchestrator.start();
+ *
+ * // Handle events
+ * orchestrator.handleEvent({
+ *   name: 'backend:ready',
+ *   processName: 'backend',
+ *   type: 'custom',
+ *   timestamp: Date.now()
+ * });
+ * ```
+ */
+export class Orchestrator {
+  private processManager: ProcessManager;
+  private config?: ClierConfig;
+  private pipelineItems = new Map<string, PipelineItem>();
+  private startedProcesses = new Set<string>();
+  private receivedEvents = new Set<string>();
+
+  /**
+   * Create a new Orchestrator
+   *
+   * @param processManager - ProcessManager instance
+   *
+   * @example
+   * ```ts
+   * const orchestrator = new Orchestrator(processManager);
+   * ```
+   */
+  constructor(processManager: ProcessManager) {
+    this.processManager = processManager;
+  }
+
+  /**
+   * Load pipeline configuration
+   *
+   * @param config - Clier configuration
+   * @throws Error if pipeline has circular dependencies or invalid trigger_on references
+   *
+   * @example
+   * ```ts
+   * orchestrator.loadPipeline(config);
+   * ```
+   */
+  loadPipeline(config: ClierConfig): void {
+    this.config = config;
+    this.pipelineItems.clear();
+    this.startedProcesses.clear();
+    this.receivedEvents.clear();
+
+    // Build pipeline item map
+    for (const item of config.pipeline) {
+      this.pipelineItems.set(item.name, item);
+    }
+
+    // Validate pipeline
+    this.validatePipeline();
+
+    logger.info("Loaded pipeline", {
+      itemCount: config.pipeline.length,
+      entryPoints: this.getEntryPoints().length,
+    });
+  }
+
+  /**
+   * Validate pipeline configuration
+   *
+   * Checks for:
+   * - Missing dependencies (trigger_on references non-existent events)
+   * - Circular dependencies
+   * - Unreachable processes
+   */
+  private validatePipeline(): void {
+    if (!this.config) {
+      return;
+    }
+
+    const allEventNames = new Set<string>();
+    const warnings: string[] = [];
+
+    // Collect all possible event names from pipeline items
+    for (const item of this.config.pipeline) {
+      // Events can be emitted by:
+      // 1. Pattern matches (from events.on_stdout field)
+      if (item.events?.on_stdout) {
+        for (const stdout of item.events.on_stdout) {
+          allEventNames.add(stdout.emit);
+        }
+      }
+
+      // 2. Process exit, error, and crash events
+      allEventNames.add(`${item.name}:exit`);
+      if (item.events?.on_stderr) {
+        allEventNames.add(`${item.name}:error`);
+      }
+      if (item.events?.on_crash) {
+        allEventNames.add(`${item.name}:crashed`);
+      }
+    }
+
+    // Check for missing dependencies
+    for (const item of this.config.pipeline) {
+      if (item.trigger_on && item.trigger_on.length > 0) {
+        for (const trigger of item.trigger_on) {
+          if (!allEventNames.has(trigger)) {
+            warnings.push(
+              `Process "${item.name}" waits for event "${trigger}" which may never be emitted`
+            );
+          }
+        }
+      }
+    }
+
+    // Log warnings
+    for (const warning of warnings) {
+      logger.warn(warning);
+    }
+
+    logger.debug("Pipeline validation completed", {
+      warnings: warnings.length,
+    });
+  }
+
+  /**
+   * Start the pipeline
+   *
+   * Starts all entry point processes (those without trigger_on).
+   *
+   * @example
+   * ```ts
+   * await orchestrator.start();
+   * ```
+   */
+  async start(): Promise<void> {
+    if (!this.config) {
+      throw new Error("No pipeline loaded. Call loadPipeline() first.");
+    }
+
+    const entryPoints = this.getEntryPoints();
+
+    logger.info(`Starting ${entryPoints.length} entry point processes`);
+
+    for (const item of entryPoints) {
+      await this.startProcess(item);
+    }
+  }
+
+  /**
+   * Handle an event and trigger dependent processes
+   *
+   * @param event - ClierEvent to handle
+   *
+   * @example
+   * ```ts
+   * await orchestrator.handleEvent({
+   *   name: 'backend:ready',
+   *   processName: 'backend',
+   *   type: 'custom',
+   *   timestamp: Date.now()
+   * });
+   * ```
+   */
+  async handleEvent(event: ClierEvent): Promise<void> {
+    if (!this.config) {
+      logger.warn("Cannot handle event: No pipeline loaded");
+      return;
+    }
+
+    logger.debug("Handling event", {
+      eventName: event.name,
+      processName: event.processName,
+      type: event.type,
+    });
+
+    // Track received event
+    this.receivedEvents.add(event.name);
+
+    // Find processes waiting for this event
+    const dependents = this.findDependents(event.name);
+
+    if (dependents.length === 0) {
+      logger.debug("No dependents found for event", { eventName: event.name });
+      return;
+    }
+
+    logger.debug("Found dependents for event", {
+      eventName: event.name,
+      dependents: dependents.map((d) => d.name),
+    });
+
+    for (const dependent of dependents) {
+      try {
+        // Check if all triggers are satisfied
+        if (this.areAllTriggersSatisfied(dependent)) {
+          // Check continue_on_failure for error/crash events
+          if (this.shouldSkipDueToFailure(event, dependent)) {
+            logger.info("Skipping process due to failure", {
+              processName: dependent.name,
+              reason: "continue_on_failure is false",
+            });
+            continue;
+          }
+
+          // Don't start if already started
+          if (this.startedProcesses.has(dependent.name)) {
+            logger.debug("Process already started, skipping", {
+              processName: dependent.name,
+            });
+            continue;
+          }
+
+          await this.startProcess(dependent);
+        } else {
+          logger.debug("Not all triggers satisfied for process", {
+            processName: dependent.name,
+            required: dependent.trigger_on,
+            received: Array.from(this.receivedEvents),
+          });
+        }
+      } catch (error) {
+        logger.error("Error processing dependent", {
+          processName: dependent.name,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Continue processing other dependents
+      }
+    }
+  }
+
+  /**
+   * Get entry point processes (no trigger_on)
+   *
+   * @returns Array of entry point pipeline items
+   *
+   * @example
+   * ```ts
+   * const entryPoints = orchestrator.getEntryPoints();
+   * ```
+   */
+  getEntryPoints(): PipelineItem[] {
+    return Array.from(this.pipelineItems.values()).filter(
+      (item) => !item.trigger_on || item.trigger_on.length === 0
+    );
+  }
+
+  /**
+   * Get processes waiting for triggers
+   *
+   * @returns Array of waiting pipeline items
+   *
+   * @example
+   * ```ts
+   * const waiting = orchestrator.getWaitingProcesses();
+   * ```
+   */
+  getWaitingProcesses(): PipelineItem[] {
+    return Array.from(this.pipelineItems.values()).filter(
+      (item) =>
+        item.trigger_on &&
+        item.trigger_on.length > 0 &&
+        !this.startedProcesses.has(item.name)
+    );
+  }
+
+  /**
+   * Start a process
+   */
+  private async startProcess(item: PipelineItem): Promise<void> {
+    if (!this.config) {
+      logger.error("Cannot start process: No configuration loaded");
+      throw new Error("No configuration loaded");
+    }
+
+    logger.info("Starting process", {
+      processName: item.name,
+      command: item.command,
+      type: item.type,
+    });
+
+    try {
+      const processConfig = this.buildProcessConfig(item);
+      await this.processManager.startProcess(processConfig);
+      this.startedProcesses.add(item.name);
+
+      logger.info("Process started successfully", {
+        processName: item.name,
+      });
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      logger.error("Failed to start process", {
+        processName: item.name,
+        command: item.command,
+        error: errorMsg,
+      });
+
+      // Re-throw with more context
+      throw new Error(`Failed to start process "${item.name}": ${errorMsg}`);
+    }
+  }
+
+  /**
+   * Build ProcessConfig from pipeline item
+   */
+  private buildProcessConfig(item: PipelineItem): ProcessConfig {
+    const config: ProcessConfig = {
+      name: item.name,
+      command: item.command,
+      cwd: item.cwd,
+      type: item.type,
+      // Services auto-restart by default
+      restart:
+        item.type === "service"
+          ? {
+              enabled: true,
+              maxRetries: 10,
+              delay: 1000,
+              backoff: "exponential",
+              maxDelay: 60000,
+            }
+          : undefined,
+    };
+
+    // Handle environment variables
+    if (this.config?.global_env) {
+      // Merge global env with item env, filtering out undefined values
+      const globalEnv: Record<string, string> = {};
+      for (const [key, value] of Object.entries(process.env)) {
+        if (value !== undefined) {
+          globalEnv[key] = value;
+        }
+      }
+      config.env = {
+        ...globalEnv,
+        ...item.env,
+      };
+    } else {
+      config.env = item.env;
+    }
+
+    return config;
+  }
+
+  /**
+   * Find processes that depend on a specific event
+   */
+  private findDependents(eventName: string): PipelineItem[] {
+    return Array.from(this.pipelineItems.values()).filter((item) =>
+      item.trigger_on?.includes(eventName)
+    );
+  }
+
+  /**
+   * Check if all triggers for a process are satisfied
+   */
+  private areAllTriggersSatisfied(item: PipelineItem): boolean {
+    if (!item.trigger_on || item.trigger_on.length === 0) {
+      return true;
+    }
+
+    return item.trigger_on.every((trigger) => this.receivedEvents.has(trigger));
+  }
+
+  /**
+   * Check if process should be skipped due to failure and continue_on_failure setting
+   */
+  private shouldSkipDueToFailure(
+    event: ClierEvent,
+    _dependent: PipelineItem
+  ): boolean {
+    // If event is an error or crash
+    const isFailureEvent = event.type === "error" || event.type === "crashed";
+
+    if (!isFailureEvent) {
+      return false;
+    }
+
+    // Get the source process (the one that failed)
+    const sourceProcess = this.pipelineItems.get(event.processName);
+
+    if (!sourceProcess) {
+      return false;
+    }
+
+    // If continue_on_failure is explicitly false or undefined, skip
+    // If continue_on_failure is true, don't skip
+    return sourceProcess.continue_on_failure !== true;
+  }
+}

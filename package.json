@@ -1,0 +1,77 @@
+{
+  "name": "@clier/core",
+  "version": "0.2.0",
+  "description": "Process orchestration framework with event-driven pipeline management",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "bin": {
+    "clier": "./dist/bin/clier.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "postbuild": "chmod +x dist/bin/clier.js",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "benchmark": "tsx scripts/benchmark.ts",
+    "lint": "eslint src tests --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm run test:run && npm run lint && npm run typecheck"
+  },
+  "keywords": [
+    "orchestration",
+    "pipeline",
+    "process-management",
+    "event-driven",
+    "typescript",
+    "automation",
+    "workflow",
+    "ci-cd",
+    "task-runner"
+  ],
+  "author": "Clier Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/clier.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/clier/issues"
+  },
+  "homepage": "https://github.com/yourusername/clier#readme",
+  "dependencies": {
+    "bottleneck": "^2.19.5",
+    "chalk": "^5.6.2",
+    "cli-table3": "^0.6.5",
+    "commander": "^14.0.2",
+    "opossum": "^8.1.4",
+    "ora": "^9.1.0",
+    "pidusage": "^3.0.2",
+    "winston": "^3.11.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "@types/opossum": "^8.1.9",
+    "@types/pidusage": "^2.0.5",
+    "@typescript-eslint/eslint-plugin": "^6.17.0",
+    "@typescript-eslint/parser": "^6.17.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0"
+  }
+}

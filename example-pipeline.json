@@ -1,0 +1,25 @@
+{
+  "project_name": "example-app",
+  "global_env": true,
+  "safety": {
+    "max_ops_per_minute": 60,
+    "debounce_ms": 100
+  },
+  "pipeline": [
+    {
+      "name": "echo-service",
+      "command": "echo 'Starting echo service...' && sleep 1 && echo 'Echo service ready!'",
+      "type": "service",
+      "events": {
+        "on_stdout": [
+          {
+            "pattern": "ready",
+            "emit": "echo:ready"
+          }
+        ],
+        "on_stderr": true,
+        "on_crash": true
+      }
+    }
+  ]
+}

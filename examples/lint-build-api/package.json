@@ -1,0 +1,16 @@
+{
+  "name": "lint-build-api-example",
+  "version": "1.0.0",
+  "description": "Example demonstrating lint -> build -> API pipeline with Clier",
+  "type": "module",
+  "scripts": {
+    "lint": "node scripts/lint.js",
+    "build": "node scripts/build.js"
+  },
+  "keywords": ["clier", "example", "pipeline"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

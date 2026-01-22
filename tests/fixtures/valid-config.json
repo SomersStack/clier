@@ -1,0 +1,50 @@
+{
+  "project_name": "test-project",
+  "global_env": true,
+  "safety": {
+    "max_ops_per_minute": 60,
+    "debounce_ms": 100
+  },
+  "pipeline": [
+    {
+      "name": "backend",
+      "command": "npm start",
+      "type": "service",
+      "cwd": "/app/backend",
+      "env": {
+        "PORT": "3000",
+        "NODE_ENV": "production"
+      },
+      "events": {
+        "on_stdout": [
+          {
+            "pattern": "Server listening on port",
+            "emit": "backend:ready"
+          }
+        ],
+        "on_stderr": true,
+        "on_crash": true
+      }
+    },
+    {
+      "name": "frontend",
+      "command": "npm run dev",
+      "type": "service",
+      "trigger_on": ["backend:ready"],
+      "cwd": "/app/frontend",
+      "env": {
+        "REACT_APP_API_URL": "http://localhost:${PORT}"
+      },
+      "events": {
+        "on_stdout": [
+          {
+            "pattern": "webpack compiled",
+            "emit": "frontend:ready"
+          }
+        ],
+        "on_stderr": true,
+        "on_crash": true
+      }
+    }
+  ]
+}
