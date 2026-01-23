@@ -1,7 +1,7 @@
 /**
  * Version Checker Utility
  *
- * Checks for updates to the clier package by comparing
+ * Checks for updates to the clier-ai package by comparing
  * the current version with the latest version on npm.
  */
 
@@ -48,7 +48,7 @@ function getCurrentVersion(): string {
  */
 async function getLatestVersion(): Promise<string> {
   try {
-    const { stdout } = await execAsync("npm view clier version");
+    const { stdout } = await execAsync("npm view clier-ai version");
     return stdout.trim();
   } catch (error) {
     // If package doesn't exist on npm yet, return current version
@@ -86,7 +86,7 @@ function isNewer(current: string, latest: string): boolean {
 }
 
 /**
- * Check for updates to clier
+ * Check for updates to clier-ai
  *
  * @returns Update information
  */

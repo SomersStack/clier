@@ -1,15 +1,38 @@
 {
-  "name": "clier",
+  "name": "clier-ai",
   "version": "0.3.0",
   "description": "Process orchestration framework with event-driven pipeline management",
+  "keywords": [
+    "orchestration",
+    "pipeline",
+    "process-management",
+    "event-driven",
+    "typescript",
+    "automation",
+    "workflow",
+    "ci-cd",
+    "task-runner"
+  ],
+  "homepage": "https://github.com/yourusername/clier#readme",
+  "bugs": {
+    "url": "https://github.com/yourusername/clier/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/clier.git"
+  },
+  "license": "MIT",
+  "author": "Clier Contributors",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "engines": {
-    "node": ">=18.0.0"
-  },
   "bin": {
-    "clier": "./dist/bin/clier.js"
+    "clier": "dist/bin/clier.js"
+  },
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
   },
   "files": [
     "dist",
@@ -37,27 +60,6 @@
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build && npm run test:run && npm run lint && npm run typecheck"
   },
-  "keywords": [
-    "orchestration",
-    "pipeline",
-    "process-management",
-    "event-driven",
-    "typescript",
-    "automation",
-    "workflow",
-    "ci-cd",
-    "task-runner"
-  ],
-  "author": "Clier Contributors",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/yourusername/clier.git"
-  },
-  "bugs": {
-    "url": "https://github.com/yourusername/clier/issues"
-  },
-  "homepage": "https://github.com/yourusername/clier#readme",
   "dependencies": {
     "bottleneck": "^2.19.5",
     "chalk": "^5.6.2",
@@ -80,5 +82,8 @@
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
     "vitest": "^1.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
