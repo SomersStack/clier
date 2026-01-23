@@ -38,7 +38,7 @@ describe("E2E: Multi-Pattern Event Matching", () => {
       pipeline: [
         {
           name: "multi-output",
-          command: `node -e "console.log('[INFO] [STARTUP] System initializing'); setTimeout(() => process.exit(0), 1000);"`,
+          command: `node -e "console.log('[INFO] [STARTUP] System initializing'); setTimeout(() => process.exit(0), 50);"`,
           type: "task",
           events: {
             on_stdout: [
@@ -84,11 +84,11 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     await watcher.start(configPath);
 
     // Wait for all handlers to run
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // System should still be running
     expect(watcher).toBeDefined();
-  }, 10000);
+  }, 3000);
 
   it("should handle multiple patterns across multiple output lines", async () => {
     const script = `
@@ -165,11 +165,11 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     await watcher.start(configPath);
 
     // Wait for all handlers
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // System should still be running
     expect(watcher).toBeDefined();
-  }, 10000);
+  }, 3000);
 
   it("should trigger multiple handlers from different patterns", async () => {
     const config = {
@@ -182,7 +182,7 @@ describe("E2E: Multi-Pattern Event Matching", () => {
       pipeline: [
         {
           name: "source",
-          command: `node -e "console.log('EVENT_A EVENT_B EVENT_C'); setTimeout(() => process.exit(0), 1000);"`,
+          command: `node -e "console.log('EVENT_A EVENT_B EVENT_C'); setTimeout(() => process.exit(0), 50);"`,
           type: "task",
           events: {
             on_stdout: [
@@ -237,11 +237,11 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     await watcher.start(configPath);
 
     // Wait for fanout
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // System should still be running
     expect(watcher).toBeDefined();
-  }, 10000);
+  }, 3000);
 
   it("should only emit events for patterns that match", async () => {
     const config = {
@@ -254,7 +254,7 @@ describe("E2E: Multi-Pattern Event Matching", () => {
       pipeline: [
         {
           name: "selective",
-          command: `node -e "console.log('[INFO] Only info here'); setTimeout(() => process.exit(0), 1000);"`,
+          command: `node -e "console.log('[INFO] Only info here'); setTimeout(() => process.exit(0), 50);"`,
           type: "task",
           events: {
             on_stdout: [
@@ -300,9 +300,9 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     await watcher.start(configPath);
 
     // Wait for execution
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // System should still be running
     expect(watcher).toBeDefined();
-  }, 10000);
+  }, 3000);
 });

@@ -5,13 +5,11 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
-    // Disable threads for E2E tests to allow process.chdir()
+    // Increase hook timeout for cleanup operations (E2E tests with watchers)
+    hookTimeout: 30000,
+    // Use forks for test isolation - each test file runs in its own process
+    // This prevents resource contention and accumulated slowdown
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

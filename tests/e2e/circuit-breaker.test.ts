@@ -54,7 +54,7 @@ describe("E2E: Circuit Breaker", () => {
         },
         {
           name: "monitor",
-          command: `node -e "console.log('Circuit breaker triggered!'); setTimeout(() => process.exit(0), 1000);"`,
+          command: `node -e "console.log('Circuit breaker triggered!'); setTimeout(() => process.exit(0), 50);"`,
           type: "task",
           trigger_on: ["circuit-breaker:triggered"],
           events: {
@@ -71,12 +71,12 @@ describe("E2E: Circuit Breaker", () => {
 
     // Wait for crashes and circuit breaker to trigger
     // The crasher service will auto-restart until max retries
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // System should still be running and not have crashed
     // The circuit breaker should eventually stop the service
     expect(watcher).toBeDefined();
-  }, 15000);
+  }, 5000);
 
   it("should emit circuit-breaker:triggered event", async () => {
     const config = {
@@ -120,11 +120,11 @@ describe("E2E: Circuit Breaker", () => {
     await watcher.start(configPath);
 
     // Wait for circuit breaker
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // System should still be running
     expect(watcher).toBeDefined();
-  }, 15000);
+  }, 5000);
 
   it("should stop offending process when circuit opens", async () => {
     const config = {
@@ -159,9 +159,9 @@ describe("E2E: Circuit Breaker", () => {
     await watcher.start(configPath);
 
     // Wait for crashes
-    await new Promise((resolve) => setTimeout(resolve, 4000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // System should still be running
     expect(watcher).toBeDefined();
-  }, 15000);
+  }, 5000);
 });

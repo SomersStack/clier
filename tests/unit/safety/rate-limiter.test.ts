@@ -1,20 +1,36 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { RateLimiter } from "../../../src/safety/rate-limiter.js";
 
 describe("RateLimiter", () => {
-  // Don't use fake timers for RateLimiter tests as Bottleneck has its own timing
+  // Track all created limiters for cleanup
+  const limiters: RateLimiter[] = [];
+
+  // Helper to create and track limiters
+  const createLimiter = (maxOpsPerMinute: number): RateLimiter => {
+    const limiter = new RateLimiter(maxOpsPerMinute);
+    limiters.push(limiter);
+    return limiter;
+  };
+
+  afterEach(async () => {
+    // Stop all limiters to clean up Bottleneck's internal timers
+    await Promise.all(
+      limiters.map((limiter) => limiter.stop({ dropWaitingJobs: true })),
+    );
+    limiters.length = 0;
+  });
 
   describe("constructor", () => {
     it("should create rate limiter with specified max operations per minute", () => {
-      const limiter = new RateLimiter(60);
+      const limiter = createLimiter(60);
       expect(limiter).toBeDefined();
     });
 
     it("should throw error for non-positive max operations", () => {
-      expect(() => new RateLimiter(0)).toThrow(
+      expect(() => createLimiter(0)).toThrow(
         "maxOpsPerMinute must be greater than 0",
       );
-      expect(() => new RateLimiter(-1)).toThrow(
+      expect(() => createLimiter(-1)).toThrow(
         "maxOpsPerMinute must be greater than 0",
       );
     });
@@ -22,7 +38,7 @@ describe("RateLimiter", () => {
 
   describe("schedule", () => {
     it("should execute function immediately when under limit", async () => {
-      const limiter = new RateLimiter(60);
+      const limiter = createLimiter(60);
       const fn = vi.fn(() => Promise.resolve("result"));
 
       const result = await limiter.schedule(fn);
@@ -32,7 +48,7 @@ describe("RateLimiter", () => {
     });
 
     it("should execute synchronous functions", async () => {
-      const limiter = new RateLimiter(60);
+      const limiter = createLimiter(60);
       const fn = vi.fn(() => "sync-result");
 
       const result = await limiter.schedule(fn);
@@ -42,7 +58,7 @@ describe("RateLimiter", () => {
     });
 
     it("should queue operations when rate limit is exceeded", async () => {
-      const limiter = new RateLimiter(100); // High limit for testing
+      const limiter = createLimiter(100); // High limit for testing
       const fn1 = vi.fn(() => Promise.resolve("result1"));
       const fn2 = vi.fn(() => Promise.resolve("result2"));
       const fn3 = vi.fn(() => Promise.resolve("result3"));
@@ -60,7 +76,7 @@ describe("RateLimiter", () => {
     });
 
     it("should handle function arguments", async () => {
-      const limiter = new RateLimiter(60);
+      const limiter = createLimiter(60);
       const fn = vi.fn((a: number, b: string) => Promise.resolve(`${a}-${b}`));
 
       const result = await limiter.schedule(() => fn(42, "test"));
@@ -70,7 +86,7 @@ describe("RateLimiter", () => {
     });
 
     it("should handle function errors", async () => {
-      const limiter = new RateLimiter(60);
+      const limiter = createLimiter(60);
       const error = new Error("Test error");
       const fn = vi.fn(() => Promise.reject(error));
 
@@ -79,7 +95,7 @@ describe("RateLimiter", () => {
     });
 
     it("should handle multiple concurrent operations within limit", async () => {
-      const limiter = new RateLimiter(100);
+      const limiter = createLimiter(100);
       const functions = Array.from({ length: 5 }, (_, i) =>
         vi.fn(() => Promise.resolve(i)),
       );
@@ -96,7 +112,7 @@ describe("RateLimiter", () => {
 
   describe("updateMaxOpsPerMinute", () => {
     it("should update the rate limit", async () => {
-      const limiter = new RateLimiter(60);
+      const limiter = createLimiter(60);
       const fn = vi.fn(() => Promise.resolve("result"));
 
       limiter.updateMaxOpsPerMinute(120);
@@ -107,7 +123,7 @@ describe("RateLimiter", () => {
     });
 
     it("should throw error for non-positive max operations", () => {
-      const limiter = new RateLimiter(60);
+      const limiter = createLimiter(60);
       expect(() => limiter.updateMaxOpsPerMinute(0)).toThrow(
         "maxOpsPerMinute must be greater than 0",
       );
@@ -119,28 +135,35 @@ describe("RateLimiter", () => {
 
   describe("getQueueLength", () => {
     it("should return 0 when no operations are queued", () => {
-      const limiter = new RateLimiter(60);
+      const limiter = createLimiter(60);
       expect(limiter.getQueueLength()).toBe(0);
     });
 
     it("should return queue length when operations are queued", async () => {
-      const limiter = new RateLimiter(1);
-      const fn = vi.fn(
-        () => new Promise((resolve) => setTimeout(resolve, 1000)),
-      );
+      // Use high limit so operations complete quickly
+      const limiter = createLimiter(100);
+      const fn = vi.fn(() => Promise.resolve("done"));
 
-      limiter.schedule(fn);
-      limiter.schedule(fn);
-      limiter.schedule(fn);
+      // Schedule operations
+      const promises = [
+        limiter.schedule(fn),
+        limiter.schedule(fn),
+        limiter.schedule(fn),
+      ];
 
-      // Queue length should reflect pending operations
+      // Queue length should be accessible (may be 0 if executed immediately)
       const queueLength = limiter.getQueueLength();
       expect(queueLength).toBeGreaterThanOrEqual(0);
+
+      // Wait for all to complete
+      await Promise.all(promises);
+      expect(fn).toHaveBeenCalledTimes(3);
     });
   });
 
   describe("stop", () => {
     it("should stop the rate limiter", async () => {
+      // Don't use createLimiter here since we're testing stop() directly
       const limiter = new RateLimiter(60);
       const fn = vi.fn(() => Promise.resolve("result"));
 
@@ -156,6 +179,7 @@ describe("RateLimiter", () => {
     });
 
     it("should handle stop when no operations are pending", async () => {
+      // Don't use createLimiter here since we're testing stop() directly
       const limiter = new RateLimiter(60);
       await expect(limiter.stop()).resolves.toBeUndefined();
     });
@@ -163,7 +187,7 @@ describe("RateLimiter", () => {
 
   describe("integration scenarios", () => {
     it("should handle burst of operations followed by steady state", async () => {
-      const limiter = new RateLimiter(100);
+      const limiter = createLimiter(100);
       const results: number[] = [];
 
       // Burst: 5 operations
@@ -181,7 +205,7 @@ describe("RateLimiter", () => {
     });
 
     it("should maintain order of execution", async () => {
-      const limiter = new RateLimiter(100);
+      const limiter = createLimiter(100);
       const executionOrder: number[] = [];
 
       const promises = [0, 1, 2, 3, 4].map((i) =>

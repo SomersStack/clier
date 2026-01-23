@@ -67,11 +67,11 @@ describe("E2E: Continue on Failure", () => {
     await watcher.start(configPath);
 
     // Wait for execution
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // System should still be running
     expect(watcher).toBeDefined();
-  }, 10000);
+  }, 3000);
 
   it("should allow dependent tasks when continue_on_failure is true", async () => {
     const config = {
@@ -113,11 +113,11 @@ describe("E2E: Continue on Failure", () => {
     await watcher.start(configPath);
 
     // Wait for execution
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // System should still be running
     expect(watcher).toBeDefined();
-  }, 10000);
+  }, 3000);
 
   it("should emit failure events even in strict mode", async () => {
     const config = {
@@ -156,11 +156,11 @@ describe("E2E: Continue on Failure", () => {
     await watcher.start(configPath);
 
     // Wait for execution
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // System should still be running
     expect(watcher).toBeDefined();
-  }, 10000);
+  }, 3000);
 
   it("should demonstrate graceful degradation with continue_on_failure", async () => {
     const config = {
@@ -185,7 +185,7 @@ describe("E2E: Continue on Failure", () => {
         },
         {
           name: "main-app",
-          command: `node -e "console.log('APP_STARTED'); setTimeout(() => {}, 1000);"`,
+          command: `node -e "console.log('APP_STARTED'); setTimeout(() => {}, 100);"`,
           type: "service",
           trigger_on: ["cache:ready", "cache:failed"], // Starts either way
           events: {
@@ -201,9 +201,9 @@ describe("E2E: Continue on Failure", () => {
     await watcher.start(configPath);
 
     // Wait for execution
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // System should still be running
     expect(watcher).toBeDefined();
-  }, 10000);
+  }, 3000);
 });

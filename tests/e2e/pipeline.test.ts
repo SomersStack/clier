@@ -25,7 +25,7 @@ describe("E2E: Full Pipeline", () => {
       pipeline: [
         {
           name: "step1",
-          command: `node -e "console.log('Step 1 starting...'); setTimeout(() => { console.log('STEP1_SUCCESS'); process.exit(0); }, 1000);"`,
+          command: `node -e "console.log('Step 1 starting...'); setTimeout(() => { console.log('STEP1_SUCCESS'); process.exit(0); }, 50);"`,
           type: "task",
           events: {
             on_stdout: [{ pattern: "STEP1_SUCCESS", emit: "step1:done" }],
@@ -35,7 +35,7 @@ describe("E2E: Full Pipeline", () => {
         },
         {
           name: "step2",
-          command: `node -e "console.log('Step 2 starting...'); setTimeout(() => { console.log('STEP2_SUCCESS'); process.exit(0); }, 1000);"`,
+          command: `node -e "console.log('Step 2 starting...'); setTimeout(() => { console.log('STEP2_SUCCESS'); process.exit(0); }, 50);"`,
           type: "task",
           trigger_on: ["step1:done"],
           events: {
@@ -46,7 +46,7 @@ describe("E2E: Full Pipeline", () => {
         },
         {
           name: "service",
-          command: `node -e "console.log('Service starting...'); setTimeout(() => { console.log('SERVICE_READY'); setInterval(() => {}, 1000); }, 500);"`,
+          command: `node -e "console.log('Service starting...'); setTimeout(() => { console.log('SERVICE_READY'); setInterval(() => {}, 1000); }, 50);"`,
           type: "service",
           trigger_on: ["step2:done"],
           events: {
@@ -85,11 +85,11 @@ describe("E2E: Full Pipeline", () => {
     await watcher.start(configPath);
 
     // Wait for pipeline to execute
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // System should still be running
     expect(watcher).toBeDefined();
-  }, 15000); // 15 second timeout
+  }, 5000);
 
   it("should emit events in correct order", async () => {
     // Start watcher
@@ -100,11 +100,11 @@ describe("E2E: Full Pipeline", () => {
     await watcher.start(configPath);
 
     // Wait for pipeline
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // System should still be running
     expect(watcher).toBeDefined();
-  }, 15000);
+  }, 5000);
 
   it("should not start dependent processes before trigger", async () => {
     // Create a config where step2 depends on manual trigger
@@ -118,7 +118,7 @@ describe("E2E: Full Pipeline", () => {
       pipeline: [
         {
           name: "independent",
-          command: `node -e "console.log('Independent running'); setTimeout(() => process.exit(0), 500);"`,
+          command: `node -e "console.log('Independent running'); setTimeout(() => process.exit(0), 50);"`,
           type: "task",
           events: {
             on_stdout: [{ pattern: ".*", emit: "task:output" }],
@@ -126,7 +126,7 @@ describe("E2E: Full Pipeline", () => {
         },
         {
           name: "dependent",
-          command: `node -e "console.log('Dependent running'); setTimeout(() => process.exit(0), 500);"`,
+          command: `node -e "console.log('Dependent running'); setTimeout(() => process.exit(0), 50);"`,
           type: "task",
           trigger_on: ["manual:trigger"], // This won't be emitted
           events: {
@@ -147,12 +147,12 @@ describe("E2E: Full Pipeline", () => {
       await watcher.start(noTriggerPath);
 
       // Wait a bit
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // System should still be running
       expect(watcher).toBeDefined();
     } finally {
       await fs.unlink(noTriggerPath).catch(() => {});
     }
-  }, 15000);
+  }, 3000);
 });
