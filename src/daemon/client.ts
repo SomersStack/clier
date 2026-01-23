@@ -9,6 +9,7 @@ import * as net from "net";
 import * as fs from "fs";
 import * as path from "path";
 import { createContextLogger } from "../utils/logger.js";
+import { findProjectRootForDaemon } from "../utils/project-root.js";
 
 const logger = createContextLogger("DaemonClient");
 
@@ -193,19 +194,27 @@ export class DaemonClient {
 /**
  * Helper to get daemon client for current project
  *
- * @param projectRoot - Project root directory (defaults to cwd)
+ * Automatically searches upward from the current directory to find
+ * the project root (directory containing .clier/).
+ *
+ * @param projectRoot - Project root directory (optional, defaults to auto-detection)
  * @returns DaemonClient instance connected to the daemon
- * @throws Error if daemon is not running
+ * @throws Error if daemon is not running or project not found
  */
 export async function getDaemonClient(
   projectRoot?: string
 ): Promise<DaemonClient> {
-  const root = projectRoot || process.cwd();
+  // If explicit project root provided, use it
+  // Otherwise, search upward for .clier/ directory
+  const root = projectRoot || findProjectRootForDaemon();
   const socketPath = path.join(root, ".clier", "daemon.sock");
 
   // Check if socket exists
   if (!fs.existsSync(socketPath)) {
-    throw new Error("Daemon not running (socket not found)");
+    throw new Error(
+      `Daemon not running. Socket not found at: ${socketPath}\n` +
+        "  • Run 'clier start' to start the daemon"
+    );
   }
 
   const client = new DaemonClient({ socketPath });

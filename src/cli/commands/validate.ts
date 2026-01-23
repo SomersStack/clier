@@ -4,9 +4,9 @@
  * Validates the clier-pipeline.json configuration file.
  */
 
-import path from "path";
 import { ZodError } from "zod";
-import { loadConfig } from "../../config/loader.js";
+import { loadConfig, EnhancedZodError } from "../../config/loader.js";
+import { resolveConfigPath } from "../../utils/project-root.js";
 import {
   printSuccess,
   printError,
@@ -16,14 +16,16 @@ import {
 /**
  * Validate configuration file
  *
- * @param configPath - Path to configuration file (optional, defaults to clier-pipeline.json in cwd)
+ * Automatically searches upward for clier-pipeline.json if not explicitly provided.
+ *
+ * @param configPath - Path to configuration file (optional, auto-detected if not provided)
  * @returns Exit code (0 for success, 1 for failure)
  */
 export async function validateCommand(configPath?: string): Promise<number> {
-  const configFile =
-    configPath || path.join(process.cwd(), "clier-pipeline.json");
-
   try {
+    // Resolve config path (searches upward if needed)
+    const configFile = resolveConfigPath(configPath);
+
     // Try to load and validate config
     const config = await loadConfig(configFile);
 
@@ -39,8 +41,15 @@ export async function validateCommand(configPath?: string): Promise<number> {
 
     return 0;
   } catch (error) {
+    if (error instanceof EnhancedZodError) {
+      // Validation error with raw config - format nicely with context
+      printError("Configuration validation failed");
+      console.error(formatValidationErrors(error, error.rawConfig));
+      return 1;
+    }
+
     if (error instanceof ZodError) {
-      // Validation error - format nicely
+      // Validation error without raw config - format nicely without context
       printError("Configuration validation failed");
       console.error(formatValidationErrors(error));
       return 1;

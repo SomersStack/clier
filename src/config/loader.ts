@@ -17,12 +17,24 @@ export class ConfigLoadError extends Error {
 }
 
 /**
+ * Enhanced ZodError that carries the raw config for better error messages
+ */
+export class EnhancedZodError extends ZodError {
+  constructor(
+    public zodError: ZodError,
+    public rawConfig: unknown,
+  ) {
+    super(zodError.issues);
+  }
+}
+
+/**
  * Loads and validates a Clier configuration file
  *
  * @param filePath - Absolute path to the configuration JSON file
  * @returns Validated configuration object
  * @throws {ConfigLoadError} If file cannot be read or parsed
- * @throws {ZodError} If configuration validation fails
+ * @throws {EnhancedZodError} If configuration validation fails (includes raw config for better error messages)
  *
  * @example
  * ```ts
@@ -30,7 +42,7 @@ export class ConfigLoadError extends Error {
  *   const config = await loadConfig('./clier-pipeline.json');
  *   console.log(`Loaded config for project: ${config.project_name}`);
  * } catch (error) {
- *   if (error instanceof ZodError) {
+ *   if (error instanceof EnhancedZodError) {
  *     console.error('Validation errors:', error.errors);
  *   } else {
  *     console.error('Failed to load config:', error);
@@ -39,12 +51,13 @@ export class ConfigLoadError extends Error {
  * ```
  */
 export async function loadConfig(filePath: string): Promise<ClierConfig> {
+  let rawConfig: unknown;
+
   try {
     // Read file
     const fileContent = await readFile(filePath, "utf-8");
 
     // Parse JSON
-    let rawConfig: unknown;
     try {
       rawConfig = JSON.parse(fileContent);
     } catch (error) {
@@ -59,13 +72,18 @@ export async function loadConfig(filePath: string): Promise<ClierConfig> {
 
     return config;
   } catch (error) {
-    // Re-throw ZodError as-is for detailed validation messages
-    if (error instanceof ZodError) {
-      throw error;
+    // Wrap ZodError with raw config for better error messages
+    if (error instanceof ZodError && rawConfig !== undefined) {
+      throw new EnhancedZodError(error, rawConfig);
     }
 
     // Re-throw ConfigLoadError as-is
     if (error instanceof ConfigLoadError) {
+      throw error;
+    }
+
+    // Re-throw ZodError as-is if we don't have rawConfig
+    if (error instanceof ZodError) {
       throw error;
     }
 

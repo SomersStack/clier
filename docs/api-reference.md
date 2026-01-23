@@ -259,8 +259,8 @@ await watcher.stop();
 ```
 
 **Behavior**:
-1. Stops all PM2 processes
-2. Disconnects from PM2
+1. Stops all managed processes
+2. Shuts down the daemon
 3. Cleans up event listeners
 4. Shuts down all components
 
@@ -422,8 +422,8 @@ The Watcher class is used internally by the CLI. For command-line usage, see:
 ```bash
 clier start          # Uses Watcher.start()
 clier stop           # Uses Watcher.stop()
-clier status         # Queries PM2 for process status
-clier logs [name]    # Streams logs from PM2
+clier status         # Queries daemon for process status
+clier logs [name]    # Streams logs from daemon
 ```
 
 ---
@@ -498,14 +498,14 @@ try {
 }
 ```
 
-**PM2 Connection Error**:
+**Daemon Connection Error**:
 ```typescript
 try {
   await watcher.start('./config.json');
 } catch (error) {
-  if (error.message.includes('PM2')) {
-    console.error('Failed to connect to PM2:', error);
-    console.log('Try: npm install -g pm2');
+  if (error.message.includes('daemon')) {
+    console.error('Failed to start daemon:', error);
+    console.log('Check .clier/daemon.log for details');
   }
 }
 ```
@@ -514,7 +514,7 @@ try {
 ```typescript
 // Errors are logged but don't throw
 // Check logs: clier logs [process-name]
-// Or PM2 directly: pm2 logs
+// Or daemon logs: cat .clier/daemon.log
 ```
 
 ---
@@ -538,7 +538,6 @@ clier/
 ## Version Compatibility
 
 - Node.js: >= 18.0.0
-- PM2: ^5.3.0
 - TypeScript: ^5.3.3 (for development)
 
 ---

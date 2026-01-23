@@ -1,39 +1,26 @@
 # Clier
 
-A PM2-based process orchestration framework with event-driven pipeline management.
+> Native Node.js process orchestration framework with event-driven pipeline management
 
-## Overview
+## What is Clier?
 
-Clier is a lightweight orchestration tool that manages multiple processes using PM2, with intelligent event-driven coordination between services and tasks. It provides:
+Clier manages multi-process pipelines with event-driven coordination. Define your services and tasks in a JSON config, and Clier handles dependencies, restarts, and event-based triggers.
 
-- **Process Management**: Leverages PM2 for robust process lifecycle management
-- **Event-Driven Pipeline**: Services and tasks communicate through events
-- **Safety Controls**: Built-in rate limiting and debouncing to prevent runaway processes
-- **Type Safety**: Full TypeScript support with Zod schema validation
-- **Environment Substitution**: Dynamic environment variable substitution in configuration
+**Key Features:**
+- Event-driven process coordination
+- Pattern-based stdout/stderr monitoring
+- Built-in safety (rate limiting, debouncing, circuit breakers)
+- Type-safe configuration with Zod validation
+- Background daemon architecture
 
-## Project Status
+## Quick Start
 
-This project is currently in **Phase 1: Project Setup & Configuration Schema**.
+```bash
+# Install globally
+npm install -g clier
 
-### Completed
-- TypeScript project initialization with ESM modules
-- Zod schema for configuration validation
-- Type-safe configuration types
-- Configuration loader with validation
-- Basic Winston logging setup
-- Comprehensive test suite
-
-### Upcoming Phases
-- Phase 2: PM2 Installer Script
-- Phase 3: Core Engine & Event Bus
-- Phase 4: Testing & Documentation
-
-## Configuration
-
-Clier uses a `clier-pipeline.json` configuration file with the following structure:
-
-```json
+# Create configuration
+cat > clier-pipeline.json << 'EOF'
 {
   "project_name": "my-app",
   "global_env": true,
@@ -46,92 +33,108 @@ Clier uses a `clier-pipeline.json` configuration file with the following structu
       "name": "backend",
       "command": "npm start",
       "type": "service",
-      "env": {
-        "PORT": "${PORT}",
-        "NODE_ENV": "production"
-      },
-      "cwd": "/app/backend",
       "events": {
         "on_stdout": [
-          {
-            "pattern": "Server listening",
-            "emit": "backend:ready"
-          }
+          { "pattern": "Server listening", "emit": "backend:ready" }
         ],
         "on_stderr": true,
         "on_crash": true
       }
-    },
-    {
-      "name": "migrate",
-      "command": "npm run migrate",
-      "type": "task",
-      "trigger_on": ["backend:ready"],
-      "continue_on_failure": false,
-      "events": {
-        "on_stdout": [
-          {
-            "pattern": "Migration complete",
-            "emit": "migrate:done"
-          }
-        ]
-      }
     }
   ]
 }
+EOF
+
+# Validate and start
+clier validate
+clier start
+
+# Monitor
+clier status
+clier logs backend
+clier logs --daemon  # View daemon orchestration logs
+```
+
+## Documentation
+
+- **[Getting Started Guide](docs/GETTING-STARTED.md)** - Installation, architecture, and examples
+- **[Agent CLI Guide](docs/AGENTS.md)** - CLI commands quick reference for AI agents
+- **[Agent Pipeline Guide](docs/AGENTS-PIPELINE.md)** - Pipeline configuration for AI agents
+- **[Configuration Reference](docs/configuration.md)** - Complete schema documentation
+- **[API Reference](docs/api-reference.md)** - TypeScript types and programmatic usage
+
+## CLI Commands
+
+```bash
+clier validate              # Validate configuration
+clier start                 # Start pipeline daemon
+clier status                # View process status
+clier logs <name>           # View process logs
+clier logs --daemon         # View daemon logs
+clier stop                  # Stop all processes
+clier reload                # Hot reload configuration
+clier update                # Update to latest version
+
+# Service control
+clier service start <name>
+clier service stop <name> [--force]
+clier service restart <name> [--force]
+clier service add <name> -c "command" [options]
+clier service remove <name>
 ```
 
 ## Development
 
 ### Prerequisites
-- Node.js 18+
-- npm or pnpm
+- Node.js >= 18.0.0
+- npm, yarn, pnpm, or bun
 
-### Installation
+### Setup
 
 ```bash
+# Install dependencies
 npm install
-```
 
-### Testing
-
-```bash
 # Run tests
 npm test
 
-# Run tests in watch mode
-npm run test
-
-# Run tests with UI
-npm run test:ui
-```
-
-### Building
-
-```bash
+# Build
 npm run build
-```
 
-### Type Checking
-
-```bash
+# Type check
 npm run typecheck
 ```
 
-## Architecture
+### Project Structure
 
-### Configuration Schema
+```
+clier/
+├── src/
+│   ├── cli/              # CLI commands
+│   ├── config/           # Configuration schema and loader
+│   ├── core/             # Process manager and orchestrator
+│   ├── daemon/           # Background daemon
+│   └── utils/            # Logging and utilities
+├── docs/                 # Documentation
+├── examples/             # Example pipelines
+└── tests/                # Test suites
+```
 
-The configuration is validated using Zod with strict type checking:
+## Use Cases
 
-- **Global Settings**: Project name, environment inheritance, safety limits
-- **Pipeline Items**: Services (long-running) and tasks (one-off)
-- **Event System**: Pattern-based stdout parsing, stderr/crash events
-- **Environment**: Variable substitution with `${VAR}` syntax
+- **Development workflows**: Start database, API, and frontend in correct order
+- **CI/CD pipelines**: Sequential builds, tests, and deployments
+- **Microservices**: Coordinate service dependencies and health checks
+- **Data pipelines**: Event-driven ETL and processing workflows
 
-### Type Safety
+## Requirements
 
-All configuration is fully type-safe using TypeScript types inferred from the Zod schema. This ensures compile-time type checking and excellent IDE support.
+- Node.js >= 18.0.0
+- Unix-like OS (macOS, Linux) - Windows support planned
+
+## Contributing
+
+Contributions welcome! Please open an issue or PR.
 
 ## License
 

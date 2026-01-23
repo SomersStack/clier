@@ -34,9 +34,16 @@ const fileFormat = winston.format.combine(
 
 /**
  * Get or create the log directory
+ *
+ * @param projectRoot - Optional project root directory. If not provided, will not create directories.
  */
-function getLogDirectory(): string {
-  const logDir = path.join(process.cwd(), ".clier", "logs");
+function getLogDirectory(projectRoot?: string): string | null {
+  // If no project root provided, return null (don't create directories)
+  if (!projectRoot) {
+    return null;
+  }
+
+  const logDir = path.join(projectRoot, ".clier", "logs");
 
   if (!existsSync(logDir)) {
     try {
@@ -44,6 +51,7 @@ function getLogDirectory(): string {
     } catch (error) {
       // If we can't create the log directory, fall back to console only
       console.warn(`Failed to create log directory: ${logDir}`);
+      return null;
     }
   }
 
@@ -68,6 +76,7 @@ export function createLogger(options: {
   silent?: boolean;
   context?: string;
   enableFileLogging?: boolean;
+  projectRoot?: string;
 }): winston.Logger {
   const transports: winston.transport[] = [
     new winston.transports.Console({
@@ -75,36 +84,38 @@ export function createLogger(options: {
     }),
   ];
 
-  // Add file transports if enabled
-  if (options.enableFileLogging !== false) {
-    const logDir = getLogDirectory();
+  // Add file transports if enabled AND project root is provided
+  if (options.enableFileLogging !== false && options.projectRoot) {
+    const logDir = getLogDirectory(options.projectRoot);
 
-    try {
-      // Combined log file (all levels)
-      transports.push(
-        new winston.transports.File({
-          filename: path.join(logDir, "combined.log"),
-          format: fileFormat,
-          maxsize: 10 * 1024 * 1024, // 10MB
-          maxFiles: 5,
-          tailable: true,
-        }),
-      );
+    if (logDir) {
+      try {
+        // Combined log file (all levels)
+        transports.push(
+          new winston.transports.File({
+            filename: path.join(logDir, "combined.log"),
+            format: fileFormat,
+            maxsize: 10 * 1024 * 1024, // 10MB
+            maxFiles: 5,
+            tailable: true,
+          }),
+        );
 
-      // Error log file (errors only)
-      transports.push(
-        new winston.transports.File({
-          filename: path.join(logDir, "error.log"),
-          level: "error",
-          format: fileFormat,
-          maxsize: 10 * 1024 * 1024, // 10MB
-          maxFiles: 5,
-          tailable: true,
-        }),
-      );
-    } catch (error) {
-      // If file logging fails, just use console
-      console.warn("Failed to initialize file logging:", error);
+        // Error log file (errors only)
+        transports.push(
+          new winston.transports.File({
+            filename: path.join(logDir, "error.log"),
+            level: "error",
+            format: fileFormat,
+            maxsize: 10 * 1024 * 1024, // 10MB
+            maxFiles: 5,
+            tailable: true,
+          }),
+        );
+      } catch (error) {
+        // If file logging fails, just use console
+        console.warn("Failed to initialize file logging:", error);
+      }
     }
   }
 

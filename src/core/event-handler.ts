@@ -95,13 +95,15 @@ export class EventHandler {
   registerPipelineItem(item: PipelineItem): void {
     this.pipelineItems.set(item.name, item);
 
-    // Register stdout patterns
-    for (const stdoutEvent of item.events.on_stdout) {
-      const pattern = new RegExp(stdoutEvent.pattern);
-      this.patternMatcher.addPattern(item.name, pattern, stdoutEvent.emit);
-      logger.debug(
-        `Registered pattern for ${item.name}: ${stdoutEvent.pattern} -> ${stdoutEvent.emit}`,
-      );
+    // Register stdout patterns (if events config exists)
+    if (item.events?.on_stdout) {
+      for (const stdoutEvent of item.events.on_stdout) {
+        const pattern = new RegExp(stdoutEvent.pattern);
+        this.patternMatcher.addPattern(item.name, pattern, stdoutEvent.emit);
+        logger.debug(
+          `Registered pattern for ${item.name}: ${stdoutEvent.pattern} -> ${stdoutEvent.emit}`,
+        );
+      }
     }
   }
 
@@ -138,8 +140,8 @@ export class EventHandler {
       this.handleStdout(event, item);
     }
 
-    // Handle stderr
-    if (event.type === "stderr" && item.events.on_stderr) {
+    // Handle stderr (if events config exists)
+    if (event.type === "stderr" && item.events?.on_stderr) {
       this.handleStderr(event, item);
     }
 
@@ -276,8 +278,8 @@ export class EventHandler {
       return;
     }
 
-    // For services or tasks with non-zero exit: crash
-    if (item.events.on_crash && exitCode !== 0) {
+    // For services or tasks with non-zero exit: crash (if events config exists)
+    if (item.events?.on_crash && exitCode !== 0) {
       const crashEvent: ClierEvent = {
         name: `${item.name}:crashed`,
         processName: item.name,

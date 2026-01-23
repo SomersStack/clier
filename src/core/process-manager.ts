@@ -113,18 +113,19 @@ export class ProcessManager extends EventEmitter {
    * Stop a running process
    *
    * @param name - Process name
-   * @param signal - Signal to send (default: SIGTERM)
+   * @param force - If true, immediately use SIGKILL (default: false)
    * @param timeout - Timeout before force kill in ms (default: 5000)
    * @throws Error if process not found
    *
    * @example
    * ```ts
    * await manager.stopProcess('backend');
+   * await manager.stopProcess('backend', true); // Force kill
    * ```
    */
   async stopProcess(
     name: string,
-    signal: NodeJS.Signals = "SIGTERM",
+    force = false,
     timeout = 5000
   ): Promise<void> {
     const process = this.processes.get(name);
@@ -132,29 +133,31 @@ export class ProcessManager extends EventEmitter {
       throw new Error(`Process "${name}" not found`);
     }
 
-    logger.info("Stopping process", { name, signal });
-    await process.stop(signal, timeout);
+    logger.info("Stopping process", { name, force });
+    await process.stop(force, timeout);
   }
 
   /**
    * Restart a process
    *
    * @param name - Process name
+   * @param force - If true, use SIGKILL for the stop phase (default: false)
    * @throws Error if process not found
    *
    * @example
    * ```ts
    * await manager.restartProcess('backend');
+   * await manager.restartProcess('backend', true); // Force restart
    * ```
    */
-  async restartProcess(name: string): Promise<void> {
+  async restartProcess(name: string, force = false): Promise<void> {
     const process = this.processes.get(name);
     if (!process) {
       throw new Error(`Process "${name}" not found`);
     }
 
-    logger.info("Restarting process", { name });
-    await process.restart();
+    logger.info("Restarting process", { name, force });
+    await process.restart(force);
   }
 
   /**
@@ -250,7 +253,7 @@ export class ProcessManager extends EventEmitter {
     const stopPromises = Array.from(this.processes.values())
       .filter((p) => p.isRunning)
       .map((p) =>
-        p.stop("SIGTERM", timeout).catch((err) => {
+        p.stop(false, timeout).catch((err) => {
           logger.warn("Error stopping process during shutdown", {
             name: p.name,
             error: err.message,

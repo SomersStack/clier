@@ -112,8 +112,8 @@ describe("Config Schema Validation", () => {
 
       const result = configSchema.parse(config);
       expect(result.global_env).toBe(true); // default value
-      expect(result.pipeline[0]?.events.on_stderr).toBe(true); // default value
-      expect(result.pipeline[0]?.events.on_crash).toBe(true); // default value
+      expect(result.pipeline[0]?.events?.on_stderr).toBe(true); // default value
+      expect(result.pipeline[0]?.events?.on_crash).toBe(true); // default value
     });
   });
 
@@ -417,8 +417,8 @@ describe("Config Schema Validation", () => {
       };
 
       const result = configSchema.parse(config);
-      expect(result.pipeline[0]?.events.on_stdout).toHaveLength(2);
-      expect(result.pipeline[0]?.events.on_stdout[0]?.pattern).toBe("ready");
+      expect(result.pipeline[0]?.events?.on_stdout).toHaveLength(2);
+      expect(result.pipeline[0]?.events?.on_stdout[0]?.pattern).toBe("ready");
     });
 
     it("should handle boolean event flags", () => {
@@ -443,8 +443,68 @@ describe("Config Schema Validation", () => {
       };
 
       const result = configSchema.parse(config);
-      expect(result.pipeline[0]?.events.on_stderr).toBe(false);
-      expect(result.pipeline[0]?.events.on_crash).toBe(false);
+      expect(result.pipeline[0]?.events?.on_stderr).toBe(false);
+      expect(result.pipeline[0]?.events?.on_crash).toBe(false);
+    });
+
+    it("should allow omitting events configuration entirely", () => {
+      const config = {
+        project_name: "no-events-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "test-service",
+            command: "node server.js",
+            type: "service",
+          },
+        ],
+      };
+
+      const result = configSchema.parse(config);
+      expect(result).toBeDefined();
+      expect(result.pipeline[0]?.events).toBeUndefined();
+      expect(result.pipeline[0]?.name).toBe("test-service");
+    });
+
+    it("should allow mixed configurations with and without events", () => {
+      const config = {
+        project_name: "mixed-events-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "service-with-events",
+            command: "npm start",
+            type: "service",
+            events: {
+              on_stdout: [{ pattern: "ready", emit: "service:ready" }],
+              on_stderr: true,
+              on_crash: true,
+            },
+          },
+          {
+            name: "service-without-events",
+            command: "npm run watch",
+            type: "service",
+          },
+          {
+            name: "task-without-events",
+            command: "npm test",
+            type: "task",
+          },
+        ],
+      };
+
+      const result = configSchema.parse(config);
+      expect(result.pipeline).toHaveLength(3);
+      expect(result.pipeline[0]?.events).toBeDefined();
+      expect(result.pipeline[1]?.events).toBeUndefined();
+      expect(result.pipeline[2]?.events).toBeUndefined();
     });
   });
 });

@@ -1,10 +1,10 @@
-# Clier Documentation
+# Clier - Getting Started Guide
 
 > Native Node.js process orchestration framework with event-driven pipeline management
 
 ## What is Clier?
 
-Clier is a powerful orchestration tool that manages complex multi-process pipelines using native Node.js child processes and a background daemon. It allows you to:
+Clier is a powerful orchestration tool that manages complex multi-process pipelines using a background daemon. It allows you to:
 
 - Define process dependencies using events
 - Chain services and tasks together
@@ -26,14 +26,15 @@ Clier is a powerful orchestration tool that manages complex multi-process pipeli
 - **Circuit Breaker**: Stop cascading failures automatically
 
 ### Process Types
-- **Services**: Long-running processes (web servers, APIs, workers)
-- **Tasks**: One-off operations (builds, tests, migrations)
+- **Services**: Long-running processes (web servers, APIs, workers) - auto-restarted on crash
+- **Tasks**: One-off operations (builds, tests, migrations) - exit when complete
 
 ### Flexible Configuration
 - Environment variable substitution
 - Working directory control
 - Continue-on-failure for graceful degradation
 - JSON-based declarative config
+- Type-safe with Zod validation
 
 ## Installation
 
@@ -126,12 +127,14 @@ This will:
 # View all processes
 clier status
 
-# View logs
+# View process logs
 clier logs backend
-clier logs frontend
+clier logs frontend -n 50            # Last 50 lines
+clier logs backend --since 5m        # Last 5 minutes
 
-# View all logs
-clier logs
+# View daemon logs (for debugging orchestration)
+clier logs --daemon
+clier logs --daemon --level error    # Errors only
 ```
 
 ### 5. Stop the Pipeline
@@ -140,9 +143,11 @@ clier logs
 clier stop
 ```
 
-This gracefully shuts down all processes.
+This gracefully shuts down all processes and their child processes.
 
 ## Common Patterns
+
+For complete pattern examples and explanations, see the [Configuration Reference](configuration.md).
 
 ### Sequential Tasks (CI/CD)
 
@@ -176,29 +181,52 @@ This gracefully shuts down all processes.
 }
 ```
 
-### Parallel Services
+**Flow**: lint → build → deploy (sequential execution)
+
+### Service Dependencies
 
 ```json
 {
   "pipeline": [
     {
+      "name": "db",
+      "command": "docker-compose up db",
+      "type": "service",
+      "events": {
+        "on_stdout": [{ "pattern": "ready to accept connections", "emit": "db:ready" }]
+      }
+    },
+    {
       "name": "api",
       "command": "node server.js",
-      "type": "service"
+      "type": "service",
+      "trigger_on": ["db:ready"]
     },
     {
       "name": "worker",
       "command": "node worker.js",
-      "type": "service"
-    },
-    {
-      "name": "scheduler",
-      "command": "node scheduler.js",
-      "type": "service"
+      "type": "service",
+      "trigger_on": ["db:ready"]
     }
   ]
 }
 ```
+
+**Flow**: Database → API and Worker start in parallel
+
+### Parallel Services
+
+```json
+{
+  "pipeline": [
+    { "name": "api", "command": "node server.js", "type": "service" },
+    { "name": "worker", "command": "node worker.js", "type": "service" },
+    { "name": "scheduler", "command": "node scheduler.js", "type": "service" }
+  ]
+}
+```
+
+**Flow**: All start simultaneously (no dependencies)
 
 ### Graceful Degradation
 
@@ -227,50 +255,60 @@ This gracefully shuts down all processes.
 }
 ```
 
-## Documentation
-
-- [Configuration Guide](./configuration.md) - Complete schema reference
-- [API Reference](./api-reference.md) - TypeScript types and public API
-- [Examples](./examples/README.md) - Real-world example pipelines
-
-## Examples
-
-Located in the `examples/` directory:
-
-- **lint-build-api**: Complete CI/CD pipeline (lint → build → deploy)
-- **circuit-breaker**: Circuit breaker triggering and recovery
-- **continue-on-failure**: Graceful degradation patterns
-- **multi-pattern**: Multiple event patterns from single process
-
-Each example includes:
-- Working configuration
-- Supporting scripts
-- README with explanation
-- Usage instructions
+**Flow**: App starts regardless of cache warming success/failure
 
 ## CLI Commands
 
+All commands accept an optional `--config` flag (default: `./clier-pipeline.json`).
+
+### Essential Commands
+
 ```bash
-# Start pipeline
-clier start [--config ./path/to/config.json]
+# Validate configuration (always run first!)
+clier validate
 
-# Stop all processes
-clier stop [--config ./path/to/config.json]
+# Start pipeline (launches daemon in background)
+clier start
 
-# View status
-clier status [--config ./path/to/config.json]
+# Check process status
+clier status
 
 # View logs
-clier logs [process-name] [--config ./path/to/config.json]
+clier logs <name>                    # Specific process logs
+clier logs <name> -n 50              # Last 50 lines
+clier logs <name> --since 5m         # Logs from last 5 minutes
+clier logs --daemon                  # View daemon logs
+clier logs --daemon --level error    # View daemon error logs only
 
-# Reload configuration
-clier reload [--config ./path/to/config.json]
+# Stop all processes
+clier stop
 
-# Validate configuration
-clier validate [--config ./path/to/config.json]
+# Reload configuration (hot reload without full restart)
+clier reload
+
+# Update Clier to latest version
+clier update                         # Update to latest version
+clier update --check                 # Check if updates available
 ```
 
-Default config path: `./clier-pipeline.json`
+### Service Control Commands
+
+Control individual services/processes dynamically:
+
+```bash
+# Start/stop/restart individual services
+clier service start <name>
+clier service stop <name> [--force]      # --force for immediate kill
+clier service restart <name> [--force]
+
+# Dynamically add/remove services (runtime-only, not persisted to JSON)
+clier service add <name> -c "command" [options]
+clier service remove <name>
+```
+
+**Note**: Service control commands modify the running daemon only. Changes do NOT persist to `clier-pipeline.json`. To persist changes, edit the config file and run `clier reload`.
+
+For detailed command documentation, see the [Agent Guide](AGENTS.md).
 
 ## Daemon Architecture
 
@@ -313,11 +351,41 @@ CLI Session 1          CLI Session 2          CLI Session 3
 .clier/
 ├── daemon.pid      # Daemon process ID
 ├── daemon.sock     # Unix socket for IPC
-├── daemon.log      # Daemon logs
-└── logs/           # Process logs
-    ├── backend.log
-    └── frontend.log
+└── logs/           # Log files
+    ├── combined.log  # Daemon logs (all levels)
+    ├── error.log     # Daemon errors only
+    ├── backend.log   # Process logs
+    └── frontend.log  # Process logs
 ```
+
+#### Viewing Logs
+
+Clier maintains two types of logs:
+
+**Process Logs** - Output from your pipeline processes:
+```bash
+clier logs backend              # View backend process logs
+clier logs backend -n 50        # Last 50 lines
+clier logs backend --since 5m   # Last 5 minutes
+```
+
+**Daemon Logs** - Internal Clier orchestration logs:
+```bash
+clier logs --daemon             # View all daemon activity
+clier logs --daemon --level error  # Only daemon errors
+clier logs --daemon -n 200      # More context
+```
+
+Use daemon logs to debug:
+- Process startup/shutdown issues
+- Event triggering problems
+- Circuit breaker activations
+- Configuration reload errors
+- Orchestration flow
+
+### Project Root Discovery
+
+Clier automatically finds the project root by searching upward through parent directories, similar to how Git finds `.git/` or npm finds `package.json`. This means you can run Clier commands from any subdirectory within your project.
 
 ## Component Architecture
 
@@ -377,18 +445,35 @@ CLI Session 1          CLI Session 2          CLI Session 3
 ## Requirements
 
 - Node.js >= 18.0.0
-- Unix-like OS (macOS, Linux) for Unix sockets (Windows support planned)
+- Unix-like OS (macOS, Linux) for Unix sockets
+- Windows support planned
+
+## Examples
+
+See the `examples/` directory for complete working examples:
+
+- **lint-build-api**: Complete CI/CD pipeline (lint → build → deploy)
+- **circuit-breaker**: Circuit breaker triggering and recovery
+- **continue-on-failure**: Graceful degradation patterns
+- **multi-pattern**: Multiple event patterns from single process
+
+Each example includes:
+- Working configuration
+- Supporting scripts
+- README with explanation
+- Usage instructions
+
+## Further Documentation
+
+- **[Agent CLI Guide](AGENTS.md)** - CLI commands quick reference for AI agents
+- **[Agent Pipeline Guide](AGENTS-PIPELINE.md)** - Pipeline configuration for AI agents
+- **[Configuration Reference](configuration.md)** - Complete schema documentation
+- **[API Reference](api-reference.md)** - TypeScript types and programmatic usage
 
 ## Contributing
 
-See the main [README.md](../README.md) for contribution guidelines.
+Contributions welcome! Please open an issue or PR on GitHub.
 
 ## License
 
 MIT
-
-## Support
-
-- GitHub Issues: [Report bugs](https://github.com/your-org/clier/issues)
-- Documentation: [Full docs](./configuration.md)
-- Examples: [See examples](./examples/README.md)

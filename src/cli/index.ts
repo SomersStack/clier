@@ -33,7 +33,7 @@ export function createCLI(): Command {
     .description(
       "Process orchestration framework with event-driven pipeline management"
     )
-    .version("0.2.0");
+    .version("0.3.0");
 
   // Start command
   program
@@ -69,15 +69,42 @@ export function createCLI(): Command {
   // Logs command
   program
     .command("logs")
-    .description("Show logs for a specific process")
-    .argument("<name>", "Process name")
+    .description("Show logs for a specific process or daemon")
+    .argument("[name]", "Process name (not required with --daemon)")
     .option("-n, --lines <number>", "Number of lines to show", "100")
     .option("--since <duration>", "Show logs since duration (e.g., 5m, 1h, 30s)")
+    .option("-d, --daemon", "Show daemon logs instead of process logs")
+    .option(
+      "-l, --level <level>",
+      "Log level for daemon logs (combined or error)",
+      "combined"
+    )
     .action(
-      async (name: string, options: { lines: string; since?: string }) => {
-        const exitCode = await logsCommand(name, {
+      async (
+        name: string | undefined,
+        options: {
+          lines: string;
+          since?: string;
+          daemon?: boolean;
+          level?: "combined" | "error";
+        }
+      ) => {
+        // Validate that name is provided if not using --daemon
+        if (!options.daemon && !name) {
+          console.error("Error: Process name is required unless using --daemon");
+          console.log();
+          console.log("Usage:");
+          console.log("  clier logs <name>         Show process logs");
+          console.log("  clier logs --daemon       Show daemon logs");
+          console.log();
+          process.exit(1);
+        }
+
+        const exitCode = await logsCommand(name || "", {
           lines: parseInt(options.lines, 10),
           since: options.since,
+          daemon: options.daemon,
+          level: options.level,
         });
         process.exit(exitCode);
       }
@@ -139,8 +166,9 @@ export function createCLI(): Command {
     .command("stop")
     .description("Stop a specific service")
     .argument("<name>", "Service name")
-    .action(async (name: string) => {
-      const exitCode = await serviceStopCommand(name);
+    .option("-f, --force", "Force kill with SIGKILL (immediate termination)")
+    .action(async (name: string, options: { force?: boolean }) => {
+      const exitCode = await serviceStopCommand(name, options.force ?? false);
       process.exit(exitCode);
     });
 
@@ -148,8 +176,9 @@ export function createCLI(): Command {
     .command("restart")
     .description("Restart a specific service")
     .argument("<name>", "Service name")
-    .action(async (name: string) => {
-      const exitCode = await serviceRestartCommand(name);
+    .option("-f, --force", "Force kill with SIGKILL (immediate termination)")
+    .action(async (name: string, options: { force?: boolean }) => {
+      const exitCode = await serviceRestartCommand(name, options.force ?? false);
       process.exit(exitCode);
     });
 

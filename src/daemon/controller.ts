@@ -51,12 +51,15 @@ export class DaemonController {
   /**
    * Stop a specific process
    */
-  async "process.stop"(params: { name: string }): Promise<{ success: true }> {
+  async "process.stop"(params: {
+    name: string;
+    force?: boolean;
+  }): Promise<{ success: true }> {
     const manager = this.watcher.getProcessManager();
     if (!manager) {
       throw new Error("ProcessManager not initialized");
     }
-    await manager.stopProcess(params.name);
+    await manager.stopProcess(params.name, params.force ?? false);
     return { success: true };
   }
 
@@ -65,12 +68,13 @@ export class DaemonController {
    */
   async "process.restart"(params: {
     name: string;
+    force?: boolean;
   }): Promise<{ success: true }> {
     const manager = this.watcher.getProcessManager();
     if (!manager) {
       throw new Error("ProcessManager not initialized");
     }
-    await manager.restartProcess(params.name);
+    await manager.restartProcess(params.name, params.force ?? false);
     return { success: true };
   }
 
@@ -159,5 +163,44 @@ export class DaemonController {
     // Trigger graceful shutdown
     process.kill(process.pid, "SIGTERM");
     return { success: true };
+  }
+
+  /**
+   * Get daemon logs (from Winston log files)
+   */
+  async "daemon.logs"(params: {
+    lines?: number;
+    level?: "combined" | "error";
+  }): Promise<string[]> {
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const { findProjectRoot } = await import("../utils/project-root.js");
+
+    const projectRoot = findProjectRoot();
+    if (!projectRoot) {
+      throw new Error("Could not find project root");
+    }
+
+    const logFile =
+      params.level === "error" ? "error.log" : "combined.log";
+    const logPath = path.join(projectRoot, ".clier", "logs", logFile);
+
+    try {
+      const content = await fs.readFile(logPath, "utf-8");
+      const lines = content.trim().split("\n").filter(Boolean);
+      const limit = params.lines || 100;
+
+      // Return last N lines
+      return lines.slice(-limit);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
+        return [];
+      }
+      throw error;
+    }
   }
 }

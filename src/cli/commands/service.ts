@@ -73,15 +73,23 @@ export async function serviceStartCommand(
  * Stop a specific service
  *
  * @param serviceName - Name of the service to stop
+ * @param force - If true, use SIGKILL instead of graceful shutdown
  * @returns Exit code (0 for success, 1 for failure)
  */
-export async function serviceStopCommand(serviceName: string): Promise<number> {
+export async function serviceStopCommand(
+  serviceName: string,
+  force = false
+): Promise<number> {
   try {
     const client = await getDaemonClient();
 
-    console.log(chalk.cyan(`\nStopping service: ${serviceName}`));
+    console.log(
+      chalk.cyan(
+        `\nStopping service: ${serviceName}${force ? " (force)" : ""}`
+      )
+    );
 
-    await client.request("process.stop", { name: serviceName });
+    await client.request("process.stop", { name: serviceName, force });
 
     printSuccess(`Service "${serviceName}" stopped successfully`);
     console.log();
@@ -89,10 +97,7 @@ export async function serviceStopCommand(serviceName: string): Promise<number> {
     client.disconnect();
     return 0;
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("not running")
-    ) {
+    if (error instanceof Error && error.message.includes("not running")) {
       printWarning("Clier daemon is not running");
       console.log();
       console.log("  Start it with: clier start");
@@ -109,17 +114,23 @@ export async function serviceStopCommand(serviceName: string): Promise<number> {
  * Restart a specific service
  *
  * @param serviceName - Name of the service to restart
+ * @param force - If true, use SIGKILL for the stop phase
  * @returns Exit code (0 for success, 1 for failure)
  */
 export async function serviceRestartCommand(
-  serviceName: string
+  serviceName: string,
+  force = false
 ): Promise<number> {
   try {
     const client = await getDaemonClient();
 
-    console.log(chalk.cyan(`\nRestarting service: ${serviceName}`));
+    console.log(
+      chalk.cyan(
+        `\nRestarting service: ${serviceName}${force ? " (force)" : ""}`
+      )
+    );
 
-    await client.request("process.restart", { name: serviceName });
+    await client.request("process.restart", { name: serviceName, force });
 
     printSuccess(`Service "${serviceName}" restarted successfully`);
     console.log();
@@ -127,10 +138,7 @@ export async function serviceRestartCommand(
     client.disconnect();
     return 0;
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("not running")
-    ) {
+    if (error instanceof Error && error.message.includes("not running")) {
       printWarning("Clier daemon is not running");
       console.log();
       console.log("  Start it with: clier start");

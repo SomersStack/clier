@@ -4,8 +4,8 @@ import { z } from "zod";
  * Schema for stdout event pattern matching
  */
 const stdoutEventSchema = z.object({
-  pattern: z.string().min(1, "Pattern must not be empty"),
-  emit: z.string().min(1, "Event name must not be empty"),
+  pattern: z.string().min(1, "Pattern must not be empty - provide a regex pattern to match stdout"),
+  emit: z.string().min(1, "Event name must not be empty - provide the name of the event to emit"),
 });
 
 /**
@@ -21,14 +21,16 @@ const eventsSchema = z.object({
  * Schema for pipeline item configuration
  */
 const pipelineItemSchema = z.object({
-  name: z.string().min(1, "Pipeline name must not be empty"),
-  command: z.string().min(1, "Command must not be empty"),
-  type: z.enum(["service", "task"]),
+  name: z.string().min(1, "Pipeline name must not be empty - provide a unique identifier"),
+  command: z.string().min(1, "Command must not be empty - provide the shell command to execute"),
+  type: z.enum(["service", "task"], {
+    errorMap: () => ({ message: "Expected 'service' or 'task'" }),
+  }),
   trigger_on: z.array(z.string()).optional(),
   continue_on_failure: z.boolean().optional(),
   env: z.record(z.string(), z.string()).optional(),
   cwd: z.string().optional(),
-  events: eventsSchema,
+  events: eventsSchema.optional(),
 });
 
 /**
@@ -78,10 +80,10 @@ const safetySchema = z.object({
  */
 export const configSchema = z
   .object({
-    project_name: z.string().min(1, "Project name must not be empty"),
+    project_name: z.string().min(1, "Project name must not be empty - provide a descriptive name for your project"),
     global_env: z.boolean().default(true),
     safety: safetySchema,
-    pipeline: z.array(pipelineItemSchema),
+    pipeline: z.array(pipelineItemSchema).min(1, "Pipeline must contain at least one item"),
   })
   .strict()
   .refine(
@@ -92,7 +94,7 @@ export const configSchema = z
       return names.length === uniqueNames.size;
     },
     {
-      message: "Pipeline items must have unique names - duplicate name found",
+      message: "Pipeline items must have unique names - found duplicate names",
     },
   );
 

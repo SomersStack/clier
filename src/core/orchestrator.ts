@@ -103,21 +103,24 @@ export class Orchestrator {
 
     // Collect all possible event names from pipeline items
     for (const item of this.config.pipeline) {
-      // Events can be emitted by:
-      // 1. Pattern matches (from events.on_stdout field)
-      if (item.events?.on_stdout) {
-        for (const stdout of item.events.on_stdout) {
-          allEventNames.add(stdout.emit);
+      // Only collect events if events config exists
+      if (item.events) {
+        // Events can be emitted by:
+        // 1. Pattern matches (from events.on_stdout field)
+        if (item.events.on_stdout) {
+          for (const stdout of item.events.on_stdout) {
+            allEventNames.add(stdout.emit);
+          }
         }
-      }
 
-      // 2. Process exit, error, and crash events
-      allEventNames.add(`${item.name}:exit`);
-      if (item.events?.on_stderr) {
-        allEventNames.add(`${item.name}:error`);
-      }
-      if (item.events?.on_crash) {
-        allEventNames.add(`${item.name}:crashed`);
+        // 2. Process exit, error, and crash events
+        allEventNames.add(`${item.name}:exit`);
+        if (item.events.on_stderr) {
+          allEventNames.add(`${item.name}:error`);
+        }
+        if (item.events.on_crash) {
+          allEventNames.add(`${item.name}:crashed`);
+        }
       }
     }
 

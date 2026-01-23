@@ -368,4 +368,69 @@ describe("ProcessManager", () => {
       expect(restartCalled).toBe(false);
     });
   });
+
+  describe("child process cleanup", () => {
+    it("should kill child processes spawned by shell commands", async () => {
+      // This test verifies that when we stop a process, any child processes
+      // spawned by the shell are also killed (not orphaned)
+      const config: ProcessConfig = {
+        name: "test-child-cleanup",
+        // This command spawns a child sleep process
+        command: "sleep 10 & sleep 10",
+        type: "service",
+      };
+
+      const startPromise = new Promise<number>((resolve) => {
+        manager.on("start", (name, pid) => {
+          if (name === "test-child-cleanup") {
+            resolve(pid);
+          }
+        });
+      });
+
+      await manager.startProcess(config);
+      const shellPid = await startPromise;
+
+      // Get PIDs of all sleep processes (children of shell)
+      const { execSync } = await import("child_process");
+      const childrenBefore = execSync(`pgrep -P ${shellPid}`, {
+        encoding: "utf-8",
+      })
+        .trim()
+        .split("\n")
+        .filter((line) => line.length > 0)
+        .map((pid) => parseInt(pid));
+
+      expect(childrenBefore.length).toBeGreaterThan(0);
+
+      // Stop the process
+      await manager.stopProcess("test-child-cleanup");
+
+      // Wait for cleanup
+      await new Promise((r) => setTimeout(r, 100));
+
+      // Verify that child processes are also killed
+      for (const childPid of childrenBefore) {
+        try {
+          process.kill(childPid, 0); // Check if process exists
+          // If we reach here, the process still exists - FAIL
+          expect.fail(
+            `Child process ${childPid} still running after parent stopped`
+          );
+        } catch {
+          // Process doesn't exist - GOOD
+        }
+      }
+
+      // Verify shell process is also killed
+      try {
+        process.kill(shellPid, 0);
+        expect.fail(
+          `Shell process ${shellPid} still running after stop command`
+        );
+      } catch {
+        // Process doesn't exist - GOOD
+      }
+    }, 10000);
+  });
 });

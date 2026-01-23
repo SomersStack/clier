@@ -112,7 +112,7 @@ Clier uses a JSON configuration file (default: `clier-pipeline.json`) to define 
   "continue_on_failure": boolean, // Optional: Failure handling
   "env": Record<string, string>,  // Optional: Environment variables
   "cwd": string,                  // Optional: Working directory
-  "events": EventsConfig          // Required: Event configuration
+  "events": EventsConfig          // Optional: Event configuration
 }
 ```
 
@@ -183,9 +183,10 @@ See [Continue on Failure](#continue-on-failure) for details.
 - Default: Current directory
 - Example: `"/app/backend"`, `"./services/api"`
 
-**`events`** (required)
+**`events`** (optional)
 - Type: `EventsConfig`
-- Description: Event emission rules
+- Description: Event emission rules for stdout pattern matching, stderr, and crash events
+- Default: If omitted, no special event emissions occur (process runs normally without event coordination)
 - See [Events Configuration](#events-configuration)
 
 ---
@@ -562,7 +563,26 @@ Reference existing environment variables:
 
 ## Examples
 
-### Basic Service
+### Simple Service (No Events)
+
+For simple use cases where you don't need event coordination:
+
+```json
+{
+  "name": "web",
+  "command": "npm start",
+  "type": "service",
+  "env": {
+    "PORT": "8080"
+  }
+}
+```
+
+No `events` configuration needed - the service will run normally without special event emissions.
+
+### Basic Service with Events
+
+For event-driven coordination:
 
 ```json
 {

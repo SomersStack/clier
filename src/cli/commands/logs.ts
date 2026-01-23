@@ -15,6 +15,10 @@ export interface LogsOptions {
   lines?: number;
   /** Show logs since duration (e.g., "5m", "1h", "30s") */
   since?: string;
+  /** Show daemon logs instead of process logs */
+  daemon?: boolean;
+  /** Log level for daemon logs (combined or error) */
+  level?: "combined" | "error";
 }
 
 /**
@@ -43,9 +47,9 @@ function parseDuration(duration: string): number | null {
 }
 
 /**
- * Show logs for a specific process
+ * Show logs for a specific process or daemon
  *
- * @param processName - Name of the process
+ * @param processName - Name of the process (ignored if --daemon is used)
  * @param options - Logs options
  * @returns Exit code (0 for success, 1 for failure)
  */
@@ -56,6 +60,75 @@ export async function logsCommand(
   try {
     const client = await getDaemonClient();
 
+    // Handle daemon logs
+    if (options.daemon) {
+      const logLines: string[] = await client.request("daemon.logs", {
+        lines: options.lines,
+        level: options.level || "combined",
+      });
+
+      client.disconnect();
+
+      // Display header
+      const logType = options.level === "error" ? "Error Logs" : "Combined Logs";
+      console.log(chalk.cyan(`\nDaemon ${logType}`));
+      console.log(chalk.gray("─".repeat(50)));
+      console.log(chalk.gray(`Showing last ${options.lines || 100} lines`));
+      console.log();
+
+      // Display logs
+      if (logLines.length === 0) {
+        printWarning("No daemon logs found");
+        return 0;
+      }
+
+      for (const line of logLines) {
+        // Parse JSON log line
+        try {
+          const log = JSON.parse(line);
+          const timestamp = log.timestamp || new Date().toISOString();
+          const level = log.level || "info";
+          const message = log.message || line;
+          const context = log.context ? chalk.blue(`[${log.context}]`) : "";
+
+          // Colorize level
+          let levelColor;
+          switch (level) {
+            case "error":
+              levelColor = chalk.red(level.toUpperCase());
+              break;
+            case "warn":
+              levelColor = chalk.yellow(level.toUpperCase());
+              break;
+            case "info":
+              levelColor = chalk.green(level.toUpperCase());
+              break;
+            case "debug":
+              levelColor = chalk.gray(level.toUpperCase());
+              break;
+            default:
+              levelColor = level.toUpperCase();
+          }
+
+          console.log(
+            `${chalk.gray(timestamp)} ${levelColor} ${context} ${message}`
+          );
+
+          // Show stack trace if available
+          if (log.stack) {
+            console.log(chalk.gray(log.stack));
+          }
+        } catch {
+          // If not JSON, just print the line
+          console.log(line);
+        }
+      }
+
+      console.log();
+      return 0;
+    }
+
+    // Handle process logs (original behavior)
     // Parse since duration if provided
     let sinceTimestamp: number | undefined;
     if (options.since) {
@@ -87,9 +160,7 @@ export async function logsCommand(
     if (options.since) {
       console.log(chalk.gray(`Showing logs from the last ${options.since}`));
     } else {
-      console.log(
-        chalk.gray(`Showing last ${options.lines || 100} lines`)
-      );
+      console.log(chalk.gray(`Showing last ${options.lines || 100} lines`));
     }
     console.log();
 
@@ -110,10 +181,7 @@ export async function logsCommand(
 
     return 0;
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("not running")
-    ) {
+    if (error instanceof Error && error.message.includes("not running")) {
       printWarning("Clier daemon is not running");
       console.log();
       console.log("  Start it with: clier start");

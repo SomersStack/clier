@@ -158,11 +158,14 @@ export class ManagedProcess extends EventEmitter {
 
     try {
       // Spawn process with shell to handle command parsing
+      // Use detached: true to create a new process group, so we can kill
+      // the entire process tree (shell + children) when stopping
       this.child = spawn(this.config.command, [], {
         cwd: this.config.cwd || process.cwd(),
         env: { ...process.env, ...this.config.env },
         shell: true,
         stdio: ["ignore", "pipe", "pipe"],
+        detached: true,
       });
 
       this.lastStartTime = Date.now();
@@ -192,11 +195,11 @@ export class ManagedProcess extends EventEmitter {
 
   /**
    * Stop the process
+   *
+   * @param force - If true, immediately use SIGKILL instead of graceful shutdown
+   * @param timeout - Milliseconds to wait before force-killing (default: 5000)
    */
-  async stop(
-    signal: NodeJS.Signals = "SIGTERM",
-    timeout = 5000
-  ): Promise<void> {
+  async stop(force = false, timeout = 5000): Promise<void> {
     if (this._status !== "running" || !this.child) {
       logger.debug("Process not running, nothing to stop", {
         name: this.config.name,
@@ -212,41 +215,109 @@ export class ManagedProcess extends EventEmitter {
       this.restartTimer = undefined;
     }
 
+    const pid = this.child.pid;
+    const signal = force ? "SIGKILL" : "SIGTERM";
+
     logger.info("Stopping process", {
       name: this.config.name,
       signal,
-      pid: this.child.pid,
+      pid,
+      force,
     });
 
     return new Promise((resolve) => {
+      let resolved = false;
+      const safeResolve = () => {
+        if (!resolved) {
+          resolved = true;
+          resolve();
+        }
+      };
+
       const forceKillTimer = setTimeout(() => {
-        if (this.child && this._status === "running") {
-          logger.warn("Force killing process", {
+        if (this.child && this._status === "running" && this.child.pid) {
+          logger.warn("Force killing process group", {
             name: this.config.name,
             pid: this.child.pid,
           });
-          this.child.kill("SIGKILL");
+          // Kill entire process group with SIGKILL
+          try {
+            process.kill(-this.child.pid, "SIGKILL");
+          } catch (err) {
+            logger.error("Failed to force kill process group", {
+              name: this.config.name,
+              pid: this.child.pid,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+
+          // Force cleanup after SIGKILL - don't wait for streams
+          // Schedule a final verification that process is dead
+          setTimeout(() => {
+            if (pid && this.isProcessAlive(pid)) {
+              logger.error("Process still alive after SIGKILL", {
+                name: this.config.name,
+                pid,
+              });
+            } else {
+              logger.debug("Process confirmed dead after SIGKILL", {
+                name: this.config.name,
+                pid,
+              });
+            }
+
+            // Force emit exit event if it hasn't fired yet
+            if (this._status === "running") {
+              logger.warn(
+                "Forcing exit event emission - streams may not have closed",
+                {
+                  name: this.config.name,
+                  pid,
+                }
+              );
+              this.forceExitCleanup();
+            }
+
+            safeResolve();
+          }, 500); // Give process 500ms to die after SIGKILL
         }
       }, timeout);
 
       const cleanup = () => {
         clearTimeout(forceKillTimer);
-        resolve();
+        safeResolve();
       };
 
       // Listen for exit
       this.once("exit", cleanup);
 
-      // Send signal
-      this.child!.kill(signal);
+      // Send signal to entire process group (negative PID)
+      // This ensures all child processes spawned by the shell are also killed
+      if (this.child!.pid) {
+        try {
+          process.kill(-this.child!.pid, signal);
+        } catch (err) {
+          // Fallback to killing just the main process if group kill fails
+          logger.warn("Failed to kill process group, trying single process", {
+            name: this.config.name,
+            pid: this.child!.pid,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          this.child!.kill(signal);
+        }
+      } else {
+        this.child!.kill(signal);
+      }
     });
   }
 
   /**
    * Restart the process
+   *
+   * @param force - If true, use SIGKILL for the stop phase
    */
-  async restart(): Promise<void> {
-    await this.stop();
+  async restart(force = false): Promise<void> {
+    await this.stop(force);
     this.restartCount = 0; // Reset count on manual restart
     await this.start();
   }
@@ -446,6 +517,53 @@ export class ManagedProcess extends EventEmitter {
     }
 
     return Math.min(delay, maxDelay);
+  }
+
+  /**
+   * Check if a process is still alive
+   *
+   * @param pid - Process ID to check
+   * @returns true if process exists, false otherwise
+   */
+  private isProcessAlive(pid: number): boolean {
+    try {
+      // Signal 0 doesn't kill the process, just checks if it exists
+      process.kill(pid, 0);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  /**
+   * Force cleanup when streams don't close properly
+   * This is a last resort to prevent hangs
+   */
+  private forceExitCleanup(): void {
+    // Manually trigger exit logic even if streams haven't closed
+    const code = this.exitInfo?.code ?? -1;
+    const signal = this.exitInfo?.signal ?? null;
+
+    this._status = code === 0 ? "stopped" : "crashed";
+
+    logger.warn("Force cleanup - emitting exit without waiting for streams", {
+      name: this.config.name,
+      code,
+      signal,
+      stdoutClosed: this.stdoutClosed,
+      stderrClosed: this.stderrClosed,
+    });
+
+    // Emit exit with whatever logs we have
+    const logs: ExitLogs = {
+      stdout: [...this.pendingStdout],
+      stderr: [...this.pendingStderr],
+    };
+
+    this.emit("exit", code, signal, logs);
+
+    // Clear buffers
+    this.resetBuffers();
   }
 
   /**

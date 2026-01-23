@@ -47,8 +47,8 @@ export type PipelineItem = {
   env?: Record<string, string>;
   /** Working directory for command execution */
   cwd?: string;
-  /** Event configuration for this item */
-  events: Events;
+  /** Event configuration for this item (optional - if omitted, no special event emissions occur) */
+  events?: Events;
 };
 
 /**

@@ -13,6 +13,7 @@ import { ZodError } from "zod";
 import { loadConfig } from "../../config/loader.js";
 import { Daemon } from "../../daemon/index.js";
 import { getDaemonClient } from "../../daemon/client.js";
+import { resolveConfigPath } from "../../utils/project-root.js";
 import {
   printError,
   printSuccess,
@@ -25,16 +26,31 @@ import {
 /**
  * Start the Clier pipeline
  *
- * @param configPath - Path to configuration file (optional, defaults to clier-pipeline.json in cwd)
+ * Automatically searches upward for clier-pipeline.json if not explicitly provided.
+ *
+ * @param configPath - Path to configuration file (optional, auto-detected if not provided)
  * @returns Exit code (0 for success, 1 for failure)
  */
 export async function startCommand(configPath?: string): Promise<number> {
-  const configFile =
-    configPath || path.join(process.cwd(), "clier-pipeline.json");
   const spinner = ora();
 
   try {
-    // Step 1: Load and validate configuration
+    // Step 1: Resolve config path (searches upward if needed)
+    spinner.start("Locating configuration...");
+    let configFile: string;
+    let projectRoot: string;
+
+    try {
+      configFile = resolveConfigPath(configPath);
+      projectRoot = path.dirname(configFile);
+      spinner.succeed(`Configuration found at ${configFile}`);
+    } catch (error) {
+      spinner.fail("Configuration not found");
+      printError(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
+
+    // Step 2: Load and validate configuration
     spinner.start("Loading configuration...");
     let config;
     try {
@@ -52,8 +68,8 @@ export async function startCommand(configPath?: string): Promise<number> {
 
     printHeader(config.project_name);
 
-    // Step 2: Check if daemon already running
-    const client = await getDaemonClient().catch(() => null);
+    // Step 3: Check if daemon already running
+    const client = await getDaemonClient(projectRoot).catch(() => null);
     if (client) {
       try {
         const status = await client.request("daemon.status");
@@ -73,15 +89,15 @@ export async function startCommand(configPath?: string): Promise<number> {
       }
     }
 
-    // Step 3: Ensure daemon directory exists
-    const daemonDir = path.join(process.cwd(), ".clier");
+    // Step 4: Ensure daemon directory exists
+    const daemonDir = path.join(projectRoot, ".clier");
     await mkdir(daemonDir, { recursive: true });
 
-    // Step 4: Start daemon
+    // Step 5: Start daemon
     spinner.start("Starting daemon...");
     const daemon = new Daemon({
       configPath: configFile,
-      projectRoot: process.cwd(),
+      projectRoot: projectRoot,
       detached: true,
     });
 
@@ -94,7 +110,7 @@ export async function startCommand(configPath?: string): Promise<number> {
     }
 
     // Wait for daemon to be ready
-    await waitForDaemon(2000);
+    await waitForDaemon(2000, projectRoot);
 
     spinner.succeed("Daemon started");
 
@@ -120,11 +136,14 @@ export async function startCommand(configPath?: string): Promise<number> {
 /**
  * Wait for daemon to be ready
  */
-async function waitForDaemon(timeoutMs: number): Promise<void> {
+async function waitForDaemon(
+  timeoutMs: number,
+  projectRoot: string
+): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
-      const client = await getDaemonClient();
+      const client = await getDaemonClient(projectRoot);
       await client.request("ping");
       client.disconnect();
       return;

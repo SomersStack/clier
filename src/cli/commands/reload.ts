@@ -5,11 +5,11 @@
  * Validates the new configuration first, then hot-reloads the daemon.
  */
 
-import path from "path";
 import ora from "ora";
 import { ZodError } from "zod";
 import { loadConfig } from "../../config/loader.js";
 import { getDaemonClient } from "../../daemon/client.js";
+import { resolveConfigPath } from "../../utils/project-root.js";
 import {
   printError,
   printSuccess,
@@ -20,16 +20,29 @@ import {
 /**
  * Reload the Clier configuration
  *
- * @param configPath - Path to configuration file (optional, defaults to clier-pipeline.json in cwd)
+ * Automatically searches upward for clier-pipeline.json if not explicitly provided.
+ *
+ * @param configPath - Path to configuration file (optional, auto-detected if not provided)
  * @returns Exit code (0 for success, 1 for failure)
  */
 export async function reloadCommand(configPath?: string): Promise<number> {
-  const configFile =
-    configPath || path.join(process.cwd(), "clier-pipeline.json");
   const spinner = ora();
 
   try {
-    // Step 1: Load and validate new configuration
+    // Step 1: Resolve config path (searches upward if needed)
+    spinner.start("Locating configuration...");
+    let configFile: string;
+
+    try {
+      configFile = resolveConfigPath(configPath);
+      spinner.succeed("Configuration found");
+    } catch (error) {
+      spinner.fail("Configuration not found");
+      printError(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
+
+    // Step 2: Load and validate new configuration
     spinner.start("Validating configuration...");
     try {
       await loadConfig(configFile);
@@ -44,10 +57,10 @@ export async function reloadCommand(configPath?: string): Promise<number> {
       return 1;
     }
 
-    // Step 2: Connect to daemon
+    // Step 3: Connect to daemon (auto-detects project root)
     const client = await getDaemonClient();
 
-    // Step 3: Reload daemon
+    // Step 4: Reload daemon
     spinner.start("Reloading daemon...");
     try {
       await client.request("config.reload", { configPath: configFile });
