@@ -23,10 +23,11 @@ if (process.env.CLIER_DAEMON_MODE === "1") {
   const configPath =
     process.env.CLIER_CONFIG_PATH ||
     path.join(process.cwd(), "clier-pipeline.json");
+  const projectRoot = process.env.CLIER_PROJECT_ROOT || path.dirname(configPath);
 
   const watcher = new Watcher();
 
-  watcher.start(configPath).catch((error) => {
+  watcher.start(configPath, projectRoot).catch((error) => {
     logger.error("Failed to start watcher:", error);
     process.exit(1);
   });

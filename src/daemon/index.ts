@@ -114,7 +114,7 @@ export class Daemon {
     try {
       // Start watcher
       this.watcher = new Watcher();
-      await this.watcher.start(this.options.configPath);
+      await this.watcher.start(this.options.configPath, this.options.projectRoot);
 
       // Start IPC server
       this.server = new DaemonServer(this.watcher);

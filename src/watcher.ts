@@ -51,6 +51,7 @@ export class Watcher {
   private circuitBreaker?: CircuitBreaker;
   private started = false;
   private shuttingDown = false;
+  private projectRoot?: string;
 
   /**
    * Start the watcher
@@ -58,21 +59,25 @@ export class Watcher {
    * Loads configuration, initializes all components, and starts the pipeline.
    *
    * @param configPath - Path to clier-pipeline.json
+   * @param projectRoot - Project root directory (defaults to dirname of configPath)
    * @throws Error if configuration loading, initialization, or pipeline start fails
    *
    * @example
    * ```ts
-   * await watcher.start('./clier-pipeline.json');
+   * await watcher.start('./clier-pipeline.json', '/project/root');
    * ```
    */
-  async start(configPath: string): Promise<void> {
+  async start(configPath: string, projectRoot?: string): Promise<void> {
     if (this.started) {
       logger.warn("Watcher already started");
       return;
     }
 
     try {
-      logger.info("Starting Clier watcher", { configPath });
+      // Store project root (default to dirname of config if not provided)
+      this.projectRoot = projectRoot || require('path').dirname(configPath);
+
+      logger.info("Starting Clier watcher", { configPath, projectRoot: this.projectRoot });
 
       // Load configuration
       try {
@@ -237,7 +242,7 @@ export class Watcher {
     try {
       this.patternMatcher = new PatternMatcher();
       this.eventHandler = new EventHandler(this.patternMatcher);
-      this.orchestrator = new Orchestrator(this.processManager);
+      this.orchestrator = new Orchestrator(this.processManager, this.projectRoot);
       logger.debug("Core components initialized");
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
