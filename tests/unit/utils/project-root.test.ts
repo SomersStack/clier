@@ -35,6 +35,12 @@ describe("findProjectRoot", () => {
     fs.mkdirSync(projectRoot);
     fs.mkdirSync(subDir1);
     fs.mkdirSync(subDir2);
+
+    // Resolve symlinks (macOS /var -> /private/var) to match what findProjectRoot returns
+    tempDir = fs.realpathSync(tempDir);
+    projectRoot = fs.realpathSync(projectRoot);
+    subDir1 = fs.realpathSync(subDir1);
+    subDir2 = fs.realpathSync(subDir2);
   });
 
   afterEach(() => {
@@ -202,7 +208,7 @@ describe("findProjectRoot", () => {
 
     it("should search upward when no path provided", () => {
       const result = resolveConfigPath(undefined, subDir2);
-      expect(result).toBe(path.join(fs.realpathSync(projectRoot), "clier-pipeline.json"));
+      expect(result).toBe(path.join(projectRoot, "clier-pipeline.json"));
     });
 
     it("should throw error when absolute path not found", () => {
@@ -261,18 +267,22 @@ describe("findProjectRoot", () => {
         JSON.stringify({ project_name: "inner" })
       );
       fs.mkdirSync(innerSrc);
+
+      // Resolve symlinks to match what findProjectRoot returns
+      outerProject = fs.realpathSync(outerProject);
+      innerProject = fs.realpathSync(innerProject);
     });
 
     it("should find nearest project (inner project)", () => {
       const innerSrc = path.join(innerProject, "src");
       const result = findProjectRoot(innerSrc, "config");
-      expect(result).toBe(fs.realpathSync(innerProject));
+      expect(result).toBe(innerProject);
     });
 
     it("should find outer project from packages directory", () => {
       const packagesDir = path.join(outerProject, "packages");
       const result = findProjectRoot(packagesDir, "config");
-      expect(result).toBe(fs.realpathSync(outerProject));
+      expect(result).toBe(outerProject);
     });
   });
 });
