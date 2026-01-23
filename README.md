@@ -66,6 +66,8 @@ clier logs --daemon  # View daemon orchestration logs
 ## CLI Commands
 
 ```bash
+clier init                  # Initialize agent documentation (.claude/claude.md)
+clier docs [subject]        # View documentation (commands, pipeline, all)
 clier validate              # Validate configuration
 clier start                 # Start pipeline daemon
 clier status                # View process status

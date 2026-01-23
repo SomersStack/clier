@@ -264,6 +264,18 @@ All commands accept an optional `--config` flag (default: `./clier-pipeline.json
 ### Essential Commands
 
 ```bash
+# Initialize agent documentation
+clier init                           # Create .claude/claude.md
+clier init --agents                  # Create .agents/agents.md
+clier init --append                  # Append to existing file
+clier init --force                   # Overwrite existing file
+
+# View documentation
+clier docs                           # Show all documentation
+clier docs commands                  # Show CLI commands only
+clier docs pipeline                  # Show pipeline config only
+clier docs --list                    # List available subjects
+
 # Validate configuration (always run first!)
 clier validate
 

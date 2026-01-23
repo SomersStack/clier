@@ -13,6 +13,8 @@ import { logsCommand } from "./commands/logs.js";
 import { reloadCommand } from "./commands/reload.js";
 import { validateCommand } from "./commands/validate.js";
 import { updateCommand } from "./commands/update.js";
+import { docsCommand } from "./commands/docs.js";
+import { initCommand } from "./commands/init.js";
 import {
   serviceStartCommand,
   serviceStopCommand,
@@ -159,6 +161,29 @@ export function createCLI(): Command {
     .option("-c, --check", "Check for updates without installing")
     .action(async (options: { global?: boolean; check?: boolean }) => {
       const exitCode = await updateCommand(options);
+      process.exit(exitCode);
+    });
+
+  // Docs command
+  program
+    .command("docs")
+    .description("Show documentation")
+    .argument("[subject]", "Documentation subject (commands, pipeline, all)", "all")
+    .option("-l, --list", "List available documentation subjects")
+    .action(async (subject: string, options: { list?: boolean }) => {
+      const exitCode = await docsCommand({ subject, list: options.list });
+      process.exit(exitCode);
+    });
+
+  // Init command
+  program
+    .command("init")
+    .description("Initialize agent documentation in current project")
+    .option("-a, --agents", "Create .agents/agents.md instead of .claude/claude.md")
+    .option("-f, --force", "Overwrite existing file if present")
+    .option("--append", "Append template to existing file")
+    .action(async (options: { agents?: boolean; force?: boolean; append?: boolean }) => {
+      const exitCode = await initCommand(options);
       process.exit(exitCode);
     });
 

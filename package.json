@@ -13,6 +13,9 @@
   },
   "files": [
     "dist",
+    "docs/AGENTS.md",
+    "docs/AGENTS-PIPELINE.md",
+    "templates/agent-quick-start.md",
     "README.md",
     "LICENSE"
   ],

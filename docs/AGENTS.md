@@ -5,6 +5,18 @@
 ## Essential Commands
 
 ```bash
+# Initialize agent documentation
+clier init                           # Create .claude/claude.md
+clier init --agents                  # Create .agents/agents.md
+clier init --append                  # Append to existing file
+clier init --force                   # Overwrite existing file
+
+# View documentation
+clier docs                           # Show all documentation
+clier docs commands                  # Show CLI commands only
+clier docs pipeline                  # Show pipeline config only
+clier docs --list                    # List available subjects
+
 # Validate configuration (always run first!)
 clier validate
 
@@ -54,6 +66,22 @@ clier service remove <name>
 ```
 
 ## Typical Workflows
+
+### First Time Setup
+```bash
+# 1. Initialize agent documentation
+clier init                           # Creates .claude/claude.md
+
+# 2. View documentation if needed
+clier docs pipeline                  # See pipeline config guide
+clier docs commands                  # See command reference
+
+# 3. Create clier-pipeline.json (see template in .claude/claude.md)
+
+# 4. Validate and start
+clier validate
+clier start
+```
 
 ### Using Existing Pipeline
 ```bash
