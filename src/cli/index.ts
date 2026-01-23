@@ -7,6 +7,7 @@
 import { Command } from "commander";
 import { startCommand } from "./commands/start.js";
 import { stopCommand } from "./commands/stop.js";
+import { restartCommand } from "./commands/restart.js";
 import { statusCommand } from "./commands/status.js";
 import { logsCommand } from "./commands/logs.js";
 import { reloadCommand } from "./commands/reload.js";
@@ -54,6 +55,19 @@ export function createCLI(): Command {
     .description("Show instructions for stopping the pipeline")
     .action(async () => {
       const exitCode = await stopCommand();
+      process.exit(exitCode);
+    });
+
+  // Restart command
+  program
+    .command("restart")
+    .description("Restart daemon completely (new PID)")
+    .argument(
+      "[config]",
+      "Path to clier-pipeline.json (default: ./clier-pipeline.json)"
+    )
+    .action(async (configPath?: string) => {
+      const exitCode = await restartCommand(configPath);
       process.exit(exitCode);
     });
 
@@ -113,7 +127,7 @@ export function createCLI(): Command {
   // Reload command
   program
     .command("reload")
-    .description("Reload config (restart required with new architecture)")
+    .description("Hot-reload config without restarting daemon (same PID, restarts all processes)")
     .argument(
       "[config]",
       "Path to clier-pipeline.json (default: ./clier-pipeline.json)"

@@ -5,6 +5,7 @@
  * Uses native child_process management instead of PM2.
  */
 
+import path from "path";
 import { loadConfig } from "./config/loader.js";
 import { EventBus } from "./core/event-bus.js";
 import { ProcessManager } from "./core/process-manager.js";
@@ -75,7 +76,7 @@ export class Watcher {
 
     try {
       // Store project root (default to dirname of config if not provided)
-      this.projectRoot = projectRoot || require('path').dirname(configPath);
+      this.projectRoot = projectRoot || path.dirname(configPath);
 
       logger.info("Starting Clier watcher", { configPath, projectRoot: this.projectRoot });
 

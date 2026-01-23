@@ -24,7 +24,10 @@ clier logs --daemon --level error    # Daemon error logs only
 # Stop all processes
 clier stop
 
-# Hot reload configuration (no restart)
+# Restart daemon completely (new PID)
+clier restart
+
+# Hot reload configuration (same daemon PID, restarts all processes)
 clier reload
 
 # Update Clier
@@ -140,7 +143,7 @@ clier logs --daemon -n 500           # More context for complex issues
 1. **Works from any subdirectory** - Clier finds project root automatically
 2. **Always validate first** - `clier validate` before `clier start`
 3. **Background daemon** - Processes continue running after CLI exits
-4. **Hot reload** - `clier reload` updates config without stopping processes
+4. **Hot reload vs restart** - `clier reload` (fast, same daemon PID) vs `clier restart` (thorough, new daemon PID)
 5. **Service control is temporary** - `service add/remove/stop/start/restart` changes are NOT saved to JSON
 6. **Force flag** - Use `--force` for immediate kill (SIGKILL) vs graceful stop (SIGTERM)
 

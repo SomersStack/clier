@@ -72,7 +72,8 @@ clier status                # View process status
 clier logs <name>           # View process logs
 clier logs --daemon         # View daemon logs
 clier stop                  # Stop all processes
-clier reload                # Hot reload configuration
+clier restart               # Restart daemon (new PID)
+clier reload                # Reload config (same PID, faster)
 clier update                # Update to latest version
 
 # Service control

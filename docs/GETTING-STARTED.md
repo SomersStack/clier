@@ -283,7 +283,10 @@ clier logs --daemon --level error    # View daemon error logs only
 # Stop all processes
 clier stop
 
-# Reload configuration (hot reload without full restart)
+# Restart daemon completely (new daemon PID)
+clier restart
+
+# Reload configuration (fast: same daemon PID, restarts all processes)
 clier reload
 
 # Update Clier to latest version
@@ -307,6 +310,25 @@ clier service remove <name>
 ```
 
 **Note**: Service control commands modify the running daemon only. Changes do NOT persist to `clier-pipeline.json`. To persist changes, edit the config file and run `clier reload`.
+
+### Reload vs Restart
+
+Understanding the difference between `reload` and `restart`:
+
+| Command | Daemon Process | All Processes | Use Case |
+|---------|---------------|---------------|----------|
+| `clier reload` | **Same PID** ✓ | Restart ↻ | Config changes (fast, keeps daemon alive) |
+| `clier restart` | **New PID** ↻ | Restart ↻ | Daemon issues (full cold start) |
+
+**When to use `reload`:**
+- You edited `clier-pipeline.json` (added/removed processes, changed commands, modified triggers)
+- You want to apply config changes quickly
+- The daemon itself is working fine
+
+**When to use `restart`:**
+- The daemon process itself is misbehaving
+- You want a complete fresh start
+- You're debugging daemon-level issues
 
 For detailed command documentation, see the [Agent Guide](AGENTS.md).
 
