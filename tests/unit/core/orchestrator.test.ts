@@ -492,4 +492,227 @@ describe("Orchestrator", () => {
       expect(entryPoints.map((p) => p.name)).toContain("database");
     });
   });
+
+  describe("Event Template Substitution", () => {
+    it("should substitute event templates in command when enabled", async () => {
+      const config = createConfig([
+        createPipelineItem({ name: "producer" }),
+        createPipelineItem({
+          name: "consumer",
+          command: "node app.js --source={{event.source}} --event={{event.name}}",
+          trigger_on: ["producer:done"],
+          enable_event_templates: true,
+        }),
+      ]);
+
+      orchestrator.loadPipeline(config);
+
+      const event: ClierEvent = {
+        name: "producer:done",
+        processName: "producer",
+        type: "custom",
+        timestamp: 1706012345678,
+      };
+
+      await orchestrator.handleEvent(event);
+
+      expect(mockProcessManager.startProcess).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "consumer",
+          command: "node app.js --source=producer --event=producer:done",
+        }),
+      );
+    });
+
+    it("should substitute event templates in env vars when enabled", async () => {
+      const config = createConfig([
+        createPipelineItem({ name: "producer" }),
+        createPipelineItem({
+          name: "consumer",
+          command: "node app.js",
+          trigger_on: ["producer:done"],
+          enable_event_templates: true,
+          env: {
+            TRIGGER_SOURCE: "{{event.source}}",
+            TRIGGER_EVENT: "{{event.name}}",
+            TRIGGER_TYPE: "{{event.type}}",
+          },
+        }),
+      ]);
+
+      orchestrator.loadPipeline(config);
+
+      const event: ClierEvent = {
+        name: "producer:done",
+        processName: "producer",
+        type: "success",
+        timestamp: 1706012345678,
+      };
+
+      await orchestrator.handleEvent(event);
+
+      expect(mockProcessManager.startProcess).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "consumer",
+          env: expect.objectContaining({
+            TRIGGER_SOURCE: "producer",
+            TRIGGER_EVENT: "producer:done",
+            TRIGGER_TYPE: "success",
+          }),
+        }),
+      );
+    });
+
+    it("should substitute process and clier templates", async () => {
+      const config = createConfig([
+        createPipelineItem({ name: "producer" }),
+        createPipelineItem({
+          name: "consumer",
+          command: "node app.js --proc={{process.name}} --project={{clier.project}}",
+          type: "task",
+          trigger_on: ["producer:done"],
+          enable_event_templates: true,
+        }),
+      ]);
+
+      orchestrator.loadPipeline(config);
+
+      const event: ClierEvent = {
+        name: "producer:done",
+        processName: "producer",
+        type: "custom",
+        timestamp: Date.now(),
+      };
+
+      await orchestrator.handleEvent(event);
+
+      expect(mockProcessManager.startProcess).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: "node app.js --proc=consumer --project=test-project",
+        }),
+      );
+    });
+
+    it("should NOT substitute templates when enable_event_templates is false", async () => {
+      const config = createConfig([
+        createPipelineItem({ name: "producer" }),
+        createPipelineItem({
+          name: "consumer",
+          command: "node app.js --source={{event.source}}",
+          trigger_on: ["producer:done"],
+          enable_event_templates: false, // Disabled
+        }),
+      ]);
+
+      orchestrator.loadPipeline(config);
+
+      const event: ClierEvent = {
+        name: "producer:done",
+        processName: "producer",
+        type: "custom",
+        timestamp: Date.now(),
+      };
+
+      await orchestrator.handleEvent(event);
+
+      // Should NOT substitute - template remains as-is
+      expect(mockProcessManager.startProcess).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: "node app.js --source={{event.source}}",
+        }),
+      );
+    });
+
+    it("should NOT substitute templates for entry point processes", async () => {
+      const config = createConfig([
+        createPipelineItem({
+          name: "entry",
+          command: "node app.js --source={{event.source}}",
+          enable_event_templates: true,
+        }),
+      ]);
+
+      orchestrator.loadPipeline(config);
+      await orchestrator.start();
+
+      // Entry point has no trigger event, so templates should NOT be substituted
+      expect(mockProcessManager.startProcess).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: "node app.js --source={{event.source}}",
+        }),
+      );
+    });
+
+    it("should handle templates with mixed variables", async () => {
+      const config = createConfig([
+        createPipelineItem({ name: "producer" }),
+        createPipelineItem({
+          name: "logger",
+          command:
+            "node log.js --event={{event.name}} --from={{event.source}} --to={{process.name}} --ts={{event.timestamp}}",
+          trigger_on: ["producer:done"],
+          enable_event_templates: true,
+        }),
+      ]);
+
+      orchestrator.loadPipeline(config);
+
+      const event: ClierEvent = {
+        name: "producer:done",
+        processName: "producer",
+        type: "custom",
+        timestamp: 1706012345678,
+      };
+
+      await orchestrator.handleEvent(event);
+
+      expect(mockProcessManager.startProcess).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command:
+            "node log.js --event=producer:done --from=producer --to=logger --ts=1706012345678",
+        }),
+      );
+    });
+
+    it("should preserve global_env when using templates", async () => {
+      process.env["GLOBAL_VAR"] = "global-value";
+
+      const config = createConfig([
+        createPipelineItem({ name: "producer" }),
+        createPipelineItem({
+          name: "consumer",
+          command: "node app.js",
+          trigger_on: ["producer:done"],
+          enable_event_templates: true,
+          env: {
+            TRIGGER_SOURCE: "{{event.source}}",
+            LOCAL_VAR: "local-value",
+          },
+        }),
+      ]);
+
+      orchestrator.loadPipeline(config);
+
+      const event: ClierEvent = {
+        name: "producer:done",
+        processName: "producer",
+        type: "custom",
+        timestamp: Date.now(),
+      };
+
+      await orchestrator.handleEvent(event);
+
+      expect(mockProcessManager.startProcess).toHaveBeenCalledWith(
+        expect.objectContaining({
+          env: expect.objectContaining({
+            TRIGGER_SOURCE: "producer",
+            LOCAL_VAR: "local-value",
+            GLOBAL_VAR: "global-value",
+          }),
+        }),
+      );
+
+      delete process.env["GLOBAL_VAR"];
+    });
+  });
 });

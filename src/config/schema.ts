@@ -31,6 +31,7 @@ const pipelineItemSchema = z.object({
   env: z.record(z.string(), z.string()).optional(),
   cwd: z.string().optional(),
   events: eventsSchema.optional(),
+  enable_event_templates: z.boolean().optional().default(false),
 });
 
 /**

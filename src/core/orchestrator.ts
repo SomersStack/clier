@@ -9,6 +9,10 @@ import type { ClierConfig, PipelineItem } from "../config/types.js";
 import type { ClierEvent } from "../types/events.js";
 import type { ProcessManager, ProcessConfig } from "./process-manager.js";
 import { createContextLogger } from "../utils/logger.js";
+import {
+  substituteEventTemplates,
+  createTemplateContext,
+} from "../utils/template.js";
 
 const logger = createContextLogger("Orchestrator");
 
@@ -39,19 +43,22 @@ export class Orchestrator {
   private pipelineItems = new Map<string, PipelineItem>();
   private startedProcesses = new Set<string>();
   private receivedEvents = new Set<string>();
+  private projectRoot?: string;
 
   /**
    * Create a new Orchestrator
    *
    * @param processManager - ProcessManager instance
+   * @param projectRoot - Project root directory for default cwd
    *
    * @example
    * ```ts
-   * const orchestrator = new Orchestrator(processManager);
+   * const orchestrator = new Orchestrator(processManager, '/project/root');
    * ```
    */
-  constructor(processManager: ProcessManager) {
+  constructor(processManager: ProcessManager, projectRoot?: string) {
     this.processManager = processManager;
+    this.projectRoot = projectRoot;
   }
 
   /**
@@ -235,7 +242,7 @@ export class Orchestrator {
             continue;
           }
 
-          await this.startProcess(dependent);
+          await this.startProcess(dependent, event);
         } else {
           logger.debug("Not all triggers satisfied for process", {
             processName: dependent.name,
@@ -290,8 +297,14 @@ export class Orchestrator {
 
   /**
    * Start a process
+   *
+   * @param item - Pipeline item to start
+   * @param triggerEvent - Optional event that triggered this process (for template substitution)
    */
-  private async startProcess(item: PipelineItem): Promise<void> {
+  private async startProcess(
+    item: PipelineItem,
+    triggerEvent?: ClierEvent,
+  ): Promise<void> {
     if (!this.config) {
       logger.error("Cannot start process: No configuration loaded");
       throw new Error("No configuration loaded");
@@ -301,10 +314,11 @@ export class Orchestrator {
       processName: item.name,
       command: item.command,
       type: item.type,
+      triggeredBy: triggerEvent?.name,
     });
 
     try {
-      const processConfig = this.buildProcessConfig(item);
+      const processConfig = this.buildProcessConfig(item, triggerEvent);
       await this.processManager.startProcess(processConfig);
       this.startedProcesses.add(item.name);
 
@@ -326,12 +340,60 @@ export class Orchestrator {
 
   /**
    * Build ProcessConfig from pipeline item
+   *
+   * @param item - Pipeline item configuration
+   * @param triggerEvent - Optional event that triggered this process
    */
-  private buildProcessConfig(item: PipelineItem): ProcessConfig {
+  private buildProcessConfig(
+    item: PipelineItem,
+    triggerEvent?: ClierEvent,
+  ): ProcessConfig {
+    let command = item.command;
+    let env = item.env;
+
+    // Apply event template substitution if enabled and triggered by event
+    if (item.enable_event_templates && triggerEvent && this.config) {
+      const templateContext = createTemplateContext(
+        triggerEvent,
+        item.name,
+        item.type,
+        this.config.project_name,
+      );
+
+      // Substitute templates in command
+      const originalCommand = command;
+      command = substituteEventTemplates(command, templateContext);
+
+      // Log template substitution for debugging
+      if (command !== originalCommand) {
+        logger.debug("Applied event templates to command", {
+          processName: item.name,
+          originalCommand,
+          resolvedCommand: command,
+          triggerEvent: triggerEvent.name,
+        });
+      }
+
+      // Substitute templates in environment variables
+      if (env) {
+        const resolvedEnv: Record<string, string> = {};
+        for (const [key, value] of Object.entries(env)) {
+          resolvedEnv[key] = substituteEventTemplates(value, templateContext);
+        }
+        env = resolvedEnv;
+
+        logger.debug("Applied event templates to environment variables", {
+          processName: item.name,
+          triggerEvent: triggerEvent.name,
+        });
+      }
+    }
+
     const config: ProcessConfig = {
       name: item.name,
-      command: item.command,
-      cwd: item.cwd,
+      command,
+      // Use item's cwd if specified, otherwise default to project root
+      cwd: item.cwd || this.projectRoot,
       type: item.type,
       // Services auto-restart by default
       restart:
@@ -357,10 +419,10 @@ export class Orchestrator {
       }
       config.env = {
         ...globalEnv,
-        ...item.env,
+        ...env,
       };
     } else {
-      config.env = item.env;
+      config.env = env;
     }
 
     return config;

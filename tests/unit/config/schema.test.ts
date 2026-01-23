@@ -507,4 +507,134 @@ describe("Config Schema Validation", () => {
       expect(result.pipeline[2]?.events).toBeUndefined();
     });
   });
+
+  describe("Event Template Configuration", () => {
+    it("should validate enable_event_templates field", () => {
+      const config = {
+        project_name: "template-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "test",
+            command: "node app.js --source={{event.source}}",
+            type: "task",
+            enable_event_templates: true,
+          },
+        ],
+      };
+
+      const result = configSchema.parse(config);
+      expect(result.pipeline[0]?.enable_event_templates).toBe(true);
+    });
+
+    it("should default enable_event_templates to false", () => {
+      const config = {
+        project_name: "default-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "test",
+            command: "node app.js",
+            type: "task",
+          },
+        ],
+      };
+
+      const result = configSchema.parse(config);
+      expect(result.pipeline[0]?.enable_event_templates).toBe(false);
+    });
+
+    it("should allow enable_event_templates with trigger_on", () => {
+      const config = {
+        project_name: "triggered-template-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "producer",
+            command: "node producer.js",
+            type: "task",
+            events: {
+              on_stdout: [{ pattern: "done", emit: "producer:done" }],
+            },
+          },
+          {
+            name: "consumer",
+            command: "node consumer.js --source={{event.source}}",
+            type: "task",
+            trigger_on: ["producer:done"],
+            enable_event_templates: true,
+          },
+        ],
+      };
+
+      const result = configSchema.parse(config);
+      expect(result.pipeline).toHaveLength(2);
+      expect(result.pipeline[1]?.enable_event_templates).toBe(true);
+      expect(result.pipeline[1]?.trigger_on).toEqual(["producer:done"]);
+    });
+
+    it("should work with backward compatibility (old configs without enable_event_templates)", () => {
+      const config = {
+        project_name: "legacy-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "old-service",
+            command: "npm start",
+            type: "service",
+            events: {
+              on_stdout: [{ pattern: "ready", emit: "service:ready" }],
+              on_stderr: true,
+              on_crash: true,
+            },
+          },
+          {
+            name: "old-task",
+            command: "npm test",
+            type: "task",
+            trigger_on: ["service:ready"],
+          },
+        ],
+      };
+
+      // Should parse successfully without enable_event_templates field
+      const result = configSchema.parse(config);
+      expect(result).toBeDefined();
+      expect(result.pipeline).toHaveLength(2);
+      expect(result.pipeline[0]?.enable_event_templates).toBe(false);
+      expect(result.pipeline[1]?.enable_event_templates).toBe(false);
+    });
+
+    it("should reject invalid enable_event_templates type", () => {
+      const config = {
+        project_name: "invalid-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "test",
+            command: "node app.js",
+            type: "task",
+            enable_event_templates: "yes", // Should be boolean
+          },
+        ],
+      };
+
+      expect(() => configSchema.parse(config)).toThrow();
+    });
+  });
 });
