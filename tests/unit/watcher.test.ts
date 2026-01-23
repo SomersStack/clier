@@ -42,10 +42,52 @@ vi.mock("../../src/core/event-bus.js", () => {
   };
 });
 
+// Mock safety modules to prevent Bottleneck timers from keeping process alive
+vi.mock("../../src/safety/rate-limiter.js", () => ({
+  RateLimiter: vi.fn().mockImplementation(() => ({
+    schedule: vi.fn().mockImplementation((fn) => fn()),
+    stop: vi.fn().mockResolvedValue(undefined),
+    getQueueLength: vi.fn().mockReturnValue(0),
+  })),
+}));
+
+vi.mock("../../src/safety/debouncer.js", () => ({
+  Debouncer: vi.fn().mockImplementation(() => ({
+    debounce: vi.fn().mockImplementation((_key, fn) => fn()),
+    cancelAll: vi.fn(),
+  })),
+}));
+
+vi.mock("../../src/safety/circuit-breaker.js", () => {
+  const { EventEmitter } = require("events");
+  return {
+    CircuitBreaker: vi.fn().mockImplementation(() => {
+      const emitter = new EventEmitter();
+      return {
+        on: emitter.on.bind(emitter),
+        emit: emitter.emit.bind(emitter),
+        execute: vi.fn().mockImplementation((fn) => fn()),
+        shutdown: vi.fn(),
+      };
+    }),
+  };
+});
+
 import { loadConfig } from "../../src/config/loader.js";
 
 describe("Watcher", () => {
   let watcher: Watcher;
+  const originalProcessOn = process.on.bind(process);
+
+  beforeEach(() => {
+    // Prevent signal handlers from being registered during tests
+    vi.spyOn(process, "on").mockImplementation((event, handler) => {
+      if (event === "SIGINT" || event === "SIGTERM") {
+        return process; // No-op for signal handlers
+      }
+      return originalProcessOn(event, handler as (...args: unknown[]) => void);
+    });
+  });
 
   const mockConfig: ClierConfig = {
     project_name: "test-project",
