@@ -54,6 +54,22 @@ export type PipelineItem = {
 };
 
 /**
+ * TypeScript type for circuit breaker configuration
+ *
+ * Configures the circuit breaker that prevents cascading failures.
+ */
+export type CircuitBreakerConfig = {
+  /** Whether the circuit breaker is enabled (default: true) */
+  enabled: boolean;
+  /** Error threshold count before opening circuit (default: 10) */
+  error_threshold: number;
+  /** Timeout in milliseconds for protected operations (default: 30000) */
+  timeout_ms: number;
+  /** Time in milliseconds before attempting to close an open circuit (default: 60000) */
+  reset_timeout_ms: number;
+};
+
+/**
  * TypeScript type for safety configuration
  *
  * Defines rate limiting and debouncing parameters to prevent runaway processes.
@@ -63,6 +79,8 @@ export type Safety = {
   max_ops_per_minute: number;
   /** Debounce delay in milliseconds before restarting crashed processes */
   debounce_ms: number;
+  /** Circuit breaker configuration (optional) */
+  circuit_breaker?: CircuitBreakerConfig;
 };
 
 /**

@@ -191,14 +191,21 @@ export class Watcher {
     try {
       this.debouncer = new Debouncer(this.config.safety.debounce_ms);
       this.rateLimiter = new RateLimiter(this.config.safety.max_ops_per_minute);
+
+      // Use circuit breaker config from config file, with sensible defaults
+      const cbConfig = this.config.safety.circuit_breaker;
       this.circuitBreaker = new CircuitBreaker({
-        timeout: 30000,
+        timeout: cbConfig?.timeout_ms ?? 30000,
         errorThresholdPercentage: 50,
-        resetTimeout: 60000,
+        resetTimeout: cbConfig?.reset_timeout_ms ?? 60000,
+        volumeThreshold: cbConfig?.error_threshold ?? 10,
       });
       logger.debug("Safety mechanisms initialized", {
         debounceMs: this.config.safety.debounce_ms,
         maxOpsPerMinute: this.config.safety.max_ops_per_minute,
+        circuitBreakerTimeout: cbConfig?.timeout_ms ?? 30000,
+        circuitBreakerResetTimeout: cbConfig?.reset_timeout_ms ?? 60000,
+        circuitBreakerErrorThreshold: cbConfig?.error_threshold ?? 10,
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

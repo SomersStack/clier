@@ -35,6 +35,20 @@ const pipelineItemSchema = z.object({
 });
 
 /**
+ * Schema for circuit breaker configuration
+ */
+const circuitBreakerSchema = z.object({
+  /** Whether the circuit breaker is enabled (default: true) */
+  enabled: z.boolean().default(true),
+  /** Error threshold count before opening circuit (default: 10) */
+  error_threshold: z.number().int().positive("error_threshold must be positive").default(10),
+  /** Timeout in milliseconds for protected operations (default: 30000) */
+  timeout_ms: z.number().int().positive("timeout_ms must be positive").default(30000),
+  /** Time in milliseconds before attempting to close an open circuit (default: 60000) */
+  reset_timeout_ms: z.number().int().positive("reset_timeout_ms must be positive").default(60000),
+});
+
+/**
  * Schema for safety configuration
  */
 const safetySchema = z.object({
@@ -43,6 +57,8 @@ const safetySchema = z.object({
     .int()
     .positive("max_ops_per_minute must be positive"),
   debounce_ms: z.number().int().nonnegative("debounce_ms must be non-negative"),
+  /** Circuit breaker configuration (optional) */
+  circuit_breaker: circuitBreakerSchema.optional(),
 });
 
 /**
