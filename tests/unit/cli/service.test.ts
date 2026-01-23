@@ -82,6 +82,7 @@ describe("Service Commands", () => {
       expect(exitCode).toBe(0);
       expect(mockClient.request).toHaveBeenCalledWith("process.stop", {
         name: "my-service",
+        force: false,
       });
       expect(mockClient.disconnect).toHaveBeenCalled();
     });
@@ -116,6 +117,7 @@ describe("Service Commands", () => {
       expect(exitCode).toBe(0);
       expect(mockClient.request).toHaveBeenCalledWith("process.restart", {
         name: "my-service",
+        force: false,
       });
       expect(mockClient.disconnect).toHaveBeenCalled();
     });
