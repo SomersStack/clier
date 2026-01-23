@@ -89,7 +89,7 @@ describe("DaemonController", () => {
       const result = await controller["process.stop"]({ name: "backend" });
 
       expect(result).toEqual({ success: true });
-      expect(mockProcessManager.stopProcess).toHaveBeenCalledWith("backend");
+      expect(mockProcessManager.stopProcess).toHaveBeenCalledWith("backend", false);
     });
 
     it("should throw error if ProcessManager not initialized", async () => {
@@ -118,7 +118,7 @@ describe("DaemonController", () => {
       const result = await controller["process.restart"]({ name: "backend" });
 
       expect(result).toEqual({ success: true });
-      expect(mockProcessManager.restartProcess).toHaveBeenCalledWith("backend");
+      expect(mockProcessManager.restartProcess).toHaveBeenCalledWith("backend", false);
     });
 
     it("should throw error if ProcessManager not initialized", async () => {

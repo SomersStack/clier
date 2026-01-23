@@ -7,8 +7,40 @@ vi.mock("../../src/config/loader.js", () => ({
   loadConfig: vi.fn(),
 }));
 
-vi.mock("../../src/core/process-manager.js");
-vi.mock("../../src/core/event-bus.js");
+vi.mock("../../src/core/process-manager.js", () => {
+  const { EventEmitter } = require("events");
+  return {
+    ProcessManager: vi.fn().mockImplementation(() => {
+      const emitter = new EventEmitter();
+      return {
+        on: emitter.on.bind(emitter),
+        emit: emitter.emit.bind(emitter),
+        removeAllListeners: emitter.removeAllListeners.bind(emitter),
+        startProcess: vi.fn().mockResolvedValue(undefined),
+        stopProcess: vi.fn().mockResolvedValue(undefined),
+        shutdown: vi.fn().mockResolvedValue(undefined),
+        listProcesses: vi.fn().mockReturnValue([]),
+        isRunning: vi.fn().mockReturnValue(false),
+      };
+    }),
+  };
+});
+
+vi.mock("../../src/core/event-bus.js", () => {
+  const { EventEmitter } = require("events");
+  return {
+    EventBus: vi.fn().mockImplementation(() => {
+      const emitter = new EventEmitter();
+      return {
+        on: emitter.on.bind(emitter),
+        emit: emitter.emit.bind(emitter),
+        removeAllListeners: emitter.removeAllListeners.bind(emitter),
+        connect: vi.fn().mockResolvedValue(undefined),
+        disconnect: vi.fn().mockResolvedValue(undefined),
+      };
+    }),
+  };
+});
 
 import { loadConfig } from "../../src/config/loader.js";
 
@@ -27,6 +59,7 @@ describe("Watcher", () => {
         name: "backend",
         command: "npm start",
         type: "service",
+        enable_event_templates: false,
         events: {
           on_stdout: [{ pattern: "Server listening", emit: "backend:ready" }],
           on_stderr: true,
@@ -37,6 +70,7 @@ describe("Watcher", () => {
         name: "frontend",
         command: "npm run dev",
         type: "service",
+        enable_event_templates: false,
         trigger_on: ["backend:ready"],
         events: {
           on_stdout: [

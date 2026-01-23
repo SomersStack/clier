@@ -53,6 +53,10 @@ export class Watcher {
   private started = false;
   private shuttingDown = false;
   private projectRoot?: string;
+  private signalHandlers?: {
+    sigint: () => void;
+    sigterm: () => void;
+  };
 
   /**
    * Start the watcher
@@ -407,8 +411,14 @@ export class Watcher {
       process.exit(0);
     };
 
-    process.on("SIGINT", () => handleShutdown("SIGINT"));
-    process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+    // Store references so we can remove them during cleanup
+    this.signalHandlers = {
+      sigint: () => handleShutdown("SIGINT"),
+      sigterm: () => handleShutdown("SIGTERM"),
+    };
+
+    process.on("SIGINT", this.signalHandlers.sigint);
+    process.on("SIGTERM", this.signalHandlers.sigterm);
   }
 
   /**
@@ -416,6 +426,13 @@ export class Watcher {
    */
   private async cleanup(): Promise<void> {
     try {
+      // Remove signal handlers to prevent memory leaks
+      if (this.signalHandlers) {
+        process.removeListener("SIGINT", this.signalHandlers.sigint);
+        process.removeListener("SIGTERM", this.signalHandlers.sigterm);
+        this.signalHandlers = undefined;
+      }
+
       // Cancel all pending debounced operations
       this.debouncer?.cancelAll();
 
