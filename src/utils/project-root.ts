@@ -29,6 +29,7 @@ export function findProjectRoot(
   const homeDir = fs.realpathSync(homedir());
   const rootDir = path.parse(currentDir).root;
 
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     // Check for .clier directory (running project)
     if (lookFor === "daemon" || lookFor === "any") {

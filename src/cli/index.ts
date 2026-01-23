@@ -155,7 +155,7 @@ export function createCLI(): Command {
   // Update command
   program
     .command("update")
-    .description("Update @clier/core to the latest version")
+    .description("Update clier to the latest version")
     .option("-g, --global", "Update global installation (default: true)")
     .option("--no-global", "Update local installation")
     .option("-c, --check", "Check for updates without installing")
@@ -304,7 +304,7 @@ async function checkForUpdatesOnStartup(): Promise<void> {
 
     // Show update notification
     console.log();
-    printWarning("A new version of @clier/core is available!");
+    printWarning("A new version of clier is available!");
     console.log(`  Current: ${updateInfo.currentVersion}`);
     console.log(`  Latest:  ${updateInfo.latestVersion}`);
     console.log();

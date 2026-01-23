@@ -8,6 +8,7 @@ vi.mock("../../src/config/loader.js", () => ({
 }));
 
 vi.mock("../../src/core/process-manager.js", () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { EventEmitter } = require("events");
   return {
     ProcessManager: vi.fn().mockImplementation(() => {
@@ -27,6 +28,7 @@ vi.mock("../../src/core/process-manager.js", () => {
 });
 
 vi.mock("../../src/core/event-bus.js", () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { EventEmitter } = require("events");
   return {
     EventBus: vi.fn().mockImplementation(() => {
@@ -59,6 +61,7 @@ vi.mock("../../src/safety/debouncer.js", () => ({
 }));
 
 vi.mock("../../src/safety/circuit-breaker.js", () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { EventEmitter } = require("events");
   return {
     CircuitBreaker: vi.fn().mockImplementation(() => {

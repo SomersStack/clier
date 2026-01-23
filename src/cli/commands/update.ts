@@ -1,7 +1,7 @@
 /**
  * Update Command
  *
- * Updates the @clier/core package to the latest version.
+ * Updates the clier package to the latest version.
  */
 
 import { exec } from "child_process";
@@ -51,7 +51,7 @@ async function detectPackageManager(): Promise<string> {
  * @returns Update command
  */
 function getUpdateCommand(packageManager: string, global: boolean): string {
-  const packageName = "@clier/core";
+  const packageName = "clier";
 
   if (global) {
     switch (packageManager) {
@@ -143,7 +143,7 @@ export async function updateCommand(options: {
     console.log();
 
     // Run the update
-    const updateSpinner = ora("Updating @clier/core...").start();
+    const updateSpinner = ora("Updating clier...").start();
 
     try {
       const { stdout, stderr } = await execAsync(updateCommand);

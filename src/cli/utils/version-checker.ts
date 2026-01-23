@@ -1,15 +1,16 @@
 /**
  * Version Checker Utility
  *
- * Checks for updates to the @clier/core package by comparing
+ * Checks for updates to the clier package by comparing
  * the current version with the latest version on npm.
  */
 
 import { exec } from "child_process";
 import { promisify } from "util";
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { homedir } from "os";
 
 const execAsync = promisify(exec);
 
@@ -47,7 +48,7 @@ function getCurrentVersion(): string {
  */
 async function getLatestVersion(): Promise<string> {
   try {
-    const { stdout } = await execAsync("npm view @clier/core version");
+    const { stdout } = await execAsync("npm view clier version");
     return stdout.trim();
   } catch (error) {
     // If package doesn't exist on npm yet, return current version
@@ -85,7 +86,7 @@ function isNewer(current: string, latest: string): boolean {
 }
 
 /**
- * Check for updates to @clier/core
+ * Check for updates to clier
  *
  * @returns Update information
  */
@@ -109,11 +110,6 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
  */
 export function shouldShowUpdatePrompt(): boolean {
   try {
-    const { readFileSync, writeFileSync, existsSync, mkdirSync } =
-      require("fs");
-    const { homedir } = require("os");
-    const { join } = require("path");
-
     const cacheDir = join(homedir(), ".clier");
     const cacheFile = join(cacheDir, "last-update-check");
 
