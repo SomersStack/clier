@@ -11,16 +11,65 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { Orchestrator } from "../../src/core/orchestrator.js";
 import { ProcessManager } from "../../src/core/process-manager.js";
+import { EventHandler } from "../../src/core/event-handler.js";
+import { PatternMatcher } from "../../src/core/pattern-matcher.js";
 import type { ClierConfig } from "../../src/config/types.js";
 import type { ClierEvent } from "../../src/types/events.js";
+
+/**
+ * Helper to wire up ProcessManager -> EventHandler -> Orchestrator
+ */
+function wireEventHandling(
+  processManager: ProcessManager,
+  eventHandler: EventHandler,
+  orchestrator: Orchestrator,
+  config: ClierConfig
+): void {
+  // Register pipeline items with event handler for pattern matching
+  for (const item of config.pipeline) {
+    eventHandler.registerPipelineItem(item);
+  }
+
+  // Wire ProcessManager stdout -> EventHandler
+  processManager.on("stdout", (name: string, data: string, timestamp: number) => {
+    eventHandler.handleEvent({
+      name: `${name}:stdout`,
+      processName: name,
+      type: "stdout",
+      data,
+      timestamp,
+    });
+  });
+
+  // Wire EventHandler emitted events -> Orchestrator
+  // Listen for all events that pipeline items trigger on
+  const triggerEvents = new Set<string>();
+  for (const item of config.pipeline) {
+    if (item.trigger_on) {
+      for (const trigger of item.trigger_on) {
+        triggerEvents.add(trigger);
+      }
+    }
+  }
+
+  for (const eventName of triggerEvents) {
+    eventHandler.on(eventName, (event: ClierEvent) => {
+      orchestrator.handleEvent(event);
+    });
+  }
+}
 
 describe("Event Template Integration Tests", () => {
   let orchestrator: Orchestrator;
   let processManager: ProcessManager;
+  let eventHandler: EventHandler;
+  let patternMatcher: PatternMatcher;
 
   beforeEach(() => {
     processManager = new ProcessManager();
     orchestrator = new Orchestrator(processManager);
+    patternMatcher = new PatternMatcher();
+    eventHandler = new EventHandler(patternMatcher);
   });
 
   afterEach(async () => {
@@ -40,6 +89,7 @@ describe("Event Template Integration Tests", () => {
           name: "producer",
           command: "echo 'Producer ready'",
           type: "task",
+          enable_event_templates: false,
           events: {
             on_stdout: [
               {
@@ -47,6 +97,8 @@ describe("Event Template Integration Tests", () => {
                 emit: "producer:ready",
               },
             ],
+            on_stderr: false,
+            on_crash: false,
           },
         },
         {
@@ -60,6 +112,7 @@ describe("Event Template Integration Tests", () => {
     };
 
     orchestrator.loadPipeline(config);
+    wireEventHandling(processManager, eventHandler, orchestrator, config);
 
     // Track which processes were started
     const startedProcesses: string[] = [];
@@ -79,7 +132,7 @@ describe("Event Template Integration Tests", () => {
     await orchestrator.start();
 
     // Wait for producer to emit event and trigger consumer
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     // Verify consumer was started with substituted template
     expect(startedProcesses).toContain("producer");
@@ -102,6 +155,7 @@ describe("Event Template Integration Tests", () => {
           name: "backend",
           command: "echo 'Backend ready'",
           type: "service",
+          enable_event_templates: false,
           events: {
             on_stdout: [
               {
@@ -109,6 +163,8 @@ describe("Event Template Integration Tests", () => {
                 emit: "backend:ready",
               },
             ],
+            on_stderr: false,
+            on_crash: false,
           },
         },
         {
@@ -128,6 +184,7 @@ describe("Event Template Integration Tests", () => {
     };
 
     orchestrator.loadPipeline(config);
+    wireEventHandling(processManager, eventHandler, orchestrator, config);
 
     let frontendEnv: Record<string, string> | undefined;
 
@@ -144,7 +201,7 @@ describe("Event Template Integration Tests", () => {
     await orchestrator.start();
 
     // Wait for backend to emit event and trigger frontend
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     // Verify environment variables were substituted
     expect(frontendEnv).toBeDefined();
@@ -167,6 +224,7 @@ describe("Event Template Integration Tests", () => {
           name: "producer",
           command: "echo 'Ready'",
           type: "task",
+          enable_event_templates: false,
           events: {
             on_stdout: [
               {
@@ -174,6 +232,8 @@ describe("Event Template Integration Tests", () => {
                 emit: "producer:ready",
               },
             ],
+            on_stderr: false,
+            on_crash: false,
           },
         },
         {
@@ -187,6 +247,7 @@ describe("Event Template Integration Tests", () => {
     };
 
     orchestrator.loadPipeline(config);
+    wireEventHandling(processManager, eventHandler, orchestrator, config);
 
     let consumerCommand = "";
 
@@ -199,7 +260,7 @@ describe("Event Template Integration Tests", () => {
     };
 
     await orchestrator.start();
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     // Templates should NOT be substituted
     expect(consumerCommand).toBe("echo 'Source: {{event.source}}'");
@@ -218,6 +279,7 @@ describe("Event Template Integration Tests", () => {
           name: "api",
           command: "echo 'API ready'",
           type: "service",
+          enable_event_templates: false,
           events: {
             on_stdout: [
               {
@@ -225,6 +287,8 @@ describe("Event Template Integration Tests", () => {
                 emit: "api:ready",
               },
             ],
+            on_stderr: false,
+            on_crash: false,
           },
         },
         {
@@ -239,6 +303,7 @@ describe("Event Template Integration Tests", () => {
     };
 
     orchestrator.loadPipeline(config);
+    wireEventHandling(processManager, eventHandler, orchestrator, config);
 
     let loggerCommand = "";
 
@@ -251,7 +316,7 @@ describe("Event Template Integration Tests", () => {
     };
 
     await orchestrator.start();
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     // All templates should be substituted
     expect(loggerCommand).toContain("Event=api:ready");
@@ -274,6 +339,7 @@ describe("Event Template Integration Tests", () => {
           name: "timer",
           command: "echo 'Tick'",
           type: "task",
+          enable_event_templates: false,
           events: {
             on_stdout: [
               {
@@ -281,6 +347,8 @@ describe("Event Template Integration Tests", () => {
                 emit: "timer:tick",
               },
             ],
+            on_stderr: false,
+            on_crash: false,
           },
         },
         {
@@ -294,6 +362,7 @@ describe("Event Template Integration Tests", () => {
     };
 
     orchestrator.loadPipeline(config);
+    wireEventHandling(processManager, eventHandler, orchestrator, config);
 
     let recorderCommand = "";
 
@@ -306,7 +375,7 @@ describe("Event Template Integration Tests", () => {
     };
 
     await orchestrator.start();
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     // Timestamp should be substituted with a numeric value
     expect(recorderCommand).toMatch(/Timestamp: \d+/);
