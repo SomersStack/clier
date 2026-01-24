@@ -6,6 +6,8 @@
 
 import { exec } from "child_process";
 import { promisify } from "util";
+import * as fs from "fs";
+import * as path from "path";
 import ora from "ora";
 import {
   printSuccess,
@@ -14,6 +16,7 @@ import {
   printWarning,
 } from "../utils/formatter.js";
 import { checkForUpdates } from "../utils/version-checker.js";
+import { findProjectRoot } from "../../utils/project-root.js";
 
 const execAsync = promisify(exec);
 
@@ -156,8 +159,6 @@ export async function updateCommand(options: {
 
       updateSpinner.succeed("Successfully updated to the latest version!");
       console.log();
-      printSuccess(`Updated to version ${updateInfo.latestVersion}`);
-      console.log();
 
       // Show any relevant output (skip npm warnings)
       if (stdout) {
@@ -167,6 +168,27 @@ export async function updateCommand(options: {
         if (lines.length > 0) {
           console.log("Output:");
           lines.forEach((line) => console.log(`  ${line}`));
+          console.log();
+        }
+      }
+
+      // Verify the update by running the new binary
+      try {
+        const { stdout: versionOutput } = await execAsync("clier --version");
+        const newVersion = versionOutput.trim();
+        printSuccess(`Now running: clier v${newVersion}`);
+      } catch {
+        printSuccess(`Updated to version ${updateInfo.latestVersion}`);
+      }
+      console.log();
+
+      // Check if there's a running daemon that needs to be restarted
+      const projectRoot = findProjectRoot(process.cwd(), "daemon");
+      if (projectRoot) {
+        const socketPath = path.join(projectRoot, ".clier", "daemon.sock");
+        if (fs.existsSync(socketPath)) {
+          printWarning("A clier daemon is currently running.");
+          printInfo("Run 'clier restart' to update the daemon to the new version.");
           console.log();
         }
       }
