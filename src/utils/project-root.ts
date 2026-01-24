@@ -31,6 +31,12 @@ export function findProjectRoot(
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
+    // Stop at home directory or filesystem root (before checking markers)
+    // We don't want to treat home directory itself as a valid project root
+    if (currentDir === homeDir || currentDir === rootDir) {
+      return null;
+    }
+
     // Check for .clier directory (running project)
     if (lookFor === "daemon" || lookFor === "any") {
       const clierDir = path.join(currentDir, ".clier");
@@ -45,11 +51,6 @@ export function findProjectRoot(
       if (fs.existsSync(configFile) && fs.statSync(configFile).isFile()) {
         return currentDir;
       }
-    }
-
-    // Stop at home directory or filesystem root
-    if (currentDir === homeDir || currentDir === rootDir) {
-      return null;
     }
 
     // Move up one directory
