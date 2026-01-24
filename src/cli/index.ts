@@ -5,8 +5,12 @@
  */
 
 import { Command } from "commander";
+import { createRequire } from "module";
 import { startCommand } from "./commands/start.js";
 import { stopCommand } from "./commands/stop.js";
+
+const require = createRequire(import.meta.url);
+const packageJson = require("../../package.json");
 import { restartCommand } from "./commands/restart.js";
 import { statusCommand } from "./commands/status.js";
 import { logsCommand } from "./commands/logs.js";
@@ -36,7 +40,7 @@ export function createCLI(): Command {
     .description(
       "Process orchestration framework with event-driven pipeline management"
     )
-    .version("0.3.0");
+    .version(packageJson.version);
 
   // Start command
   program
