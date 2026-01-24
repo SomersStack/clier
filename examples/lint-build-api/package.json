@@ -8,7 +8,7 @@
     "build": "node scripts/build.js"
   },
   "keywords": ["clier", "example", "pipeline"],
-  "author": "",
+  "author": "SomersStack",
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2"

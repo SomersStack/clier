@@ -1,6 +1,6 @@
 {
   "name": "clier-ai",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Process orchestration framework with event-driven pipeline management",
   "keywords": [
     "orchestration",
@@ -13,13 +13,13 @@
     "ci-cd",
     "task-runner"
   ],
-  "homepage": "https://github.com/yourusername/clier#readme",
+  "homepage": "https://github.com/somersstack/clier#readme",
   "bugs": {
-    "url": "https://github.com/yourusername/clier/issues"
+    "url": "https://github.com/somersstack/clier/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/clier.git"
+    "url": "git+https://github.com/somersstack/clier.git"
   },
   "license": "MIT",
   "author": "Clier Contributors",

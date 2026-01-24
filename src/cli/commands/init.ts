@@ -15,12 +15,34 @@ const __dirname = dirname(__filename);
 type AgentFormat = "claude" | "agents";
 
 /**
+ * Valid locations for AGENTS.md files (in order of precedence)
+ */
+const AGENTS_FILE_LOCATIONS = [
+  ".claude/AGENTS.md",
+  "AGENTS.md", // project root
+  ".agents/AGENTS.md",
+];
+
+/**
  * Get the path to the bundled templates directory
  */
 function getTemplatesDir(): string {
   // When compiled, this file is at dist/cli/commands/init.js
   // Templates are at templates/ from project root
   return join(__dirname, "../../../templates");
+}
+
+/**
+ * Find existing AGENTS.md file in any valid location
+ */
+function findExistingAgentsFile(cwd: string): string | null {
+  for (const location of AGENTS_FILE_LOCATIONS) {
+    const fullPath = join(cwd, location);
+    if (existsSync(fullPath)) {
+      return location;
+    }
+  }
+  return null;
 }
 
 /**
@@ -32,23 +54,41 @@ export async function initCommand(options: {
   append?: boolean;
 }): Promise<number> {
   try {
+    const cwd = process.cwd();
     const format: AgentFormat = options.agents ? "agents" : "claude";
     const dotDir = format === "claude" ? ".claude" : ".agents";
-    const fileName = format === "claude" ? "claude.md" : "agents.md";
-    const targetPath = join(process.cwd(), dotDir, fileName);
+    // Claude Code expects uppercase AGENTS.md
+    const fileName = "AGENTS.md";
+    const targetPath = join(cwd, dotDir, fileName);
 
-    // Check if file already exists
-    if (existsSync(targetPath) && !options.force && !options.append) {
-      console.log(chalk.yellow("⚠") + ` ${dotDir}/${fileName} already exists`);
-      console.log(
-        chalk.dim("  Use --force to overwrite, --append to add content, or manually edit the file")
-      );
-      return 0;
+    // Check for existing AGENTS.md in any valid location
+    const existingLocation = findExistingAgentsFile(cwd);
+    const existingPath = existingLocation ? join(cwd, existingLocation) : null;
+
+    // If file exists in target location or any other valid location
+    if (!options.force && !options.append) {
+      if (existingPath === targetPath) {
+        console.log(chalk.yellow("⚠") + ` ${dotDir}/${fileName} already exists`);
+        console.log(
+          chalk.dim("  Use --force to overwrite, --append to add content, or manually edit the file")
+        );
+        return 0;
+      } else if (existingLocation) {
+        console.log(chalk.yellow("⚠") + ` Found existing ${existingLocation}`);
+        console.log(
+          chalk.dim("  Use --force to create a new file at " + dotDir + "/" + fileName)
+        );
+        console.log(
+          chalk.dim("  Or manually edit the existing file")
+        );
+        return 0;
+      }
     }
 
     // Create directory if it doesn't exist
-    if (!existsSync(dotDir)) {
-      mkdirSync(dotDir, { recursive: true });
+    const dotDirPath = join(cwd, dotDir);
+    if (!existsSync(dotDirPath)) {
+      mkdirSync(dotDirPath, { recursive: true });
       console.log(chalk.green("✓") + ` Created ${dotDir}/`);
     }
 

@@ -179,7 +179,7 @@ export function createCLI(): Command {
   program
     .command("init")
     .description("Initialize agent documentation in current project")
-    .option("-a, --agents", "Create .agents/agents.md instead of .claude/claude.md")
+    .option("-a, --agents", "Create .agents/AGENTS.md instead of .claude/AGENTS.md")
     .option("-f, --force", "Overwrite existing file if present")
     .option("--append", "Append template to existing file")
     .action(async (options: { agents?: boolean; force?: boolean; append?: boolean }) => {
