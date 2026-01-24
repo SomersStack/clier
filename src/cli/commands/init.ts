@@ -15,12 +15,12 @@ const __dirname = dirname(__filename);
 type AgentFormat = "claude" | "agents";
 
 /**
- * Valid locations for AGENTS.md files (in order of precedence)
+ * Valid locations for agent instruction files (in order of precedence)
  */
-const AGENTS_FILE_LOCATIONS = [
-  ".claude/AGENTS.md",
+const AGENT_FILE_LOCATIONS = [
+  ".claude/CLAUDE.md",
   "AGENTS.md", // project root
-  ".agents/AGENTS.md",
+  ".claude/AGENTS.md", // legacy location
 ];
 
 /**
@@ -33,10 +33,10 @@ function getTemplatesDir(): string {
 }
 
 /**
- * Find existing AGENTS.md file in any valid location
+ * Find existing agent instruction file in any valid location
  */
-function findExistingAgentsFile(cwd: string): string | null {
-  for (const location of AGENTS_FILE_LOCATIONS) {
+function findExistingAgentFile(cwd: string): string | null {
+  for (const location of AGENT_FILE_LOCATIONS) {
     const fullPath = join(cwd, location);
     if (existsSync(fullPath)) {
       return location;
@@ -56,19 +56,22 @@ export async function initCommand(options: {
   try {
     const cwd = process.cwd();
     const format: AgentFormat = options.agents ? "agents" : "claude";
-    const dotDir = format === "claude" ? ".claude" : ".agents";
-    // Claude Code expects uppercase AGENTS.md
-    const fileName = "AGENTS.md";
-    const targetPath = join(cwd, dotDir, fileName);
+
+    // Default: .claude/CLAUDE.md
+    // With --agents flag: AGENTS.md in root
+    const targetPath = format === "claude"
+      ? join(cwd, ".claude", "CLAUDE.md")
+      : join(cwd, "AGENTS.md");
+    const displayPath = format === "claude" ? ".claude/CLAUDE.md" : "AGENTS.md";
 
     // Check for existing AGENTS.md in any valid location
-    const existingLocation = findExistingAgentsFile(cwd);
+    const existingLocation = findExistingAgentFile(cwd);
     const existingPath = existingLocation ? join(cwd, existingLocation) : null;
 
     // If file exists in target location or any other valid location
     if (!options.force && !options.append) {
       if (existingPath === targetPath) {
-        console.log(chalk.yellow("⚠") + ` ${dotDir}/${fileName} already exists`);
+        console.log(chalk.yellow("⚠") + ` ${displayPath} already exists`);
         console.log(
           chalk.dim("  Use --force to overwrite, --append to add content, or manually edit the file")
         );
@@ -76,7 +79,7 @@ export async function initCommand(options: {
       } else if (existingLocation) {
         console.log(chalk.yellow("⚠") + ` Found existing ${existingLocation}`);
         console.log(
-          chalk.dim("  Use --force to create a new file at " + dotDir + "/" + fileName)
+          chalk.dim("  Use --force to create a new file at " + displayPath)
         );
         console.log(
           chalk.dim("  Or manually edit the existing file")
@@ -85,11 +88,13 @@ export async function initCommand(options: {
       }
     }
 
-    // Create directory if it doesn't exist
-    const dotDirPath = join(cwd, dotDir);
-    if (!existsSync(dotDirPath)) {
-      mkdirSync(dotDirPath, { recursive: true });
-      console.log(chalk.green("✓") + ` Created ${dotDir}/`);
+    // Create .claude directory if needed (only for claude format)
+    if (format === "claude") {
+      const dotDirPath = join(cwd, ".claude");
+      if (!existsSync(dotDirPath)) {
+        mkdirSync(dotDirPath, { recursive: true });
+        console.log(chalk.green("✓") + " Created .claude/");
+      }
     }
 
     // Copy template
@@ -117,11 +122,11 @@ export async function initCommand(options: {
       const separator = "\n\n---\n\n";
       const newContent = existingContent + separator + templateContent;
       await fs.writeFile(targetPath, newContent, "utf-8");
-      console.log(chalk.green("✓") + ` Appended to ${dotDir}/${fileName}`);
+      console.log(chalk.green("✓") + ` Appended to ${displayPath}`);
     } else {
       // Write or overwrite
       await fs.writeFile(targetPath, templateContent, "utf-8");
-      console.log(chalk.green("✓") + ` Created ${dotDir}/${fileName}`);
+      console.log(chalk.green("✓") + ` Created ${displayPath}`);
     }
     console.log(
       chalk.dim(
@@ -142,7 +147,7 @@ export async function initCommand(options: {
       );
       console.log(
         chalk.dim("  See the template in ") +
-          chalk.cyan(dotDir + "/" + fileName) +
+          chalk.cyan(displayPath) +
           chalk.dim(" to get started")
       );
       console.log(

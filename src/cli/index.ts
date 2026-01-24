@@ -14,6 +14,7 @@ const packageJson = require("../../package.json");
 import { restartCommand } from "./commands/restart.js";
 import { statusCommand } from "./commands/status.js";
 import { logsCommand } from "./commands/logs.js";
+import { logsClearCommand } from "./commands/logs-clear.js";
 import { reloadCommand } from "./commands/reload.js";
 import { validateCommand } from "./commands/validate.js";
 import { updateCommand } from "./commands/update.js";
@@ -86,10 +87,13 @@ export function createCLI(): Command {
       process.exit(exitCode);
     });
 
-  // Logs command
-  program
+  // Logs commands
+  const logs = program
     .command("logs")
-    .description("Show logs for a specific process or daemon")
+    .description("Show or manage logs for processes and daemon");
+
+  // Default logs show command (direct on parent for backward compatibility)
+  logs
     .argument("[name]", "Process name (not required with --daemon)")
     .option("-n, --lines <number>", "Number of lines to show", "100")
     .option("--since <duration>", "Show logs since duration (e.g., 5m, 1h, 30s)")
@@ -116,6 +120,7 @@ export function createCLI(): Command {
           console.log("Usage:");
           console.log("  clier logs <name>         Show process logs");
           console.log("  clier logs --daemon       Show daemon logs");
+          console.log("  clier logs clear <name>   Clear process logs");
           console.log();
           process.exit(1);
         }
@@ -123,6 +128,36 @@ export function createCLI(): Command {
         const exitCode = await logsCommand(name || "", {
           lines: parseInt(options.lines, 10),
           since: options.since,
+          daemon: options.daemon,
+          level: options.level,
+        });
+        process.exit(exitCode);
+      }
+    );
+
+  // Logs clear subcommand
+  logs
+    .command("clear")
+    .description("Clear logs for a process, all processes, or daemon")
+    .argument("[name]", "Process name (use --all for all processes)")
+    .option("-a, --all", "Clear logs for all processes")
+    .option("-d, --daemon", "Clear daemon logs instead of process logs")
+    .option(
+      "-l, --level <level>",
+      "Daemon log level to clear (combined, error, or all)",
+      "all"
+    )
+    .action(
+      async (
+        name: string | undefined,
+        options: {
+          all?: boolean;
+          daemon?: boolean;
+          level?: "combined" | "error" | "all";
+        }
+      ) => {
+        const exitCode = await logsClearCommand(name || "", {
+          all: options.all,
           daemon: options.daemon,
           level: options.level,
         });
@@ -183,7 +218,7 @@ export function createCLI(): Command {
   program
     .command("init")
     .description("Initialize agent documentation in current project")
-    .option("-a, --agents", "Create .agents/AGENTS.md instead of .claude/AGENTS.md")
+    .option("-a, --agents", "Create AGENTS.md in project root instead of .claude/CLAUDE.md")
     .option("-f, --force", "Overwrite existing file if present")
     .option("--append", "Append template to existing file")
     .action(async (options: { agents?: boolean; force?: boolean; append?: boolean }) => {
