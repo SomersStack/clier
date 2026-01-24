@@ -204,6 +204,13 @@ export class Watcher {
   }
 
   /**
+   * Get the event handler (for event history queries)
+   */
+  getEventHandler(): EventHandler | undefined {
+    return this.eventHandler;
+  }
+
+  /**
    * Emit a custom event manually
    *
    * This allows external systems (CLI, agents) to emit events that trigger

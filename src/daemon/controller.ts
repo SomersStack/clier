@@ -8,6 +8,7 @@
 import type { Watcher } from "../watcher.js";
 import type { ProcessStatus } from "../core/process-manager.js";
 import type { LogEntry } from "../core/log-manager.js";
+import type { ClierEvent } from "../types/events.js";
 
 /**
  * Daemon status information
@@ -309,6 +310,56 @@ export class DaemonController {
       params.data
     );
     return { success: true, triggeredStages };
+  }
+
+  /**
+   * Query event history
+   *
+   * Returns recent events that have been processed by the event handler.
+   * Supports filtering by process name, event type, event name, and time.
+   */
+  async "events.query"(params: {
+    processName?: string;
+    eventType?: "success" | "error" | "crashed" | "custom" | "stdout" | "stderr";
+    eventName?: string;
+    lines?: number;
+    since?: number;
+  }): Promise<ClierEvent[]> {
+    const eventHandler = this.watcher.getEventHandler();
+    if (!eventHandler) {
+      throw new Error("EventHandler not initialized");
+    }
+
+    let events = eventHandler.getEventHistory();
+
+    // Filter by process name
+    if (params.processName) {
+      events = events.filter((e) => e.processName === params.processName);
+    }
+
+    // Filter by event type
+    if (params.eventType) {
+      events = events.filter((e) => e.type === params.eventType);
+    }
+
+    // Filter by event name (supports partial matching)
+    if (params.eventName) {
+      const pattern = params.eventName.toLowerCase();
+      events = events.filter((e) => e.name.toLowerCase().includes(pattern));
+    }
+
+    // Filter by timestamp (since)
+    if (params.since !== undefined) {
+      events = events.filter((e) => e.timestamp >= params.since!);
+    }
+
+    // Limit number of results (default 100)
+    const limit = params.lines || 100;
+    if (events.length > limit) {
+      events = events.slice(-limit);
+    }
+
+    return events;
   }
 
 }

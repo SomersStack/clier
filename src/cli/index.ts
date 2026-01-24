@@ -28,6 +28,7 @@ import {
   serviceRemoveCommand,
 } from "./commands/service.js";
 import { emitCommand } from "./commands/emit.js";
+import { eventsCommand, type EventsOptions } from "./commands/events.js";
 
 /**
  * Create and configure the CLI program
@@ -305,6 +306,37 @@ export function createCLI(): Command {
       const exitCode = await emitCommand(eventName, options);
       process.exit(exitCode);
     });
+
+  // Events command - view event history
+  program
+    .command("events")
+    .description("Show event history from the running pipeline")
+    .option("-p, --process <name>", "Filter by process/service name")
+    .option(
+      "-t, --type <type>",
+      "Filter by event type (success, error, crashed, custom, stdout, stderr)"
+    )
+    .option("-e, --event <name>", "Filter by event name (partial match)")
+    .option("-n, --lines <number>", "Number of events to show", "100")
+    .option("--since <duration>", "Show events since duration (e.g., 5m, 1h, 30s)")
+    .action(
+      async (options: {
+        process?: string;
+        type?: string;
+        event?: string;
+        lines: string;
+        since?: string;
+      }) => {
+        const exitCode = await eventsCommand({
+          process: options.process,
+          type: options.type as EventsOptions["type"],
+          name: options.event,
+          lines: parseInt(options.lines, 10),
+          since: options.since,
+        });
+        process.exit(exitCode);
+      }
+    );
 
   return program;
 }
