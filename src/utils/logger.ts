@@ -149,8 +149,10 @@ export function createContextLogger(context: string): winston.Logger {
  * Default logger instance for the application
  *
  * Uses environment variable LOG_LEVEL if set, otherwise defaults to 'info'
+ * Uses CLIER_PROJECT_ROOT for file logging if available
  */
 export const logger = createLogger({
   level: process.env["LOG_LEVEL"] ?? "info",
   enableFileLogging: process.env["DISABLE_FILE_LOGGING"] !== "true",
+  projectRoot: process.env["CLIER_PROJECT_ROOT"],
 });
