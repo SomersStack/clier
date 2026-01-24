@@ -47,31 +47,15 @@ clier update                         # Update to latest
 clier update --check                 # Check for updates
 ```
 
-## Manual Triggering
-
-Manually trigger pipeline stages or emit events to start waiting processes:
-
-```bash
-# Directly start a specific stage (bypasses event triggers)
-clier trigger <stage-name>               # Start a stage immediately
-
-# Emit a custom event to trigger waiting stages
-clier emit <event-name>                  # Emit event (triggers stages with matching trigger_on)
-clier emit <event-name> -d '{"key":"value"}'  # Emit with JSON data payload
-```
-
-**Use cases:**
-- Start `manual: true` stages that only run on demand
-- Trigger stages waiting for events without running their dependencies
-- Emit synthetic events for testing or automation
-
 ## Service Control (Runtime-Only)
 
 **Important**: These changes are NOT persisted to `clier-pipeline.json`
 
 ```bash
-# Individual process control
+# Start a stage (bypasses event triggers, works with manual: true stages)
 clier service start <name>
+
+# Stop/restart services
 clier service stop <name>                # Graceful stop (SIGTERM)
 clier service stop <name> --force        # Immediate kill (SIGKILL)
 clier service restart <name>             # Graceful restart
@@ -81,6 +65,10 @@ clier service restart <name> --force     # Force restart (immediate kill)
 clier service add <name> -c "command" [options]
   # Options: --env KEY=VAL, --cwd /path, --type service|task
 clier service remove <name>
+
+# Emit custom events to trigger waiting stages
+clier emit <event-name>                  # Emit event (triggers stages with matching trigger_on)
+clier emit <event-name> -d '{"key":"value"}'  # Emit with JSON data payload
 ```
 
 ## Typical Workflows
@@ -187,7 +175,7 @@ clier logs --daemon -n 500           # More context for complex issues
 ## Key Points
 
 1. **Works from any subdirectory** - Clier finds project root automatically
-2. **Always validate first** - `clier validate` before `clier start`
+2. **Always validate after editing pipelines** - `clier validate`
 3. **Background daemon** - Processes continue running after CLI exits
 4. **Hot reload vs restart** - `clier reload` (fast, same daemon PID) vs `clier restart` (thorough, new daemon PID)
 5. **Service control is temporary** - `service add/remove/stop/start/restart` changes are NOT saved to JSON

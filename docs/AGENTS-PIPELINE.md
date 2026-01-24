@@ -63,7 +63,7 @@ Create `clier-pipeline.json` in project root:
 | `command` | Yes | string | - | Shell command |
 | `type` | Yes | "service" \| "task" | - | Service=long-running, Task=one-off |
 | `trigger_on` | No | string[] | - | Events that start this process (omit = starts immediately) |
-| `manual` | No | boolean | false | Only start via `clier trigger` (not auto-started or event-triggered) |
+| `manual` | No | boolean | false | Only start via `clier service start` (not auto-started or event-triggered) |
 | `continue_on_failure` | No | boolean | false | true=continue on failure, false=block pipeline |
 | `env` | No | object | - | Environment variables |
 | `cwd` | No | string | - | Working directory |
@@ -273,11 +273,11 @@ For stages that should only run on demand (not automatically):
 
 **Trigger manually:**
 ```bash
-clier trigger deploy      # Run deployment
-clier trigger db-migrate  # Run database migrations
+clier service start deploy      # Run deployment
+clier service start db-migrate  # Run database migrations
 ```
 
-**Behavior**: `manual: true` stages never auto-start or respond to events - they only run via `clier trigger`
+**Behavior**: `manual: true` stages never auto-start or respond to events - they only run via `clier service start`
 
 ## Environment Variables
 
@@ -412,7 +412,7 @@ clier logs
 ## Key Points
 
 1. **No `trigger_on`** = starts immediately
-2. **`manual: true`** = only starts via `clier trigger` command
+2. **`manual: true`** = only starts via `clier service start` command
 3. **Service vs Task** - Services restart on crash, tasks exit
 4. **Multi-pattern** - ALL matching patterns emit (not just first)
 5. **Event naming** - Use `process:event` convention

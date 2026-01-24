@@ -28,7 +28,6 @@ import {
   serviceRemoveCommand,
 } from "./commands/service.js";
 import { emitCommand } from "./commands/emit.js";
-import { triggerCommand } from "./commands/trigger.js";
 
 /**
  * Create and configure the CLI program
@@ -304,16 +303,6 @@ export function createCLI(): Command {
     .option("-d, --data <json>", "Optional JSON data to include with the event")
     .action(async (eventName: string, options: { data?: string }) => {
       const exitCode = await emitCommand(eventName, options);
-      process.exit(exitCode);
-    });
-
-  // Trigger command - directly start a pipeline stage
-  program
-    .command("trigger")
-    .description("Directly start a pipeline stage (bypasses event triggers)")
-    .argument("<stage>", "Stage name to trigger")
-    .action(async (stageName: string) => {
-      const exitCode = await triggerCommand(stageName);
       process.exit(exitCode);
     });
 

@@ -107,6 +107,19 @@ export class DaemonController {
   }
 
   /**
+   * Start a pipeline stage by name
+   *
+   * Directly starts a stage, bypassing event triggers.
+   * Works with manual stages and stages waiting for events.
+   */
+  async "process.start"(params: {
+    name: string;
+  }): Promise<{ success: true }> {
+    await this.watcher.triggerStage(params.name);
+    return { success: true };
+  }
+
+  /**
    * Query logs for a specific process
    */
   async "logs.query"(params: {
@@ -298,16 +311,4 @@ export class DaemonController {
     return { success: true, triggeredStages };
   }
 
-  /**
-   * Directly trigger a pipeline stage by name
-   *
-   * Bypasses the event system to start a specific stage immediately.
-   * Useful for manually kicking off stages that aren't auto-triggered.
-   */
-  async "stage.trigger"(params: {
-    stageName: string;
-  }): Promise<{ success: true }> {
-    await this.watcher.triggerStage(params.stageName);
-    return { success: true };
-  }
 }
