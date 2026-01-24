@@ -112,9 +112,11 @@ export class Daemon {
     process.on("SIGINT", () => this.shutdown("SIGINT"));
 
     try {
-      // Start watcher
+      // Start watcher (daemon handles signals, so disable watcher's own signal handlers)
       this.watcher = new Watcher();
-      await this.watcher.start(this.options.configPath, this.options.projectRoot);
+      await this.watcher.start(this.options.configPath, this.options.projectRoot, {
+        setupSignalHandlers: false,
+      });
 
       // Start IPC server
       this.server = new DaemonServer(this.watcher);

@@ -52,6 +52,7 @@ export class Watcher {
   private circuitBreaker?: CircuitBreaker;
   private started = false;
   private shuttingDown = false;
+  private cleanupPromise?: Promise<void>;
   private projectRoot?: string;
   private signalHandlers?: {
     sigint: () => void;
@@ -65,14 +66,19 @@ export class Watcher {
    *
    * @param configPath - Path to clier-pipeline.json
    * @param projectRoot - Project root directory (defaults to dirname of configPath)
+   * @param options - Additional options
+   * @param options.setupSignalHandlers - Whether to register SIGINT/SIGTERM handlers (default: true)
+   *                                      Set to false when running under a daemon that manages signals
    * @throws Error if configuration loading, initialization, or pipeline start fails
    *
    * @example
    * ```ts
    * await watcher.start('./clier-pipeline.json', '/project/root');
+   * // When running under daemon:
+   * await watcher.start('./clier-pipeline.json', '/project/root', { setupSignalHandlers: false });
    * ```
    */
-  async start(configPath: string, projectRoot?: string): Promise<void> {
+  async start(configPath: string, projectRoot?: string, options?: { setupSignalHandlers?: boolean }): Promise<void> {
     if (this.started) {
       logger.warn("Watcher already started");
       return;
@@ -110,8 +116,10 @@ export class Watcher {
         throw new Error(`Component initialization failed: ${errorMsg}`);
       }
 
-      // Setup signal handlers for graceful shutdown
-      this.setupSignalHandlers();
+      // Setup signal handlers for graceful shutdown (unless running under daemon)
+      if (options?.setupSignalHandlers !== false) {
+        this.setupSignalHandlers();
+      }
 
       // Start pipeline
       try {
@@ -138,6 +146,7 @@ export class Watcher {
    * Stop the watcher
    *
    * Performs graceful shutdown of all components.
+   * If already shutting down, waits for the existing shutdown to complete.
    *
    * @example
    * ```ts
@@ -145,8 +154,13 @@ export class Watcher {
    * ```
    */
   async stop(): Promise<void> {
+    // If cleanup is already in progress, wait for it to complete
+    // This prevents the race condition where daemon exits before processes are killed
     if (this.shuttingDown) {
-      logger.warn("Already shutting down");
+      logger.warn("Already shutting down, waiting for cleanup to complete");
+      if (this.cleanupPromise) {
+        await this.cleanupPromise;
+      }
       return;
     }
 
@@ -158,10 +172,13 @@ export class Watcher {
     this.shuttingDown = true;
     logger.info("Stopping Clier watcher...");
 
-    await this.cleanup();
+    // Store the cleanup promise so other callers can wait for it
+    this.cleanupPromise = this.cleanup();
+    await this.cleanupPromise;
 
     this.started = false;
     this.shuttingDown = false;
+    this.cleanupPromise = undefined;
     logger.info("Clier watcher stopped");
   }
 

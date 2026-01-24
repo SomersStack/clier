@@ -285,5 +285,122 @@ describe("Watcher", () => {
 
       expect(watcher).toBeDefined();
     });
+
+    it("should not register signal handlers when setupSignalHandlers is false", async () => {
+      // Track signal handler registrations
+      let sigintRegistered = false;
+      let sigtermRegistered = false;
+
+      vi.spyOn(process, "on").mockImplementation((event, _handler) => {
+        if (event === "SIGINT") sigintRegistered = true;
+        if (event === "SIGTERM") sigtermRegistered = true;
+        return process;
+      });
+
+      watcher = new Watcher();
+
+      await watcher.start("/path/to/config.json", undefined, {
+        setupSignalHandlers: false,
+      });
+
+      // Should not have registered SIGINT or SIGTERM handlers
+      expect(sigintRegistered).toBe(false);
+      expect(sigtermRegistered).toBe(false);
+    });
+
+    it("should register signal handlers by default (setupSignalHandlers not specified)", async () => {
+      // Track signal handler registrations
+      let sigintRegistered = false;
+      let sigtermRegistered = false;
+
+      vi.spyOn(process, "on").mockImplementation((event, _handler) => {
+        if (event === "SIGINT") sigintRegistered = true;
+        if (event === "SIGTERM") sigtermRegistered = true;
+        return process;
+      });
+
+      watcher = new Watcher();
+
+      await watcher.start("/path/to/config.json");
+
+      // Should have registered both SIGINT and SIGTERM handlers
+      expect(sigintRegistered).toBe(true);
+      expect(sigtermRegistered).toBe(true);
+    });
+
+    it("should register signal handlers when setupSignalHandlers is explicitly true", async () => {
+      // Track signal handler registrations
+      let sigintRegistered = false;
+      let sigtermRegistered = false;
+
+      vi.spyOn(process, "on").mockImplementation((event, _handler) => {
+        if (event === "SIGINT") sigintRegistered = true;
+        if (event === "SIGTERM") sigtermRegistered = true;
+        return process;
+      });
+
+      watcher = new Watcher();
+
+      await watcher.start("/path/to/config.json", undefined, {
+        setupSignalHandlers: true,
+      });
+
+      // Should have registered both handlers
+      expect(sigintRegistered).toBe(true);
+      expect(sigtermRegistered).toBe(true);
+    });
+  });
+
+  describe("concurrent shutdown handling", () => {
+    it("should wait for cleanup when stop() is called while already shutting down", async () => {
+      watcher = new Watcher();
+      await watcher.start("/path/to/config.json");
+
+      // Call stop() twice concurrently - second call should wait for first
+      const stopPromise1 = watcher.stop();
+      const stopPromise2 = watcher.stop();
+
+      // Both should complete without errors
+      await expect(
+        Promise.all([stopPromise1, stopPromise2]),
+      ).resolves.toBeDefined();
+    });
+
+    it("should handle multiple concurrent stop() calls", async () => {
+      watcher = new Watcher();
+      await watcher.start("/path/to/config.json");
+
+      // Simulate race condition with multiple stop() calls
+      const stopPromises = [
+        watcher.stop(),
+        watcher.stop(),
+        watcher.stop(),
+      ];
+
+      // All should complete without errors
+      await expect(Promise.all(stopPromises)).resolves.toBeDefined();
+    });
+
+    it("should complete cleanup before returning from concurrent stops", async () => {
+      watcher = new Watcher();
+      await watcher.start("/path/to/config.json");
+
+      let firstStopCompleted = false;
+      let secondStopCompleted = false;
+
+      const stopPromise1 = watcher.stop().then(() => {
+        firstStopCompleted = true;
+      });
+
+      const stopPromise2 = watcher.stop().then(() => {
+        secondStopCompleted = true;
+      });
+
+      await Promise.all([stopPromise1, stopPromise2]);
+
+      // Both should have completed
+      expect(firstStopCompleted).toBe(true);
+      expect(secondStopCompleted).toBe(true);
+    });
   });
 });
