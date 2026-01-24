@@ -51,6 +51,8 @@ export type PipelineItem = {
   events?: Events;
   /** Enable event template variable substitution in command and env (default: false) */
   enable_event_templates?: boolean;
+  /** If true, this stage only starts via 'clier trigger' command (not auto-started or event-triggered) */
+  manual?: boolean;
 };
 
 /**

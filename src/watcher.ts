@@ -180,6 +180,84 @@ export class Watcher {
   }
 
   /**
+   * Get the orchestrator (for manual triggering operations)
+   */
+  getOrchestrator(): Orchestrator | undefined {
+    return this.orchestrator;
+  }
+
+  /**
+   * Emit a custom event manually
+   *
+   * This allows external systems (CLI, agents) to emit events that trigger
+   * waiting stages. The event flows through the normal event handling pipeline
+   * including debouncing and rate limiting.
+   *
+   * @param eventName - Name of the event to emit
+   * @param data - Optional data payload for event templates
+   * @returns Array of stage names that are waiting for this event
+   * @throws Error if watcher not started
+   *
+   * @example
+   * ```ts
+   * const triggered = await watcher.emitEvent('build:complete', { version: '1.0.0' });
+   * console.log('Stages waiting for this event:', triggered);
+   * ```
+   */
+  async emitEvent(
+    eventName: string,
+    data?: string | Record<string, unknown>
+  ): Promise<string[]> {
+    if (!this.eventHandler || !this.orchestrator) {
+      throw new Error("Watcher not started");
+    }
+
+    // Find stages waiting for this event (before emitting)
+    const waitingForThisEvent = this.orchestrator
+      .getWaitingProcesses()
+      .filter((p) => p.trigger_on?.includes(eventName))
+      .map((p) => p.name);
+
+    // Create and emit the event
+    const event: ClierEvent = {
+      name: eventName,
+      processName: "manual",
+      type: "custom",
+      data,
+      timestamp: Date.now(),
+    };
+
+    logger.info("Emitting manual event", { eventName, data });
+
+    // Emit through event handler (flows through debouncing/rate limiting)
+    this.eventHandler.emit(eventName, event);
+
+    return waitingForThisEvent;
+  }
+
+  /**
+   * Directly trigger a pipeline stage by name
+   *
+   * Bypasses the event waiting system to start a specific stage immediately.
+   * The stage's dependents will still cascade when it completes.
+   *
+   * @param stageName - Name of the stage to trigger
+   * @throws Error if watcher not started or stage not found
+   *
+   * @example
+   * ```ts
+   * await watcher.triggerStage('deploy');
+   * ```
+   */
+  async triggerStage(stageName: string): Promise<void> {
+    if (!this.orchestrator) {
+      throw new Error("Watcher not started");
+    }
+
+    await this.orchestrator.triggerStage(stageName);
+  }
+
+  /**
    * Initialize all components
    */
   private async initializeComponents(): Promise<void> {

@@ -47,6 +47,24 @@ clier update                         # Update to latest
 clier update --check                 # Check for updates
 ```
 
+## Manual Triggering
+
+Manually trigger pipeline stages or emit events to start waiting processes:
+
+```bash
+# Directly start a specific stage (bypasses event triggers)
+clier trigger <stage-name>               # Start a stage immediately
+
+# Emit a custom event to trigger waiting stages
+clier emit <event-name>                  # Emit event (triggers stages with matching trigger_on)
+clier emit <event-name> -d '{"key":"value"}'  # Emit with JSON data payload
+```
+
+**Use cases:**
+- Start `manual: true` stages that only run on demand
+- Trigger stages waiting for events without running their dependencies
+- Emit synthetic events for testing or automation
+
 ## Service Control (Runtime-Only)
 
 **Important**: These changes are NOT persisted to `clier-pipeline.json`

@@ -279,4 +279,35 @@ export class DaemonController {
 
     return { success: true, cleared };
   }
+
+  /**
+   * Emit a custom event to trigger waiting pipeline stages
+   *
+   * This allows CLI or agents to manually emit events that would normally
+   * come from process output patterns. Stages with matching trigger_on
+   * will be started if all their dependencies are satisfied.
+   */
+  async "event.emit"(params: {
+    eventName: string;
+    data?: string | Record<string, unknown>;
+  }): Promise<{ success: true; triggeredStages: string[] }> {
+    const triggeredStages = await this.watcher.emitEvent(
+      params.eventName,
+      params.data
+    );
+    return { success: true, triggeredStages };
+  }
+
+  /**
+   * Directly trigger a pipeline stage by name
+   *
+   * Bypasses the event system to start a specific stage immediately.
+   * Useful for manually kicking off stages that aren't auto-triggered.
+   */
+  async "stage.trigger"(params: {
+    stageName: string;
+  }): Promise<{ success: true }> {
+    await this.watcher.triggerStage(params.stageName);
+    return { success: true };
+  }
 }

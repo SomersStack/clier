@@ -32,6 +32,8 @@ const pipelineItemSchema = z.object({
   cwd: z.string().optional(),
   events: eventsSchema.optional(),
   enable_event_templates: z.boolean().optional().default(false),
+  /** If true, this stage only starts via 'clier trigger' command (not auto-started or event-triggered) */
+  manual: z.boolean().optional(),
 });
 
 /**

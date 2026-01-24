@@ -261,7 +261,7 @@ export class Orchestrator {
   }
 
   /**
-   * Get entry point processes (no trigger_on)
+   * Get entry point processes (no trigger_on and not manual)
    *
    * @returns Array of entry point pipeline items
    *
@@ -272,7 +272,8 @@ export class Orchestrator {
    */
   getEntryPoints(): PipelineItem[] {
     return Array.from(this.pipelineItems.values()).filter(
-      (item) => !item.trigger_on || item.trigger_on.length === 0
+      (item) =>
+        !item.manual && (!item.trigger_on || item.trigger_on.length === 0)
     );
   }
 
@@ -293,6 +294,47 @@ export class Orchestrator {
         item.trigger_on.length > 0 &&
         !this.startedProcesses.has(item.name)
     );
+  }
+
+  /**
+   * Directly start a specific pipeline stage, bypassing event triggers
+   *
+   * This allows manual triggering of stages that would normally wait for events.
+   * The stage's dependents will still cascade when it completes.
+   *
+   * @param stageName - Name of the stage to start
+   * @throws Error if no pipeline loaded, stage not found, or stage already started
+   *
+   * @example
+   * ```ts
+   * await orchestrator.triggerStage('build');
+   * ```
+   */
+  async triggerStage(stageName: string): Promise<void> {
+    if (!this.config) {
+      throw new Error("No pipeline loaded. Call loadPipeline() first.");
+    }
+
+    const item = this.pipelineItems.get(stageName);
+    if (!item) {
+      throw new Error(`Stage "${stageName}" not found in pipeline`);
+    }
+
+    if (this.startedProcesses.has(stageName)) {
+      throw new Error(`Stage "${stageName}" is already started`);
+    }
+
+    logger.info("Manually triggering stage", { stageName });
+    await this.startProcess(item);
+  }
+
+  /**
+   * Get all stage names in the pipeline
+   *
+   * @returns Array of stage names
+   */
+  getStageNames(): string[] {
+    return Array.from(this.pipelineItems.keys());
   }
 
   /**
@@ -430,10 +472,11 @@ export class Orchestrator {
 
   /**
    * Find processes that depend on a specific event
+   * Manual stages are excluded - they can only be triggered via triggerStage()
    */
   private findDependents(eventName: string): PipelineItem[] {
-    return Array.from(this.pipelineItems.values()).filter((item) =>
-      item.trigger_on?.includes(eventName)
+    return Array.from(this.pipelineItems.values()).filter(
+      (item) => !item.manual && item.trigger_on?.includes(eventName)
     );
   }
 

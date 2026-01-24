@@ -63,6 +63,7 @@ Create `clier-pipeline.json` in project root:
 | `command` | Yes | string | - | Shell command |
 | `type` | Yes | "service" \| "task" | - | Service=long-running, Task=one-off |
 | `trigger_on` | No | string[] | - | Events that start this process (omit = starts immediately) |
+| `manual` | No | boolean | false | Only start via `clier trigger` (not auto-started or event-triggered) |
 | `continue_on_failure` | No | boolean | false | true=continue on failure, false=block pipeline |
 | `env` | No | object | - | Environment variables |
 | `cwd` | No | string | - | Working directory |
@@ -241,6 +242,43 @@ Create `clier-pipeline.json` in project root:
 
 **Behavior**: Alert runs when any service crashes 3+ times in 5 seconds
 
+### Manual Trigger Stages
+
+For stages that should only run on demand (not automatically):
+
+```json
+{
+  "pipeline": [
+    {
+      "name": "api",
+      "command": "npm run dev",
+      "type": "service",
+      "events": { "on_stdout": [{ "pattern": "listening", "emit": "api:ready" }] }
+    },
+    {
+      "name": "deploy",
+      "command": "npm run deploy",
+      "type": "task",
+      "manual": true
+    },
+    {
+      "name": "db-migrate",
+      "command": "npm run migrate",
+      "type": "task",
+      "manual": true
+    }
+  ]
+}
+```
+
+**Trigger manually:**
+```bash
+clier trigger deploy      # Run deployment
+clier trigger db-migrate  # Run database migrations
+```
+
+**Behavior**: `manual: true` stages never auto-start or respond to events - they only run via `clier trigger`
+
 ## Environment Variables
 
 **System Environment:**
@@ -374,11 +412,12 @@ clier logs
 ## Key Points
 
 1. **No `trigger_on`** = starts immediately
-2. **Service vs Task** - Services restart on crash, tasks exit
-3. **Multi-pattern** - ALL matching patterns emit (not just first)
-4. **Event naming** - Use `process:event` convention
-5. **Lenient mode** - `continue_on_failure: true` for optional operations
-6. **Events optional** - Omit `events` field if no coordination needed
+2. **`manual: true`** = only starts via `clier trigger` command
+3. **Service vs Task** - Services restart on crash, tasks exit
+4. **Multi-pattern** - ALL matching patterns emit (not just first)
+5. **Event naming** - Use `process:event` convention
+6. **Lenient mode** - `continue_on_failure: true` for optional operations
+7. **Events optional** - Omit `events` field if no coordination needed
 
 ## Further Reading
 
