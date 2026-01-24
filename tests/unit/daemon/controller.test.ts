@@ -358,4 +358,49 @@ describe("DaemonController", () => {
       expect(result.processCount).toBe(0);
     });
   });
+
+  describe("logs.clear", () => {
+    it("should clear logs for a specific process", async () => {
+      const mockLogManager = {
+        deleteLogFiles: vi.fn(),
+        deleteAllLogFiles: vi.fn(),
+        getProcessNames: vi.fn(),
+      };
+
+      mockWatcher.getLogManager.mockReturnValue(mockLogManager);
+
+      const result = await controller["logs.clear"]({ name: "backend" });
+
+      expect(result).toEqual({ success: true, cleared: ["backend"] });
+      expect(mockLogManager.deleteLogFiles).toHaveBeenCalledWith("backend");
+      expect(mockLogManager.deleteAllLogFiles).not.toHaveBeenCalled();
+    });
+
+    it("should clear all process logs when no name specified", async () => {
+      const mockLogManager = {
+        deleteLogFiles: vi.fn(),
+        deleteAllLogFiles: vi.fn(),
+        getProcessNames: vi.fn().mockReturnValue(["backend", "frontend"]),
+      };
+
+      mockWatcher.getLogManager.mockReturnValue(mockLogManager);
+
+      const result = await controller["logs.clear"]({});
+
+      expect(result).toEqual({
+        success: true,
+        cleared: ["backend", "frontend"],
+      });
+      expect(mockLogManager.deleteAllLogFiles).toHaveBeenCalled();
+      expect(mockLogManager.deleteLogFiles).not.toHaveBeenCalled();
+    });
+
+    it("should throw error if LogManager not initialized", async () => {
+      mockWatcher.getLogManager.mockReturnValue(null);
+
+      await expect(controller["logs.clear"]({ name: "backend" })).rejects.toThrow(
+        "LogManager not initialized"
+      );
+    });
+  });
 });

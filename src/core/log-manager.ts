@@ -252,6 +252,66 @@ export class LogManager {
   }
 
   /**
+   * Delete log files for a process (memory buffer + file on disk)
+   *
+   * @param processName - Name of the process
+   */
+  deleteLogFiles(processName: string): void {
+    // Clear memory buffer and close stream
+    this.clear(processName);
+
+    // Delete the main log file and any rotated files
+    const basePath = this.getLogFilePath(processName);
+
+    try {
+      // Delete main log file
+      if (fs.existsSync(basePath)) {
+        fs.unlinkSync(basePath);
+        logger.debug("Deleted log file", { processName, path: basePath });
+      }
+
+      // Delete rotated files (.1, .2, etc.)
+      for (let i = 1; i <= this.options.maxFiles; i++) {
+        const rotatedPath = `${basePath}.${i}`;
+        if (fs.existsSync(rotatedPath)) {
+          fs.unlinkSync(rotatedPath);
+          logger.debug("Deleted rotated log file", {
+            processName,
+            path: rotatedPath,
+          });
+        }
+      }
+    } catch (error) {
+      logger.error("Failed to delete log files", {
+        processName,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete all log files for all processes
+   */
+  deleteAllLogFiles(): void {
+    // Get all process names before clearing
+    const processNames = Array.from(this.buffers.keys());
+
+    for (const name of processNames) {
+      this.deleteLogFiles(name);
+    }
+
+    this.buffers.clear();
+  }
+
+  /**
+   * Get list of all processes that have logs
+   */
+  getProcessNames(): string[] {
+    return Array.from(this.buffers.keys());
+  }
+
+  /**
    * Flush all pending writes and close file streams
    */
   async flush(): Promise<void> {

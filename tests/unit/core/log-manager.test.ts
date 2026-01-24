@@ -415,4 +415,126 @@ describe("LogManager", () => {
       expect(logManager.getAll("process-c")).toHaveLength(20);
     });
   });
+
+  describe("deleteLogFiles", () => {
+    it("should delete log file for a process", async () => {
+      logManager = new LogManager({
+        persistLogs: true,
+        logDir: tempDir,
+      });
+
+      logManager.add("delete-test", "stdout", "Test log");
+      await logManager.flush();
+
+      const logPath = path.join(tempDir, "delete-test.log");
+      expect(fs.existsSync(logPath)).toBe(true);
+
+      logManager.deleteLogFiles("delete-test");
+
+      expect(fs.existsSync(logPath)).toBe(false);
+      expect(logManager.getAll("delete-test")).toEqual([]);
+    });
+
+    it("should delete rotated log files", async () => {
+      logManager = new LogManager({
+        persistLogs: true,
+        logDir: tempDir,
+        maxFiles: 3,
+      });
+
+      logManager.add("rotate-delete", "stdout", "Test log");
+      await logManager.flush();
+
+      // Manually create rotated files to simulate rotation
+      const basePath = path.join(tempDir, "rotate-delete.log");
+      fs.writeFileSync(`${basePath}.1`, "rotated 1");
+      fs.writeFileSync(`${basePath}.2`, "rotated 2");
+
+      expect(fs.existsSync(basePath)).toBe(true);
+      expect(fs.existsSync(`${basePath}.1`)).toBe(true);
+      expect(fs.existsSync(`${basePath}.2`)).toBe(true);
+
+      logManager.deleteLogFiles("rotate-delete");
+
+      expect(fs.existsSync(basePath)).toBe(false);
+      expect(fs.existsSync(`${basePath}.1`)).toBe(false);
+      expect(fs.existsSync(`${basePath}.2`)).toBe(false);
+    });
+
+    it("should handle non-existent log files gracefully", () => {
+      logManager = new LogManager({
+        persistLogs: true,
+        logDir: tempDir,
+      });
+
+      // Should not throw when deleting non-existent files
+      expect(() => {
+        logManager.deleteLogFiles("non-existent-process");
+      }).not.toThrow();
+    });
+  });
+
+  describe("deleteAllLogFiles", () => {
+    it("should delete all log files", async () => {
+      logManager = new LogManager({
+        persistLogs: true,
+        logDir: tempDir,
+      });
+
+      logManager.add("process-1", "stdout", "Log 1");
+      logManager.add("process-2", "stdout", "Log 2");
+      logManager.add("process-3", "stdout", "Log 3");
+      await logManager.flush();
+
+      expect(fs.existsSync(path.join(tempDir, "process-1.log"))).toBe(true);
+      expect(fs.existsSync(path.join(tempDir, "process-2.log"))).toBe(true);
+      expect(fs.existsSync(path.join(tempDir, "process-3.log"))).toBe(true);
+
+      logManager.deleteAllLogFiles();
+
+      expect(fs.existsSync(path.join(tempDir, "process-1.log"))).toBe(false);
+      expect(fs.existsSync(path.join(tempDir, "process-2.log"))).toBe(false);
+      expect(fs.existsSync(path.join(tempDir, "process-3.log"))).toBe(false);
+      expect(logManager.getAll("process-1")).toEqual([]);
+      expect(logManager.getAll("process-2")).toEqual([]);
+      expect(logManager.getAll("process-3")).toEqual([]);
+    });
+
+    it("should handle empty state gracefully", () => {
+      logManager = new LogManager({
+        persistLogs: true,
+        logDir: tempDir,
+      });
+
+      // Should not throw when no logs exist
+      expect(() => {
+        logManager.deleteAllLogFiles();
+      }).not.toThrow();
+    });
+  });
+
+  describe("getProcessNames", () => {
+    it("should return list of process names with logs", () => {
+      logManager = new LogManager({ persistLogs: false });
+
+      logManager.add("alpha", "stdout", "Log 1");
+      logManager.add("beta", "stdout", "Log 2");
+      logManager.add("gamma", "stdout", "Log 3");
+
+      const names = logManager.getProcessNames();
+
+      expect(names).toHaveLength(3);
+      expect(names).toContain("alpha");
+      expect(names).toContain("beta");
+      expect(names).toContain("gamma");
+    });
+
+    it("should return empty array when no logs exist", () => {
+      logManager = new LogManager({ persistLogs: false });
+
+      const names = logManager.getProcessNames();
+
+      expect(names).toEqual([]);
+    });
+  });
 });

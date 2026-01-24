@@ -127,6 +127,33 @@ export class DaemonController {
   }
 
   /**
+   * Clear logs for a specific process or all processes
+   */
+  async "logs.clear"(params: {
+    name?: string;
+  }): Promise<{ success: true; cleared: string[] }> {
+    const logManager = this.watcher.getLogManager();
+    if (!logManager) {
+      throw new Error("LogManager not initialized");
+    }
+
+    const cleared: string[] = [];
+
+    if (params.name) {
+      // Clear logs for a specific process
+      logManager.deleteLogFiles(params.name);
+      cleared.push(params.name);
+    } else {
+      // Clear all process logs
+      const processNames = logManager.getProcessNames();
+      logManager.deleteAllLogFiles();
+      cleared.push(...processNames);
+    }
+
+    return { success: true, cleared };
+  }
+
+  /**
    * Reload configuration
    */
   async "config.reload"(params: {
@@ -202,5 +229,54 @@ export class DaemonController {
       }
       throw error;
     }
+  }
+
+  /**
+   * Clear daemon logs (combined.log and/or error.log)
+   */
+  async "daemon.logs.clear"(params: {
+    level?: "combined" | "error" | "all";
+  }): Promise<{ success: true; cleared: string[] }> {
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const { findProjectRoot } = await import("../utils/project-root.js");
+
+    const projectRoot = findProjectRoot();
+    if (!projectRoot) {
+      throw new Error("Could not find project root");
+    }
+
+    const logsDir = path.join(projectRoot, ".clier", "logs");
+    const cleared: string[] = [];
+    const level = params.level || "all";
+
+    const filesToClear: string[] = [];
+    if (level === "all" || level === "combined") {
+      filesToClear.push("combined.log");
+    }
+    if (level === "all" || level === "error") {
+      filesToClear.push("error.log");
+    }
+
+    for (const file of filesToClear) {
+      const logPath = path.join(logsDir, file);
+      try {
+        await fs.unlink(logPath);
+        cleared.push(file);
+      } catch (error) {
+        // Ignore if file doesn't exist
+        if (
+          !(
+            error instanceof Error &&
+            "code" in error &&
+            error.code === "ENOENT"
+          )
+        ) {
+          throw error;
+        }
+      }
+    }
+
+    return { success: true, cleared };
   }
 }
