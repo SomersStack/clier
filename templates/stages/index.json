@@ -3,6 +3,7 @@
     "node-api",
     "build-task",
     "lint-task",
-    "dev-server"
+    "dev-server",
+    "browser-console"
   ]
 }
