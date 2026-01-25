@@ -71,6 +71,30 @@ clier emit <event-name>                  # Emit event (triggers stages with matc
 clier emit <event-name> -d '{"key":"value"}'  # Emit with JSON data payload
 ```
 
+## Stage Templates
+
+Generate pipeline stages from built-in templates:
+
+```bash
+# List available templates
+clier template list                      # Show all (service, task, utility)
+clier template list --category task      # Filter by category
+
+# Show template details and variables
+clier template show node-api
+
+# Apply template (outputs JSON to stdout)
+clier template apply node-api --name my-api
+
+# Override template variables
+clier template apply node-api --name backend --var entrypoint=src/index.js
+
+# Add directly to clier-pipeline.json
+clier template apply build-task --name compile --add
+```
+
+**Built-in Templates:** `node-api`, `dev-server`, `build-task`, `lint-task`
+
 ## Typical Workflows
 
 ### First Time Setup

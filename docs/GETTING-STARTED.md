@@ -323,6 +323,39 @@ clier service remove <name>
 
 **Note**: Service control commands modify the running daemon only. Changes do NOT persist to `clier-pipeline.json`. To persist changes, edit the config file and run `clier reload`.
 
+### Stage Templates
+
+Generate pipeline stages from built-in templates instead of writing configuration from scratch:
+
+```bash
+# List available templates
+clier template list                      # Show all templates
+clier template list --category service   # Filter by category
+
+# Show template details
+clier template show node-api             # View variables and config
+
+# Generate a stage (outputs JSON to stdout)
+clier template apply node-api --name my-api
+
+# Customize with variables
+clier template apply node-api --name backend --var entrypoint=src/index.js
+
+# Add directly to clier-pipeline.json
+clier template apply node-api --name my-api --add
+```
+
+**Available Templates:**
+
+| Template | Type | Description |
+|----------|------|-------------|
+| `node-api` | service | Node.js API server with ready event |
+| `dev-server` | service | Dev server (Vite/webpack) with HMR |
+| `build-task` | task | Build step with success event |
+| `lint-task` | task | Linting step for pipelines |
+
+Templates are bundled with clier and loaded from the package's `templates/stages/` directory.
+
 ### Reload vs Restart
 
 Understanding the difference between `reload` and `restart`:
