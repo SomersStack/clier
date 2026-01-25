@@ -29,6 +29,11 @@ import {
 } from "./commands/service.js";
 import { emitCommand } from "./commands/emit.js";
 import { eventsCommand, type EventsOptions } from "./commands/events.js";
+import {
+  templateListCommand,
+  templateApplyCommand,
+  templateShowCommand,
+} from "./commands/template.js";
 
 /**
  * Create and configure the CLI program
@@ -227,6 +232,54 @@ export function createCLI(): Command {
       const exitCode = await initCommand(options);
       process.exit(exitCode);
     });
+
+  // Template commands (for generating pipeline stages from templates)
+  const template = program
+    .command("template")
+    .description("Generate pipeline stages from templates");
+
+  template
+    .command("list")
+    .description("List available stage templates")
+    .option("-c, --category <category>", "Filter by category (service, task, utility)")
+    .action(async (options: { category?: "service" | "task" | "utility" }) => {
+      const exitCode = await templateListCommand(options);
+      process.exit(exitCode);
+    });
+
+  template
+    .command("show")
+    .description("Show details for a specific template")
+    .argument("<template>", "Template ID")
+    .action(async (templateId: string) => {
+      const exitCode = await templateShowCommand(templateId);
+      process.exit(exitCode);
+    });
+
+  template
+    .command("apply")
+    .description("Apply a template to generate a pipeline stage")
+    .argument("<template>", "Template ID")
+    .option("-n, --name <name>", "Stage name (overrides template default)")
+    .option("-v, --var <KEY=VALUE...>", "Template variables", [])
+    .option("--add", "Add directly to clier-pipeline.json")
+    .option("-o, --output <file>", "Output to specific file")
+    .option("-f, --force", "Overwrite existing files without prompting")
+    .action(
+      async (
+        templateId: string,
+        options: {
+          name?: string;
+          var: string[];
+          add?: boolean;
+          output?: string;
+          force?: boolean;
+        }
+      ) => {
+        const exitCode = await templateApplyCommand(templateId, options);
+        process.exit(exitCode);
+      }
+    );
 
   // Service commands (for controlling individual processes)
   const service = program

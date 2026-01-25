@@ -1,0 +1,40 @@
+{
+  "id": "node-api",
+  "name": "Node.js API Server",
+  "description": "Long-running Node.js API server with ready event detection",
+  "category": "service",
+  "tags": ["node", "api", "server", "express", "fastify"],
+  "stage": {
+    "name": "{{name}}",
+    "command": "node {{entrypoint}}",
+    "type": "service",
+    "events": {
+      "on_stdout": [
+        { "pattern": "{{readyPattern}}", "emit": "{{name}}:ready" }
+      ],
+      "on_stderr": true,
+      "on_crash": true
+    }
+  },
+  "variables": [
+    {
+      "name": "name",
+      "label": "Stage Name",
+      "default": "api",
+      "description": "Unique name for this pipeline stage",
+      "required": true
+    },
+    {
+      "name": "entrypoint",
+      "label": "Entry Point",
+      "default": "dist/server.js",
+      "description": "Path to the Node.js entry file"
+    },
+    {
+      "name": "readyPattern",
+      "label": "Ready Pattern",
+      "default": "listening on port",
+      "description": "Regex pattern to detect when server is ready"
+    }
+  ]
+}
