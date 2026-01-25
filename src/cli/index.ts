@@ -141,9 +141,9 @@ export function createCLI(): Command {
   logs
     .command("clear")
     .description("Clear logs for a process, all processes, or daemon")
-    .argument("[name]", "Process name (use --all for all processes)")
-    .option("-a, --all", "Clear logs for all processes")
-    .option("-d, --daemon", "Clear daemon logs instead of process logs")
+    .argument("[name]", "Process name (use --all for all logs)")
+    .option("-a, --all", "Clear all logs (processes + daemon)")
+    .option("-d, --daemon", "Clear daemon logs only")
     .option(
       "-l, --level <level>",
       "Daemon log level to clear (combined, error, or all)",

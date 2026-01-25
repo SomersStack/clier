@@ -56,12 +56,12 @@ export async function logsClearCommand(
 
     // Handle process logs
     if (!processName && !options.all) {
-      printError("Process name required. Use --all to clear all process logs.");
+      printError("Process name required. Use --all to clear all logs.");
       console.log();
       console.log("Usage:");
       console.log("  clier logs clear <name>     Clear logs for a specific process");
-      console.log("  clier logs clear --all      Clear logs for all processes");
-      console.log("  clier logs clear --daemon   Clear daemon logs");
+      console.log("  clier logs clear --all      Clear all logs (processes + daemon)");
+      console.log("  clier logs clear --daemon   Clear daemon logs only");
       console.log();
       client.disconnect();
       return 1;
@@ -80,13 +80,29 @@ export async function logsClearCommand(
       }
     );
 
-    client.disconnect();
-
     if (result.cleared.length === 0) {
-      printWarning("No logs to clear");
+      printWarning("No process logs to clear");
     } else {
       printSuccess(`Cleared logs for: ${result.cleared.join(", ")}`);
     }
+
+    // When --all is used, also clear daemon logs
+    if (options.all) {
+      console.log(chalk.cyan("\nClearing daemon logs..."));
+
+      const daemonResult: { success: true; cleared: string[] } =
+        await client.request("daemon.logs.clear", {
+          level: "all",
+        });
+
+      if (daemonResult.cleared.length === 0) {
+        printWarning("No daemon logs to clear");
+      } else {
+        printSuccess(`Cleared daemon logs: ${daemonResult.cleared.join(", ")}`);
+      }
+    }
+
+    client.disconnect();
 
     console.log();
     return 0;
