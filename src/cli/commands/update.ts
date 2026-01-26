@@ -151,7 +151,16 @@ export async function updateCommand(options: {
     try {
       const { stdout, stderr } = await execAsync(updateCommand);
 
-      if (stderr && !stderr.includes("npm WARN")) {
+      // npm warnings go to stderr but aren't errors
+      // npm v10 and earlier use "npm WARN", npm v11+ uses "npm warn"
+      const isOnlyWarnings =
+        !stderr ||
+        stderr
+          .split("\n")
+          .filter((line) => line.trim())
+          .every((line) => line.toLowerCase().includes("npm warn"));
+
+      if (stderr && !isOnlyWarnings) {
         updateSpinner.fail("Update failed");
         console.error(stderr);
         return 1;
