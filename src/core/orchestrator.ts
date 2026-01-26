@@ -303,7 +303,7 @@ export class Orchestrator {
    * The stage's dependents will still cascade when it completes.
    *
    * @param stageName - Name of the stage to start
-   * @throws Error if no pipeline loaded, stage not found, or stage already started
+   * @throws Error if no pipeline loaded, stage not found, or stage already running
    *
    * @example
    * ```ts
@@ -320,8 +320,16 @@ export class Orchestrator {
       throw new Error(`Stage "${stageName}" not found in pipeline`);
     }
 
+    // Check if process is currently running (not just if it was ever started)
+    if (this.processManager.isRunning(stageName)) {
+      throw new Error(`Stage "${stageName}" is already running`);
+    }
+
+    // If process was started before but is no longer running (e.g., task completed),
+    // allow it to be re-started by removing from startedProcesses
     if (this.startedProcesses.has(stageName)) {
-      throw new Error(`Stage "${stageName}" is already started`);
+      logger.debug("Removing completed stage from startedProcesses to allow restart", { stageName });
+      this.startedProcesses.delete(stageName);
     }
 
     logger.info("Manually triggering stage", { stageName });
