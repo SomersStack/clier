@@ -71,6 +71,7 @@ clier docs [subject]        # View documentation (commands, pipeline, all)
 clier validate              # Validate configuration
 clier start                 # Start pipeline daemon
 clier status                # View process status
+clier status -w             # Watch mode (live updates)
 clier logs <name>           # View process logs
 clier logs --daemon         # View daemon logs
 clier stop                  # Stop all processes

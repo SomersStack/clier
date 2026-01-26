@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `clier restart` - Full daemon restart with new PID (for when daemon itself is misbehaving)
+- `clier status --watch` - Watch mode for live status updates with configurable refresh interval
 
 ### Fixed
 - ESM `require()` error in watcher causing `clier reload` to fail with "require is not defined"

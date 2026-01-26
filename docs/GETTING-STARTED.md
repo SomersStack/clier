@@ -284,6 +284,8 @@ clier start
 
 # Check process status
 clier status
+clier status -w                      # Watch mode (live updates)
+clier status -w -n 5                 # Watch with 5 second refresh
 
 # View logs
 clier logs <name>                    # Specific process logs
