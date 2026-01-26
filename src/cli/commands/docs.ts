@@ -12,14 +12,16 @@ import chalk from "chalk";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-type DocSubject = "commands" | "pipeline" | "all";
+type DocSubject = "commands" | "pipeline" | "agent-instructions" | "all";
 
 /**
  * Available documentation subjects with their corresponding files
+ * Files prefixed with "templates:" are loaded from the templates directory
  */
 const DOC_SUBJECTS: Record<DocSubject, string[]> = {
   commands: ["AGENTS.md"],
   pipeline: ["AGENTS-PIPELINE.md"],
+  "agent-instructions": ["templates:agent-quick-start.md"],
   all: ["AGENTS.md", "AGENTS-PIPELINE.md"],
 };
 
@@ -30,6 +32,15 @@ function getDocsDir(): string {
   // When compiled, this file is at dist/cli/commands/docs.js
   // Docs are at docs/ from project root
   return join(__dirname, "../../../docs");
+}
+
+/**
+ * Get the path to the bundled templates directory
+ */
+function getTemplatesDir(): string {
+  // When compiled, this file is at dist/cli/commands/docs.js
+  // Templates are at templates/ from project root
+  return join(__dirname, "../../../templates");
 }
 
 /**
@@ -45,17 +56,21 @@ export async function docsCommand(options: {
     // List available subjects
     if (options.list) {
       console.log(chalk.bold("Available documentation subjects:\n"));
-      console.log(chalk.cyan("  commands") + "  - CLI commands and workflows");
+      console.log(chalk.cyan("  commands") + "     - CLI commands and workflows");
       console.log(
-        chalk.cyan("  pipeline") + "  - Pipeline configuration guide"
+        chalk.cyan("  pipeline") + "     - Pipeline configuration guide"
       );
       console.log(
-        chalk.cyan("  all") + "       - Complete agent documentation"
+        chalk.cyan("  agent-instructions") + " - Essential AI agent instructions for CLAUDE.md/AGENTS.md"
+      );
+      console.log(
+        chalk.cyan("  all") + "          - Complete agent documentation"
       );
       console.log("\nUsage:");
       console.log(chalk.dim("  clier docs [subject]"));
       console.log(chalk.dim("  clier docs commands"));
       console.log(chalk.dim("  clier docs pipeline"));
+      console.log(chalk.dim("  clier docs agent-instructions"));
       console.log(chalk.dim("  clier docs all"));
       return 0;
     }
@@ -72,9 +87,15 @@ export async function docsCommand(options: {
 
     // Read and display the requested documentation
     const files = DOC_SUBJECTS[subject];
+    const templatesDir = getTemplatesDir();
     const content = files
       .map((file) => {
         try {
+          // Handle templates: prefix for files in templates directory
+          if (file.startsWith("templates:")) {
+            const templateFile = file.slice("templates:".length);
+            return readFileSync(join(templatesDir, templateFile), "utf-8");
+          }
           return readFileSync(join(docsDir, file), "utf-8");
         } catch (error) {
           console.error(

@@ -1,6 +1,6 @@
 # Clier - AI Agent CLI Quick Reference
 
-> **For pipeline configuration, see [AGENTS-PIPELINE.md](AGENTS-PIPELINE.md)**
+> **For pipeline configuration, run `clier docs pipeline`**
 
 ## Essential Commands
 
@@ -222,7 +222,7 @@ clier logs --daemon -n 500           # More context for complex issues
 ## Creating/Modifying Pipelines
 
 **Need to create or modify a pipeline configuration?**
-See [AGENTS-PIPELINE.md](AGENTS-PIPELINE.md) for:
+Run `clier docs pipeline` to see:
 - Configuration schema
 - Pipeline setup examples
 - Event system
@@ -230,7 +230,5 @@ See [AGENTS-PIPELINE.md](AGENTS-PIPELINE.md) for:
 
 ## Further Reading
 
-- [AGENTS-PIPELINE.md](AGENTS-PIPELINE.md) - Pipeline configuration guide
-- [GETTING-STARTED.md](GETTING-STARTED.md) - Comprehensive guide
-- [configuration.md](configuration.md) - Complete schema reference
-- [api-reference.md](api-reference.md) - TypeScript API
+- `clier docs pipeline` - Pipeline configuration guide
+- `clier docs agent-instructions` - Essential agent instructions for CLAUDE.md/AGENTS.md

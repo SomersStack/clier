@@ -1,6 +1,6 @@
 # Clier - Pipeline Configuration Guide for AI Agents
 
-> **For CLI commands, see [AGENTS.md](AGENTS.md)**
+> **For CLI commands, run `clier docs commands`**
 
 ## Quick Setup Template
 
@@ -421,6 +421,5 @@ clier logs
 
 ## Further Reading
 
-- [AGENTS.md](AGENTS.md) - CLI commands and workflows
-- [configuration.md](configuration.md) - Complete schema reference with detailed explanations
-- [GETTING-STARTED.md](GETTING-STARTED.md) - Comprehensive guide with architecture
+- `clier docs commands` - CLI commands and workflows
+- `clier docs agent-instructions` - Essential agent instructions for CLAUDE.md/AGENTS.md
