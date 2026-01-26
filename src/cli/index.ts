@@ -89,8 +89,17 @@ export function createCLI(): Command {
   program
     .command("status")
     .description("Show process log status")
-    .action(async () => {
-      const exitCode = await statusCommand();
+    .option("-w, --watch", "Watch mode - continuously update the status display")
+    .option(
+      "-n, --interval <seconds>",
+      "Refresh interval in seconds (default: 2)",
+      "2"
+    )
+    .action(async (options: { watch?: boolean; interval: string }) => {
+      const exitCode = await statusCommand({
+        watch: options.watch,
+        interval: parseFloat(options.interval),
+      });
       process.exit(exitCode);
     });
 
