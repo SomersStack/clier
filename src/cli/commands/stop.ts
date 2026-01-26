@@ -5,8 +5,11 @@
  * Can also stop individual processes if a process name is provided.
  */
 
+import * as fs from "fs";
+import * as path from "path";
 import ora from "ora";
 import { getDaemonClient } from "../../daemon/client.js";
+import { findProjectRootForDaemon } from "../../utils/project-root.js";
 import { printError, printWarning } from "../utils/formatter.js";
 
 export interface StopOptions {
@@ -78,19 +81,56 @@ export async function stopCommand(
 
 /**
  * Wait for daemon to exit
+ *
+ * Waits for both socket connection to fail AND the process to actually exit.
+ * This prevents a race condition where the IPC server stops but the daemon
+ * is still running cleanup (e.g., stopping child processes).
  */
 async function waitForDaemonExit(timeoutMs: number): Promise<void> {
   const start = Date.now();
+
+  // Find the project root to locate PID file
+  let projectRoot: string;
+  try {
+    projectRoot = findProjectRootForDaemon();
+  } catch {
+    // No project found, daemon is already gone
+    return;
+  }
+
+  const pidPath = path.join(projectRoot, ".clier", "daemon.pid");
+
   while (Date.now() - start < timeoutMs) {
+    // Check 1: Socket connection should fail (IPC server stopped)
+    let socketAlive = false;
     try {
       const client = await getDaemonClient();
       client.disconnect();
-      // Still running, wait a bit more
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      socketAlive = true;
     } catch {
-      // Daemon is down
+      // Socket connection failed - server is down
+    }
+
+    // Check 2: Process should no longer be running
+    let processAlive = false;
+    if (fs.existsSync(pidPath)) {
+      try {
+        const pidStr = fs.readFileSync(pidPath, "utf-8");
+        const pid = parseInt(pidStr.trim());
+        // Signal 0 checks if process exists without sending a signal
+        process.kill(pid, 0);
+        processAlive = true;
+      } catch {
+        // Process doesn't exist or we can't signal it
+      }
+    }
+
+    // Daemon is fully down when both socket and process are gone
+    if (!socketAlive && !processAlive) {
       return;
     }
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
   // Timeout - daemon might still be running but we gave it enough time
 }
