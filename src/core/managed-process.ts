@@ -117,7 +117,10 @@ export class ManagedProcess extends EventEmitter {
       name: this.config.name,
       pid: this.child?.pid,
       status: this._status,
-      uptime: this.lastStartTime ? Date.now() - this.lastStartTime : 0,
+      // Only count uptime while actually running
+      uptime: this._status === "running" && this.lastStartTime
+        ? Date.now() - this.lastStartTime
+        : 0,
       restarts: this.restartCount,
       exitCode: this.lastExitCode,
       signal: this.lastSignal,
