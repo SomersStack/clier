@@ -67,7 +67,7 @@ describe("E2E: Circuit Breaker", () => {
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath);
+    await watcher.start(configPath, undefined, { detached: false });
 
     // Wait for crashes and circuit breaker to trigger
     // The crasher service will auto-restart until max retries
@@ -117,7 +117,7 @@ describe("E2E: Circuit Breaker", () => {
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath);
+    await watcher.start(configPath, undefined, { detached: false });
 
     // Wait for circuit breaker
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -156,7 +156,7 @@ describe("E2E: Circuit Breaker", () => {
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath);
+    await watcher.start(configPath, undefined, { detached: false });
 
     // Wait for crashes
     await new Promise((resolve) => setTimeout(resolve, 2000));

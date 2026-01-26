@@ -28,6 +28,12 @@ export interface ProcessConfig {
   type: "service" | "task";
   /** Restart policy for services */
   restart?: RestartPolicy;
+  /**
+   * Whether to spawn process in detached mode (new process group).
+   * When true (default), allows killing entire process tree on stop.
+   * Set to false in tests to ensure child processes die with the test runner.
+   */
+  detached?: boolean;
 }
 
 /**
@@ -161,14 +167,16 @@ export class ManagedProcess extends EventEmitter {
 
     try {
       // Spawn process with shell to handle command parsing
-      // Use detached: true to create a new process group, so we can kill
-      // the entire process tree (shell + children) when stopping
+      // Use detached: true (default) to create a new process group, so we can kill
+      // the entire process tree (shell + children) when stopping.
+      // Set detached: false in tests to ensure child processes die with the test runner.
+      const detached = this.config.detached !== false;
       this.child = spawn(this.config.command, [], {
         cwd: this.config.cwd || process.cwd(),
         env: { ...process.env, ...this.config.env },
         shell: true,
         stdio: ["ignore", "pipe", "pipe"],
-        detached: true,
+        detached,
       });
 
       this.lastStartTime = Date.now();
@@ -239,15 +247,20 @@ export class ManagedProcess extends EventEmitter {
 
       const forceKillTimer = setTimeout(() => {
         if (this.child && this._status === "running" && this.child.pid) {
-          logger.warn("Force killing process group", {
+          const detached = this.config.detached !== false;
+          logger.warn(detached ? "Force killing process group" : "Force killing process", {
             name: this.config.name,
             pid: this.child.pid,
           });
-          // Kill entire process group with SIGKILL
+          // Kill process (or entire process group if detached) with SIGKILL
           try {
-            process.kill(-this.child.pid, "SIGKILL");
+            if (detached) {
+              process.kill(-this.child.pid, "SIGKILL");
+            } else {
+              this.child.kill("SIGKILL");
+            }
           } catch (err) {
-            logger.error("Failed to force kill process group", {
+            logger.error("Failed to force kill process", {
               name: this.config.name,
               pid: this.child.pid,
               error: err instanceof Error ? err.message : String(err),
@@ -294,18 +307,24 @@ export class ManagedProcess extends EventEmitter {
       // Listen for exit
       this.once("exit", cleanup);
 
-      // Send signal to entire process group (negative PID)
-      // This ensures all child processes spawned by the shell are also killed
+      // Send signal to process (or process group if detached)
       if (this.child!.pid) {
-        try {
-          process.kill(-this.child!.pid, signal);
-        } catch (err) {
-          // Fallback to killing just the main process if group kill fails
-          logger.warn("Failed to kill process group, trying single process", {
-            name: this.config.name,
-            pid: this.child!.pid,
-            error: err instanceof Error ? err.message : String(err),
-          });
+        const detached = this.config.detached !== false;
+        if (detached) {
+          // Kill entire process group (negative PID) - ensures all child processes are killed
+          try {
+            process.kill(-this.child!.pid, signal);
+          } catch (err) {
+            // Fallback to killing just the main process if group kill fails
+            logger.warn("Failed to kill process group, trying single process", {
+              name: this.config.name,
+              pid: this.child!.pid,
+              error: err instanceof Error ? err.message : String(err),
+            });
+            this.child!.kill(signal);
+          }
+        } else {
+          // Non-detached: just kill the main process, children will die with it
           this.child!.kill(signal);
         }
       } else {

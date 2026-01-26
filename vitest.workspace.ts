@@ -32,6 +32,8 @@ export default defineWorkspace([
       fileParallelism: true,
       testTimeout: 10000,
       hookTimeout: 10000,
+      forceExit: true,
+      teardownTimeout: 5000,
     },
   },
   {
@@ -51,6 +53,8 @@ export default defineWorkspace([
       fileParallelism: true,
       testTimeout: 30000,
       hookTimeout: 15000,
+      forceExit: true,
+      teardownTimeout: 10000,
     },
   },
   {
@@ -70,6 +74,8 @@ export default defineWorkspace([
       fileParallelism: true,
       testTimeout: 60000,
       hookTimeout: 30000,
+      forceExit: true,
+      teardownTimeout: 15000,
     },
   },
   {
@@ -90,6 +96,8 @@ export default defineWorkspace([
       fileParallelism: false,
       testTimeout: 120000,
       hookTimeout: 30000,
+      forceExit: true,
+      teardownTimeout: 15000,
     },
   },
 ]);

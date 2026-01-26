@@ -37,6 +37,17 @@ const logger = createContextLogger("Orchestrator");
  * });
  * ```
  */
+/**
+ * Options for Orchestrator
+ */
+export interface OrchestratorOptions {
+  /**
+   * Whether to spawn processes in detached mode (default: true)
+   * Set to false in tests to ensure child processes die with the test runner
+   */
+  detached?: boolean;
+}
+
 export class Orchestrator {
   private processManager: ProcessManager;
   private config?: ClierConfig;
@@ -44,21 +55,26 @@ export class Orchestrator {
   private startedProcesses = new Set<string>();
   private receivedEvents = new Set<string>();
   private projectRoot?: string;
+  private options: OrchestratorOptions;
 
   /**
    * Create a new Orchestrator
    *
    * @param processManager - ProcessManager instance
    * @param projectRoot - Project root directory for default cwd
+   * @param options - Optional configuration options
    *
    * @example
    * ```ts
    * const orchestrator = new Orchestrator(processManager, '/project/root');
+   * // For tests (prevents orphan processes):
+   * const orchestrator = new Orchestrator(processManager, '/project/root', { detached: false });
    * ```
    */
-  constructor(processManager: ProcessManager, projectRoot?: string) {
+  constructor(processManager: ProcessManager, projectRoot?: string, options?: OrchestratorOptions) {
     this.processManager = processManager;
     this.projectRoot = projectRoot;
+    this.options = options || {};
   }
 
   /**
@@ -456,6 +472,9 @@ export class Orchestrator {
               maxDelay: 60000,
             }
           : undefined,
+      // Pass through detached option (defaults to true if not specified)
+      // Set to false in tests to prevent orphan processes
+      detached: this.options.detached,
     };
 
     // Handle environment variables

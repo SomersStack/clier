@@ -81,7 +81,7 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath);
+    await watcher.start(configPath, undefined, { detached: false });
 
     // Wait for all handlers to run
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -162,7 +162,7 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath);
+    await watcher.start(configPath, undefined, { detached: false });
 
     // Wait for all handlers
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -234,7 +234,7 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath);
+    await watcher.start(configPath, undefined, { detached: false });
 
     // Wait for fanout
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -297,7 +297,7 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath);
+    await watcher.start(configPath, undefined, { detached: false });
 
     // Wait for execution
     await new Promise((resolve) => setTimeout(resolve, 500));

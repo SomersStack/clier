@@ -80,9 +80,9 @@ describe("E2E: Full Pipeline", () => {
   });
 
   it("should run step1 -> step2 -> service pipeline", async () => {
-    // Start watcher
+    // Start watcher with detached: false to prevent orphan processes in tests
     watcher = new Watcher();
-    await watcher.start(configPath);
+    await watcher.start(configPath, undefined, { detached: false });
 
     // Wait for pipeline to execute
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -92,12 +92,12 @@ describe("E2E: Full Pipeline", () => {
   }, 5000);
 
   it("should emit events in correct order", async () => {
-    // Start watcher
+    // Start watcher with detached: false to prevent orphan processes in tests
     watcher = new Watcher();
 
     // We need to hook into the event bus to track events
     // This is a bit tricky in E2E, so we'll verify through process execution
-    await watcher.start(configPath);
+    await watcher.start(configPath, undefined, { detached: false });
 
     // Wait for pipeline
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -144,7 +144,7 @@ describe("E2E: Full Pipeline", () => {
 
     try {
       watcher = new Watcher();
-      await watcher.start(noTriggerPath);
+      await watcher.start(noTriggerPath, undefined, { detached: false });
 
       // Wait a bit
       await new Promise((resolve) => setTimeout(resolve, 500));

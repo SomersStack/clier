@@ -7,6 +7,10 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     // Increase hook timeout for cleanup operations (E2E tests with watchers)
     hookTimeout: 30000,
+    // Force vitest to exit after tests complete, killing any dangling handles
+    forceExit: true,
+    // Timeout for teardown hooks (afterEach, afterAll) before force exit
+    teardownTimeout: 10000,
     // Use forks for test isolation - each test file runs in its own process
     // This prevents resource contention and accumulated slowdown
     pool: 'forks',

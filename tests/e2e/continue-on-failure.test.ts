@@ -64,7 +64,7 @@ describe("E2E: Continue on Failure", () => {
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath);
+    await watcher.start(configPath, undefined, { detached: false });
 
     // Wait for execution
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -110,7 +110,7 @@ describe("E2E: Continue on Failure", () => {
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath);
+    await watcher.start(configPath, undefined, { detached: false });
 
     // Wait for execution
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -153,7 +153,7 @@ describe("E2E: Continue on Failure", () => {
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath);
+    await watcher.start(configPath, undefined, { detached: false });
 
     // Wait for execution
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -198,7 +198,7 @@ describe("E2E: Continue on Failure", () => {
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath);
+    await watcher.start(configPath, undefined, { detached: false });
 
     // Wait for execution
     await new Promise((resolve) => setTimeout(resolve, 500));

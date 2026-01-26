@@ -58,6 +58,7 @@ export class Watcher {
     sigint: () => void;
     sigterm: () => void;
   };
+  private detached?: boolean;
 
   /**
    * Start the watcher
@@ -69,6 +70,8 @@ export class Watcher {
    * @param options - Additional options
    * @param options.setupSignalHandlers - Whether to register SIGINT/SIGTERM handlers (default: true)
    *                                      Set to false when running under a daemon that manages signals
+   * @param options.detached - Whether to spawn processes in detached mode (default: true)
+   *                           Set to false in tests to ensure child processes die with the test runner
    * @throws Error if configuration loading, initialization, or pipeline start fails
    *
    * @example
@@ -76,9 +79,11 @@ export class Watcher {
    * await watcher.start('./clier-pipeline.json', '/project/root');
    * // When running under daemon:
    * await watcher.start('./clier-pipeline.json', '/project/root', { setupSignalHandlers: false });
+   * // When running in tests:
+   * await watcher.start('./clier-pipeline.json', '/project/root', { detached: false });
    * ```
    */
-  async start(configPath: string, projectRoot?: string, options?: { setupSignalHandlers?: boolean }): Promise<void> {
+  async start(configPath: string, projectRoot?: string, options?: { setupSignalHandlers?: boolean; detached?: boolean }): Promise<void> {
     if (this.started) {
       logger.warn("Watcher already started");
       return;
@@ -87,8 +92,10 @@ export class Watcher {
     try {
       // Store project root (default to dirname of config if not provided)
       this.projectRoot = projectRoot || path.dirname(configPath);
+      // Store detached option (default true, set false in tests to prevent orphan processes)
+      this.detached = options?.detached;
 
-      logger.info("Starting Clier watcher", { configPath, projectRoot: this.projectRoot });
+      logger.info("Starting Clier watcher", { configPath, projectRoot: this.projectRoot, detached: this.detached });
 
       // Load configuration
       try {
@@ -356,7 +363,9 @@ export class Watcher {
     try {
       this.patternMatcher = new PatternMatcher();
       this.eventHandler = new EventHandler(this.patternMatcher);
-      this.orchestrator = new Orchestrator(this.processManager, this.projectRoot);
+      this.orchestrator = new Orchestrator(this.processManager, this.projectRoot, {
+        detached: this.detached,
+      });
       logger.debug("Core components initialized");
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
