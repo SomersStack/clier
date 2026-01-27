@@ -28,6 +28,7 @@ import {
   serviceRemoveCommand,
 } from "./commands/service.js";
 import { emitCommand } from "./commands/emit.js";
+import { inputCommand } from "./commands/input.js";
 import { eventsCommand, type EventsOptions } from "./commands/events.js";
 import {
   templateListCommand,
@@ -361,6 +362,20 @@ export function createCLI(): Command {
     .argument("<name>", "Service name")
     .action(async (name: string) => {
       const exitCode = await serviceRemoveCommand(name);
+      process.exit(exitCode);
+    });
+
+  // Input command - send input to a running process
+  program
+    .command("input")
+    .description("Send input to a running process's stdin")
+    .argument("<process>", "Process name to send input to")
+    .argument("<data>", "Data to send to the process")
+    .option("--no-newline", "Do not append newline to the input")
+    .action(async (processName: string, data: string, options: { newline: boolean }) => {
+      const exitCode = await inputCommand(processName, data, {
+        newline: options.newline,
+      });
       process.exit(exitCode);
     });
 

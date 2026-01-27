@@ -34,6 +34,13 @@ export interface ProcessConfig {
    * Set to false in tests to ensure child processes die with the test runner.
    */
   detached?: boolean;
+  /**
+   * Input configuration for stdin support.
+   * When enabled, stdin is piped to the process allowing writes via writeInput().
+   */
+  input?: {
+    enabled: boolean;
+  };
 }
 
 /**
@@ -148,6 +155,34 @@ export class ManagedProcess extends EventEmitter {
   }
 
   /**
+   * Check if input is enabled for this process
+   */
+  get inputEnabled(): boolean {
+    return this.config.input?.enabled ?? false;
+  }
+
+  /**
+   * Write data to process stdin
+   *
+   * @param data - String data to write to stdin
+   * @throws Error if input is not enabled or process is not running
+   */
+  writeInput(data: string): void {
+    if (!this.config.input?.enabled) {
+      throw new Error(`Input not enabled for process "${this.config.name}"`);
+    }
+    if (!this.child?.stdin || this._status !== "running") {
+      throw new Error(`Process "${this.config.name}" is not running`);
+    }
+
+    this.child.stdin.write(data);
+    logger.debug("Wrote input to process", {
+      name: this.config.name,
+      bytes: data.length,
+    });
+  }
+
+  /**
    * Start the process
    */
   async start(): Promise<void> {
@@ -175,7 +210,7 @@ export class ManagedProcess extends EventEmitter {
         cwd: this.config.cwd || process.cwd(),
         env: { ...process.env, ...this.config.env },
         shell: true,
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: [this.config.input?.enabled ? "pipe" : "ignore", "pipe", "pipe"],
         detached,
       });
 

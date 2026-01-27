@@ -18,6 +18,15 @@ const eventsSchema = z.object({
 });
 
 /**
+ * Schema for input configuration
+ */
+const inputConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+  })
+  .optional();
+
+/**
  * Schema for pipeline item configuration
  */
 const pipelineItemSchema = z.object({
@@ -34,6 +43,8 @@ const pipelineItemSchema = z.object({
   enable_event_templates: z.boolean().optional().default(false),
   /** If true, this stage only starts via 'clier trigger' command (not auto-started or event-triggered) */
   manual: z.boolean().optional(),
+  /** Input configuration for stdin support */
+  input: inputConfigSchema,
 });
 
 /**
@@ -126,6 +137,11 @@ export type StdoutEventSchema = typeof stdoutEventSchema;
  * Type alias for the Zod events schema
  */
 export type EventsSchema = typeof eventsSchema;
+
+/**
+ * Type alias for the Zod input config schema
+ */
+export type InputConfigSchema = typeof inputConfigSchema;
 
 /**
  * Type alias for the Zod pipeline item schema

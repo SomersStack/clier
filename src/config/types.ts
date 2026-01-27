@@ -53,6 +53,11 @@ export type PipelineItem = {
   enable_event_templates?: boolean;
   /** If true, this stage only starts via 'clier trigger' command (not auto-started or event-triggered) */
   manual?: boolean;
+  /** Input configuration for stdin support */
+  input?: {
+    /** Whether stdin input is enabled for this process (default: false) */
+    enabled: boolean;
+  };
 };
 
 /**

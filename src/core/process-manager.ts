@@ -235,6 +235,43 @@ export class ProcessManager extends EventEmitter {
   }
 
   /**
+   * Check if a process has input enabled
+   *
+   * @param name - Process name
+   * @returns True if process exists and has input enabled
+   *
+   * @example
+   * ```ts
+   * if (manager.hasInputEnabled('interactive-service')) {
+   *   manager.writeInput('interactive-service', 'hello\n');
+   * }
+   * ```
+   */
+  hasInputEnabled(name: string): boolean {
+    return this.processes.get(name)?.inputEnabled ?? false;
+  }
+
+  /**
+   * Write input to a running process's stdin
+   *
+   * @param name - Process name
+   * @param data - Data to write to stdin
+   * @throws Error if process not found or input not enabled
+   *
+   * @example
+   * ```ts
+   * manager.writeInput('interactive-service', 'yes\n');
+   * ```
+   */
+  writeInput(name: string, data: string): void {
+    const process = this.processes.get(name);
+    if (!process) {
+      throw new Error(`Process "${name}" not found`);
+    }
+    process.writeInput(data);
+  }
+
+  /**
    * Graceful shutdown of all processes
    *
    * @param timeout - Timeout for graceful shutdown per process (default: 5000ms)

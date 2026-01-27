@@ -121,6 +121,49 @@ export class DaemonController {
   }
 
   /**
+   * Write input to a running process's stdin
+   *
+   * Sends data to a process that has input enabled in its configuration.
+   * The data is written directly to the process's stdin stream.
+   */
+  async "process.input"(params: {
+    name: string;
+    data: string;
+    appendNewline?: boolean;
+  }): Promise<{ success: true; bytesWritten: number }> {
+    const manager = this.watcher.getProcessManager();
+    if (!manager) {
+      throw new Error("ProcessManager not initialized");
+    }
+
+    if (!manager.hasInputEnabled(params.name)) {
+      throw new Error(
+        `Input not enabled for process "${params.name}". ` +
+          `Enable it in clier-pipeline.json with: input: { enabled: true }`
+      );
+    }
+
+    const data = params.appendNewline ? params.data + "\n" : params.data;
+    manager.writeInput(params.name, data);
+
+    return { success: true, bytesWritten: data.length };
+  }
+
+  /**
+   * Check if a process has input enabled
+   */
+  async "process.inputEnabled"(params: {
+    name: string;
+  }): Promise<{ enabled: boolean }> {
+    const manager = this.watcher.getProcessManager();
+    if (!manager) {
+      throw new Error("ProcessManager not initialized");
+    }
+
+    return { enabled: manager.hasInputEnabled(params.name) };
+  }
+
+  /**
    * Query logs for a specific process
    */
   async "logs.query"(params: {

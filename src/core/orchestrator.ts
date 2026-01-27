@@ -492,6 +492,8 @@ export class Orchestrator {
       // Pass through detached option (defaults to true if not specified)
       // Set to false in tests to prevent orphan processes
       detached: this.options.detached,
+      // Pass through input configuration for stdin support
+      input: item.input ? { enabled: item.input.enabled } : undefined,
     };
 
     // Handle environment variables
