@@ -114,13 +114,26 @@ async function fetchStatus(): Promise<{
 }
 
 /**
- * Move cursor up and clear to end of screen
+ * Enter alternate screen buffer (like vim, htop, less)
  */
-function clearPreviousOutput(lineCount: number): void {
-  if (lineCount > 0) {
-    // Move cursor up N lines, then clear from cursor to end of screen
-    process.stdout.write(`\x1B[${lineCount}A\x1B[J`);
-  }
+function enterAlternateScreen(): void {
+  process.stdout.write("\x1B[?1049h"); // Enter alternate screen
+  process.stdout.write("\x1B[?25l"); // Hide cursor
+}
+
+/**
+ * Exit alternate screen buffer and restore original terminal
+ */
+function exitAlternateScreen(): void {
+  process.stdout.write("\x1B[?25h"); // Show cursor
+  process.stdout.write("\x1B[?1049l"); // Exit alternate screen
+}
+
+/**
+ * Clear screen and move cursor to top-left
+ */
+function clearScreen(): void {
+  process.stdout.write("\x1B[2J\x1B[H");
 }
 
 /**
@@ -136,26 +149,28 @@ export async function statusCommand(
 
   try {
     if (watch) {
-      // Watch mode - continuously update
+      // Watch mode - continuously update using alternate screen buffer
       let running = true;
-      let lastLineCount = 0;
 
-      // Handle Ctrl+C gracefully
+      // Handle Ctrl+C gracefully - restore terminal before exiting
       const cleanup = () => {
         running = false;
-        console.log();
+        exitAlternateScreen();
         process.exit(0);
       };
       process.on("SIGINT", cleanup);
       process.on("SIGTERM", cleanup);
 
+      // Enter alternate screen buffer
+      enterAlternateScreen();
+
       while (running) {
         try {
-          clearPreviousOutput(lastLineCount);
+          clearScreen();
           const { daemonStatus, processes } = await fetchStatus();
-          lastLineCount = renderStatus(daemonStatus, processes, true);
+          renderStatus(daemonStatus, processes, true);
         } catch (error) {
-          clearPreviousOutput(lastLineCount);
+          clearScreen();
           if (
             error instanceof Error &&
             error.message.includes("not running")
@@ -170,11 +185,9 @@ export async function statusCommand(
               chalk.gray("Press Ctrl+C to exit watch mode"),
             ];
             console.log(errorLines.join("\n"));
-            lastLineCount = errorLines.length;
           } else {
             const errorMsg = error instanceof Error ? error.message : String(error);
             console.log(chalk.red(`✖ ${errorMsg}`));
-            lastLineCount = 1;
           }
         }
 
