@@ -13,6 +13,10 @@ import { defineWorkspace } from 'vitest/config';
  *   vitest --project unit      # Run only unit tests
  *   vitest --project e2e       # Run only e2e tests
  *   vitest                     # Run all tests
+ *
+ * Note: Using 'threads' pool instead of 'forks' to prevent orphan processes.
+ * Worker threads are part of the main process and die with it, unlike forked
+ * processes which can become orphaned when the parent is killed.
  */
 export default defineWorkspace([
   {
@@ -22,18 +26,16 @@ export default defineWorkspace([
       globals: true,
       environment: 'node',
       include: ['tests/unit/**/*.test.ts'],
-      pool: 'forks',
+      pool: 'threads',
       poolOptions: {
-        forks: {
-          singleFork: false,
+        threads: {
+          singleThread: false,
           isolate: true,
         },
       },
       fileParallelism: true,
       testTimeout: 10000,
       hookTimeout: 10000,
-      forceExit: true,
-      teardownTimeout: 5000,
     },
   },
   {
@@ -43,18 +45,16 @@ export default defineWorkspace([
       globals: true,
       environment: 'node',
       include: ['tests/integration/**/*.test.ts'],
-      pool: 'forks',
+      pool: 'threads',
       poolOptions: {
-        forks: {
-          singleFork: false,
+        threads: {
+          singleThread: false,
           isolate: true,
         },
       },
       fileParallelism: true,
       testTimeout: 30000,
       hookTimeout: 15000,
-      forceExit: true,
-      teardownTimeout: 10000,
     },
   },
   {
@@ -64,18 +64,16 @@ export default defineWorkspace([
       globals: true,
       environment: 'node',
       include: ['tests/e2e/**/*.test.ts'],
-      pool: 'forks',
+      pool: 'threads',
       poolOptions: {
-        forks: {
-          singleFork: false,
+        threads: {
+          singleThread: false,
           isolate: true,
         },
       },
       fileParallelism: true,
       testTimeout: 60000,
       hookTimeout: 30000,
-      forceExit: true,
-      teardownTimeout: 15000,
     },
   },
   {
@@ -85,19 +83,17 @@ export default defineWorkspace([
       globals: true,
       environment: 'node',
       include: ['tests/performance/**/*.test.ts'],
-      pool: 'forks',
+      pool: 'threads',
       poolOptions: {
-        forks: {
-          // Single fork for consistent performance measurements
-          singleFork: true,
+        threads: {
+          // Single thread for consistent performance measurements
+          singleThread: true,
           isolate: true,
         },
       },
       fileParallelism: false,
       testTimeout: 120000,
       hookTimeout: 30000,
-      forceExit: true,
-      teardownTimeout: 15000,
     },
   },
 ]);

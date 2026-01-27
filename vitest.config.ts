@@ -11,15 +11,13 @@ export default defineConfig({
     forceExit: true,
     // Timeout for teardown hooks (afterEach, afterAll) before force exit
     teardownTimeout: 10000,
-    // Use forks for test isolation - each test file runs in its own process
-    // This prevents resource contention and accumulated slowdown
-    pool: 'forks',
-    // Configure fork pool for parallel execution
+    // Use threads instead of forks to prevent orphan processes.
+    // Worker threads are part of the main process and die with it,
+    // unlike forked processes which can become orphaned when the parent is killed.
+    pool: 'threads',
     poolOptions: {
-      forks: {
-        // Run test files in parallel
-        singleFork: false,
-        // Isolate globals between test files
+      threads: {
+        singleThread: false,
         isolate: true,
       },
     },
