@@ -53,6 +53,7 @@ export class Orchestrator {
   private config?: ClierConfig;
   private pipelineItems = new Map<string, PipelineItem>();
   private startedProcesses = new Set<string>();
+  private manuallyTriggeredProcesses = new Set<string>();
   private receivedEvents = new Set<string>();
   private projectRoot?: string;
   private options: OrchestratorOptions;
@@ -92,6 +93,7 @@ export class Orchestrator {
     this.config = config;
     this.pipelineItems.clear();
     this.startedProcesses.clear();
+    this.manuallyTriggeredProcesses.clear();
     this.receivedEvents.clear();
 
     // Build pipeline item map
@@ -350,6 +352,9 @@ export class Orchestrator {
 
     logger.info("Manually triggering stage", { stageName });
     await this.startProcess(item);
+
+    // Track as manually triggered for clear restart functionality
+    this.manuallyTriggeredProcesses.add(stageName);
   }
 
   /**
@@ -359,6 +364,18 @@ export class Orchestrator {
    */
   getStageNames(): string[] {
     return Array.from(this.pipelineItems.keys());
+  }
+
+  /**
+   * Get processes that were manually triggered via triggerStage()
+   *
+   * These are services that were started explicitly by the user (e.g., via `clier service start`)
+   * rather than automatically by the pipeline or event triggers.
+   *
+   * @returns Array of manually triggered process names
+   */
+  getManuallyTriggeredProcesses(): string[] {
+    return Array.from(this.manuallyTriggeredProcesses);
   }
 
   /**

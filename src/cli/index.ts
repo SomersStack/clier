@@ -189,8 +189,14 @@ export function createCLI(): Command {
       "[config]",
       "Path to clier-pipeline.json (default: ./clier-pipeline.json)"
     )
-    .action(async (configPath?: string) => {
-      const exitCode = await reloadCommand(configPath);
+    .option(
+      "--restart-manual",
+      "Re-start any services that were manually started (via 'clier service start')"
+    )
+    .action(async (configPath?: string, options?: { restartManual?: boolean }) => {
+      const exitCode = await reloadCommand(configPath, {
+        restartManualServices: options?.restartManual,
+      });
       process.exit(exitCode);
     });
 

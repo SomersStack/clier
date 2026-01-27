@@ -183,6 +183,44 @@ export class DaemonController {
   }
 
   /**
+   * Reload configuration with option to restart manually triggered services
+   *
+   * When restartManualServices is true, any services that were manually started
+   * (via `clier service start`) will be re-triggered after the reload completes.
+   */
+  async "config.clearReload"(params: {
+    configPath: string;
+    restartManualServices?: boolean;
+  }): Promise<{ success: true; restartedServices: string[] }> {
+    // Get manually triggered services before reload (if we need to restart them)
+    const manualServices = params.restartManualServices
+      ? this.watcher.getManuallyTriggeredProcesses()
+      : [];
+
+    // Stop current watcher
+    await this.watcher.stop();
+
+    // Restart with new config
+    await this.watcher.start(params.configPath);
+
+    // Re-trigger manually started services if requested
+    const restartedServices: string[] = [];
+    if (params.restartManualServices && manualServices.length > 0) {
+      for (const serviceName of manualServices) {
+        try {
+          await this.watcher.triggerStage(serviceName);
+          restartedServices.push(serviceName);
+        } catch (error) {
+          // Log but continue - service might not exist in new config
+          console.error(`Failed to restart manual service "${serviceName}":`, error);
+        }
+      }
+    }
+
+    return { success: true, restartedServices };
+  }
+
+  /**
    * Get daemon status
    */
   async "daemon.status"(): Promise<DaemonStatus> {

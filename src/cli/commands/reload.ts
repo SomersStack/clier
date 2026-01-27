@@ -18,14 +18,26 @@ import {
 } from "../utils/formatter.js";
 
 /**
+ * Options for reload command
+ */
+export interface ReloadOptions {
+  /** Re-start services that were manually started via 'clier service start' */
+  restartManualServices?: boolean;
+}
+
+/**
  * Reload the Clier configuration
  *
  * Automatically searches upward for clier-pipeline.json if not explicitly provided.
  *
  * @param configPath - Path to configuration file (optional, auto-detected if not provided)
+ * @param options - Optional reload options
  * @returns Exit code (0 for success, 1 for failure)
  */
-export async function reloadCommand(configPath?: string): Promise<number> {
+export async function reloadCommand(
+  configPath?: string,
+  options?: ReloadOptions
+): Promise<number> {
   const spinner = ora();
 
   try {
@@ -63,19 +75,40 @@ export async function reloadCommand(configPath?: string): Promise<number> {
     // Step 4: Reload daemon
     spinner.start("Reloading daemon...");
     try {
-      await client.request("config.reload", { configPath: configFile });
-      spinner.succeed("Daemon reloaded");
-      client.disconnect();
+      if (options?.restartManualServices) {
+        // Use clearReload to also restart manually started services
+        const result = await client.request("config.clearReload", {
+          configPath: configFile,
+          restartManualServices: true,
+        }) as { success: boolean; restartedServices: string[] };
+        spinner.succeed("Daemon reloaded");
+        client.disconnect();
+
+        console.log();
+        printSuccess("Configuration reloaded successfully");
+
+        if (result.restartedServices.length > 0) {
+          console.log();
+          console.log("  Restarted manual services:");
+          for (const service of result.restartedServices) {
+            console.log(`    - ${service}`);
+          }
+        }
+      } else {
+        await client.request("config.reload", { configPath: configFile });
+        spinner.succeed("Daemon reloaded");
+        client.disconnect();
+
+        console.log();
+        printSuccess("Configuration reloaded successfully");
+      }
+      console.log();
     } catch (error) {
       spinner.fail("Failed to reload daemon");
       printError(error instanceof Error ? error.message : String(error));
       client.disconnect();
       return 1;
     }
-
-    console.log();
-    printSuccess("Configuration reloaded successfully");
-    console.log();
 
     return 0;
   } catch (error) {

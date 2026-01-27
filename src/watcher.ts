@@ -289,6 +289,18 @@ export class Watcher {
   }
 
   /**
+   * Get processes that were manually triggered
+   *
+   * Returns the list of services that were started explicitly via `triggerStage()`
+   * (e.g., via `clier service start`) rather than automatically by the pipeline.
+   *
+   * @returns Array of manually triggered process names
+   */
+  getManuallyTriggeredProcesses(): string[] {
+    return this.orchestrator?.getManuallyTriggeredProcesses() ?? [];
+  }
+
+  /**
    * Initialize all components
    */
   private async initializeComponents(): Promise<void> {
