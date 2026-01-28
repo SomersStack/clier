@@ -1,6 +1,6 @@
 {
   "name": "clier-ai",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Process orchestration framework with event-driven pipeline management",
   "keywords": [
     "orchestration",
