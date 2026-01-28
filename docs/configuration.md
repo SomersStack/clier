@@ -6,6 +6,8 @@ Complete reference for `clier-pipeline.json` configuration file.
 
 - [Overview](#overview)
 - [Schema Reference](#schema-reference)
+- [Input Configuration](#input-configuration)
+- [Manual Start Mode](#manual-start-mode)
 - [Event System](#event-system)
 - [Safety Mechanisms](#safety-mechanisms)
 - [Environment Variables](#environment-variables)
@@ -112,7 +114,9 @@ Clier uses a JSON configuration file (default: `clier-pipeline.json`) to define 
   "continue_on_failure": boolean, // Optional: Failure handling
   "env": Record<string, string>,  // Optional: Environment variables
   "cwd": string,                  // Optional: Working directory
-  "events": EventsConfig          // Optional: Event configuration
+  "events": EventsConfig,         // Optional: Event configuration
+  "manual": boolean,              // Optional: Manual start only
+  "input": InputConfig            // Optional: Stdin input support
 }
 ```
 
@@ -188,6 +192,95 @@ See [Continue on Failure](#continue-on-failure) for details.
 - Description: Event emission rules for stdout pattern matching, stderr, and crash events
 - Default: If omitted, no special event emissions occur (process runs normally without event coordination)
 - See [Events Configuration](#events-configuration)
+
+**`manual`** (optional)
+- Type: `boolean`
+- Default: `false`
+- Description: If `true`, this stage only starts via `clier service start <name>` command
+- Use for: Optional services that should not auto-start with the pipeline
+- Note: Manual services can be restarted during reload with `clier reload --restart-manual`
+
+**`input`** (optional)
+- Type: `InputConfig`
+- Description: Stdin input configuration for interactive processes
+- Default: If omitted, stdin is not available
+- See [Input Configuration](#input-configuration)
+
+---
+
+### Input Configuration
+
+Enables sending data to a process's stdin at runtime.
+
+```typescript
+{
+  "enabled": boolean  // Required: Enable stdin input (default: false)
+}
+```
+
+#### Fields
+
+**`enabled`** (required)
+- Type: `boolean`
+- Default: `false`
+- Description: Whether stdin input is enabled for this process
+- When `true`: Process stdin stays open and accepts input via `clier input`
+- When `false`: Process stdin is closed (default behavior)
+
+#### Usage
+
+1. Configure the pipeline stage with input enabled:
+
+```json
+{
+  "name": "interactive-app",
+  "command": "node repl.js",
+  "type": "service",
+  "input": {
+    "enabled": true
+  }
+}
+```
+
+2. Send input to the running process:
+
+```bash
+# Send a line of input (newline appended by default)
+clier input interactive-app "hello world"
+
+# Send input without appending newline
+clier input interactive-app "data" --no-newline
+```
+
+#### Example: Interactive REPL
+
+```json
+{
+  "name": "python-repl",
+  "command": "python3 -i",
+  "type": "service",
+  "input": {
+    "enabled": true
+  }
+}
+```
+
+Then interact with it:
+
+```bash
+clier input python-repl "print('Hello from Python!')"
+clier input python-repl "x = 42"
+clier input python-repl "print(x * 2)"
+```
+
+#### Use Cases
+
+| Scenario | Description |
+|----------|-------------|
+| Interactive REPLs | Send commands to Python, Node, or shell processes |
+| Database CLIs | Execute SQL queries via stdin |
+| Testing | Send test input to interactive applications |
+| Automation | Script interactions with stdin-driven tools |
 
 ---
 
@@ -345,6 +438,88 @@ Create dependencies by triggering on events:
 ```
 
 Flow: `db` starts → emits `db:ready` → `api` and `worker` start in parallel
+
+---
+
+## Manual Start Mode
+
+Services can be configured to not auto-start with the pipeline, requiring explicit manual start.
+
+### Configuration
+
+Set `manual: true` on a pipeline stage:
+
+```json
+{
+  "name": "debug-server",
+  "command": "node debug-server.js",
+  "type": "service",
+  "manual": true
+}
+```
+
+### Starting Manual Services
+
+```bash
+# Start a specific manual service
+clier service start debug-server
+
+# Stop it when done
+clier service stop debug-server
+```
+
+### Reloading with Manual Services
+
+By default, `clier reload` does not restart manually-started services. To also restart any running manual services during reload:
+
+```bash
+clier reload --restart-manual
+```
+
+This is useful when you've changed configuration and want manual services to pick up the changes.
+
+### Use Cases
+
+| Scenario | Description |
+|----------|-------------|
+| Debug tools | Services only needed during debugging |
+| One-off utilities | Tools that shouldn't run continuously |
+| Resource-heavy services | Services you only start when needed |
+| Development aids | Hot reloaders, profilers, etc. |
+
+### Example: Optional Debug Server
+
+```json
+{
+  "project_name": "my-app",
+  "safety": {
+    "max_ops_per_minute": 60,
+    "debounce_ms": 100
+  },
+  "pipeline": [
+    {
+      "name": "api",
+      "command": "node server.js",
+      "type": "service"
+    },
+    {
+      "name": "debug-inspector",
+      "command": "node --inspect debug-tools.js",
+      "type": "service",
+      "manual": true
+    }
+  ]
+}
+```
+
+When you run `clier start`:
+- `api` starts automatically
+- `debug-inspector` does NOT start
+
+To start the debug inspector when needed:
+```bash
+clier service start debug-inspector
+```
 
 ---
 

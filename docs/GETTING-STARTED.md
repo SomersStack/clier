@@ -302,6 +302,7 @@ clier restart
 
 # Reload configuration (fast: same daemon PID, restarts all processes)
 clier reload
+clier reload --restart-manual        # Also restart running manual services
 
 # Update Clier to latest version
 clier update                         # Update to latest version
@@ -321,6 +322,10 @@ clier service restart <name> [--force]
 # Dynamically add/remove services (runtime-only, not persisted to JSON)
 clier service add <name> -c "command" [options]
 clier service remove <name>
+
+# Send stdin input to processes (requires input.enabled: true in config)
+clier input <process> "data"             # Send input with newline
+clier input <process> "data" --no-newline  # Send without newline
 ```
 
 **Note**: Service control commands modify the running daemon only. Changes do NOT persist to `clier-pipeline.json`. To persist changes, edit the config file and run `clier reload`.

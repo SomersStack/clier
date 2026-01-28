@@ -68,6 +68,7 @@ Create `clier-pipeline.json` in project root:
 | `env` | No | object | - | Environment variables |
 | `cwd` | No | string | - | Working directory |
 | `events` | No | object | - | Event config (omit = no event coordination) |
+| `input` | No | object | - | Stdin input config (see Input Config below) |
 
 ### Events Config
 
@@ -81,6 +82,24 @@ Create `clier-pipeline.json` in project root:
 ```json
 { "pattern": "regex", "emit": "event:name" }
 ```
+
+### Input Config
+
+| Field | Required | Type | Default | Description |
+|-------|----------|------|---------|-------------|
+| `enabled` | Yes | boolean | false | Enable stdin input for this process |
+
+**Usage:**
+```json
+{
+  "name": "repl",
+  "command": "python3 -i",
+  "type": "service",
+  "input": { "enabled": true }
+}
+```
+
+Then send input: `clier input repl "print('hello')"`
 
 ## Event System
 
@@ -275,6 +294,11 @@ For stages that should only run on demand (not automatically):
 ```bash
 clier service start deploy      # Run deployment
 clier service start db-migrate  # Run database migrations
+```
+
+**Reload with manual services:**
+```bash
+clier reload --restart-manual   # Reload config AND restart running manual services
 ```
 
 **Behavior**: `manual: true` stages never auto-start or respond to events - they only run via `clier service start`

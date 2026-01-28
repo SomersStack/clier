@@ -71,7 +71,9 @@ interface PipelineItem {
   continue_on_failure?: boolean;
   env?: Record<string, string>;
   cwd?: string;
-  events: Events;
+  events?: Events;
+  manual?: boolean;
+  input?: { enabled: boolean };
 }
 ```
 
@@ -83,7 +85,9 @@ interface PipelineItem {
 - `continue_on_failure`: Optional flag for failure handling (default: false)
 - `env`: Optional environment variables
 - `cwd`: Optional working directory
-- `events`: Event configuration
+- `events`: Optional event configuration (omit for no event coordination)
+- `manual`: Optional flag to only start via `clier service start` (default: false)
+- `input`: Optional stdin input configuration (`{ enabled: true }` to allow `clier input`)
 
 **Example**:
 ```typescript

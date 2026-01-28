@@ -367,15 +367,19 @@ export class Orchestrator {
   }
 
   /**
-   * Get processes that were manually triggered via triggerStage()
+   * Get processes that were manually triggered via triggerStage() and are currently running
    *
    * These are services that were started explicitly by the user (e.g., via `clier service start`)
    * rather than automatically by the pipeline or event triggers.
    *
-   * @returns Array of manually triggered process names
+   * Only returns processes that are currently running, not all that were ever manually triggered.
+   *
+   * @returns Array of manually triggered process names that are currently running
    */
   getManuallyTriggeredProcesses(): string[] {
-    return Array.from(this.manuallyTriggeredProcesses);
+    return Array.from(this.manuallyTriggeredProcesses).filter(name =>
+      this.processManager.isRunning(name)
+    );
   }
 
   /**

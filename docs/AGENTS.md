@@ -41,6 +41,7 @@ clier restart
 
 # Hot reload configuration (same daemon PID, restarts all processes)
 clier reload
+clier reload --restart-manual        # Also restart running manual services
 
 # Update Clier
 clier update                         # Update to latest
@@ -69,6 +70,10 @@ clier service remove <name>
 # Emit custom events to trigger waiting stages
 clier emit <event-name>                  # Emit event (triggers stages with matching trigger_on)
 clier emit <event-name> -d '{"key":"value"}'  # Emit with JSON data payload
+
+# Send stdin input to running processes (requires input.enabled: true in config)
+clier input <process> "data"             # Send input with newline
+clier input <process> "data" --no-newline  # Send input without newline
 ```
 
 ## Stage Templates
