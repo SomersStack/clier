@@ -115,8 +115,33 @@ export class DaemonController {
    */
   async "process.start"(params: {
     name: string;
+    initialInput?: string;
   }): Promise<{ success: true }> {
+    // Validate input is enabled before starting if initialInput is provided
+    if (params.initialInput) {
+      const orchestrator = this.watcher.getOrchestrator();
+      if (!orchestrator) {
+        throw new Error("Orchestrator not initialized");
+      }
+      if (!orchestrator.hasStageInputEnabled(params.name)) {
+        throw new Error(
+          `Input not enabled for process "${params.name}". ` +
+            `Enable it in clier-pipeline.json with: input: { enabled: true }`
+        );
+      }
+    }
+
     await this.watcher.triggerStage(params.name);
+
+    // Write initial input to stdin after process has started
+    if (params.initialInput) {
+      const manager = this.watcher.getProcessManager();
+      if (!manager) {
+        throw new Error("ProcessManager not initialized");
+      }
+      manager.writeInput(params.name, params.initialInput + "\n");
+    }
+
     return { success: true };
   }
 

@@ -383,6 +383,14 @@ export class Orchestrator {
   }
 
   /**
+   * Check if a stage has input enabled in its pipeline config
+   */
+  hasStageInputEnabled(stageName: string): boolean {
+    const item = this.pipelineItems.get(stageName);
+    return item?.input?.enabled ?? false;
+  }
+
+  /**
    * Start a process
    *
    * @param item - Pipeline item to start

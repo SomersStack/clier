@@ -35,19 +35,26 @@ export interface AddServiceOptions {
  * Start a specific service
  *
  * @param serviceName - Name of the service to start
+ * @param args - Optional arguments to pass to process stdin (joined with spaces, newline appended)
  * @returns Exit code (0 for success, 1 for failure)
  */
 export async function serviceStartCommand(
-  serviceName: string
+  serviceName: string,
+  args?: string[]
 ): Promise<number> {
   try {
     const client = await getDaemonClient();
 
+    const initialInput = args?.length ? args.join(" ") : undefined;
+
     console.log(chalk.cyan(`\nStarting service: ${serviceName}`));
 
-    await client.request("process.start", { name: serviceName });
+    await client.request("process.start", { name: serviceName, initialInput });
 
     printSuccess(`Service "${serviceName}" started successfully`);
+    if (initialInput) {
+      printSuccess(`Sent initial input: ${initialInput}`);
+    }
     console.log();
 
     client.disconnect();

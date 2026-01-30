@@ -302,8 +302,10 @@ export function createCLI(): Command {
     .command("run")
     .description("Start a specific service (alias for service start)")
     .argument("<name>", "Service name")
-    .action(async (name: string) => {
-      const exitCode = await serviceStartCommand(name);
+    .argument("[args...]", "Arguments to pass to process stdin (after --)")
+    .passThroughOptions()
+    .action(async (name: string, args: string[]) => {
+      const exitCode = await serviceStartCommand(name, args);
       process.exit(exitCode);
     });
 
@@ -316,8 +318,10 @@ export function createCLI(): Command {
     .command("start")
     .description("Start a specific service")
     .argument("<name>", "Service name")
-    .action(async (name: string) => {
-      const exitCode = await serviceStartCommand(name);
+    .argument("[args...]", "Arguments to pass to process stdin (after --)")
+    .passThroughOptions()
+    .action(async (name: string, args: string[]) => {
+      const exitCode = await serviceStartCommand(name, args);
       process.exit(exitCode);
     });
 
