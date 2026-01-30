@@ -297,6 +297,16 @@ export function createCLI(): Command {
       }
     );
 
+  // Run command (alias for service start)
+  program
+    .command("run")
+    .description("Start a specific service (alias for service start)")
+    .argument("<name>", "Service name")
+    .action(async (name: string) => {
+      const exitCode = await serviceStartCommand(name);
+      process.exit(exitCode);
+    });
+
   // Service commands (for controlling individual processes)
   const service = program
     .command("service")
