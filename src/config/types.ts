@@ -58,6 +58,8 @@ export type PipelineItem = {
     /** Whether stdin input is enabled for this process (default: false) */
     enabled: boolean;
   };
+  /** Restart policy: "always", "on-failure" (default for services), or "never" */
+  restart?: "always" | "on-failure" | "never";
 };
 
 /**

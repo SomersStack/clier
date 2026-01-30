@@ -349,7 +349,7 @@ export function createCLI(): Command {
     .option("--cwd <directory>", "Working directory")
     .option("--type <type>", "Process type (service or task)", "service")
     .option("-e, --env <KEY=VALUE...>", "Environment variables", [])
-    .option("--no-restart", "Disable auto-restart")
+    .option("--restart <policy>", "Restart policy: always, on-failure, never", "on-failure")
     .action(
       async (
         name: string,
@@ -358,7 +358,7 @@ export function createCLI(): Command {
           cwd?: string;
           type: "service" | "task";
           env: string[];
-          restart: boolean;
+          restart: "always" | "on-failure" | "never";
         }
       ) => {
         const exitCode = await serviceAddCommand(name, options);

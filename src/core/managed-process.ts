@@ -57,6 +57,8 @@ export interface RestartPolicy {
   backoff?: "linear" | "exponential";
   /** Maximum delay cap in ms (default: 60000) */
   maxDelay?: number;
+  /** Restart mode: "always" restarts on any exit, "on-failure" only on non-zero exit */
+  mode?: "always" | "on-failure";
 }
 
 /**
@@ -495,7 +497,7 @@ export class ManagedProcess extends EventEmitter {
   /**
    * Check if process should auto-restart
    */
-  private shouldAutoRestart(_exitCode: number | null): boolean {
+  private shouldAutoRestart(exitCode: number | null): boolean {
     // Never restart if stop was requested
     if (this.stopRequested) {
       return false;
@@ -509,6 +511,12 @@ export class ManagedProcess extends EventEmitter {
     // Check restart policy
     const policy = this.config.restart;
     if (policy?.enabled === false) {
+      return false;
+    }
+
+    // Check restart mode — "on-failure" skips restart on exit 0
+    const mode = policy?.mode ?? "on-failure";
+    if (mode === "on-failure" && exitCode === 0) {
       return false;
     }
 

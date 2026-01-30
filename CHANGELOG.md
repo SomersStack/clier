@@ -8,18 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `restart` field on pipeline items with values `"always"`, `"on-failure"`, or `"never"` to control auto-restart behavior
+  - Services default to `"on-failure"` (only restart on non-zero exit), matching Docker/systemd conventions
+  - Services that exit cleanly (exit 0) with `"on-failure"` or `"never"` now emit `${name}:success` events
+  - Supports interactive CLI processes that should not restart when the user quits
 - `clier restart` - Full daemon restart with new PID (for when daemon itself is misbehaving)
 - `clier status --watch` - Watch mode for live status updates with configurable refresh interval
 - `clier reload --restart-manual` - Option to restart manually-started services during reload
 - `clier input <process> <data>` - Send stdin input to running processes
 - Alternate screen buffer for `status --watch` mode (cleaner terminal output)
 
+### Changed
+- **Breaking**: Services now default to `restart: "on-failure"` instead of always restarting. Services that need restart on clean exit should set `restart: "always"`
+- Improved documentation explaining difference between `reload` (fast, same daemon PID) vs `restart` (thorough, new daemon PID)
+
 ### Fixed
 - ESM `require()` error in watcher causing `clier reload` to fail with "require is not defined"
 - Updated `clier reload` description to clarify it keeps same daemon PID but restarts all processes
-
-### Changed
-- Improved documentation explaining difference between `reload` (fast, same daemon PID) vs `restart` (thorough, new daemon PID)
 
 ## [0.1.0] - 2024-01-21
 

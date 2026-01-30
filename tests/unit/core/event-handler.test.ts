@@ -239,10 +239,41 @@ describe("EventHandler", () => {
       expect(emittedEvents).toHaveLength(0);
     });
 
-    it("should not emit success for services", () => {
+    it("should emit success for services with on-failure restart (default)", () => {
       const item = createPipelineItem({
         name: "backend",
         type: "service",
+        events: {
+          on_stdout: [],
+          on_stderr: true,
+          on_crash: true,
+        },
+      });
+
+      handler.registerPipelineItem(item);
+
+      const emittedEvents: ClierEvent[] = [];
+      handler.on("backend:success", (event) => emittedEvents.push(event));
+
+      const exitEvent: ClierEvent = {
+        name: "process:exit",
+        processName: "backend",
+        type: "custom",
+        data: 0,
+        timestamp: Date.now(),
+      };
+
+      handler.handleEvent(exitEvent);
+
+      expect(emittedEvents).toHaveLength(1);
+      expect(emittedEvents[0].name).toBe("backend:success");
+    });
+
+    it("should not emit success for services with restart always", () => {
+      const item = createPipelineItem({
+        name: "backend",
+        type: "service",
+        restart: "always",
         events: {
           on_stdout: [],
           on_stderr: true,

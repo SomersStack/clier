@@ -45,6 +45,8 @@ const pipelineItemSchema = z.object({
   manual: z.boolean().optional(),
   /** Input configuration for stdin support */
   input: inputConfigSchema,
+  /** Restart policy: "always", "on-failure" (default for services), or "never" */
+  restart: z.enum(["always", "on-failure", "never"]).optional(),
 });
 
 /**

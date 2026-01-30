@@ -64,7 +64,7 @@ clier service restart <name> --force     # Force restart (immediate kill)
 
 # Dynamic add/remove (temporary)
 clier service add <name> -c "command" [options]
-  # Options: --env KEY=VAL, --cwd /path, --type service|task
+  # Options: --env KEY=VAL, --cwd /path, --type service|task, --restart always|on-failure|never
 clier service remove <name>
 
 # Emit custom events to trigger waiting stages

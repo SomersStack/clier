@@ -74,6 +74,7 @@ interface PipelineItem {
   events?: Events;
   manual?: boolean;
   input?: { enabled: boolean };
+  restart?: 'always' | 'on-failure' | 'never';
 }
 ```
 
@@ -88,6 +89,7 @@ interface PipelineItem {
 - `events`: Optional event configuration (omit for no event coordination)
 - `manual`: Optional flag to only start via `clier service start` (default: false)
 - `input`: Optional stdin input configuration (`{ enabled: true }` to allow `clier input`)
+- `restart`: Optional restart policy — `"on-failure"` (default for services, restart on non-zero exit), `"always"` (restart on any exit), or `"never"` (no auto-restart)
 
 **Example**:
 ```typescript

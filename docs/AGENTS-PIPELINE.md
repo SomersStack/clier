@@ -69,6 +69,7 @@ Create `clier-pipeline.json` in project root:
 | `cwd` | No | string | - | Working directory |
 | `events` | No | object | - | Event config (omit = no event coordination) |
 | `input` | No | object | - | Stdin input config (see Input Config below) |
+| `restart` | No | "always" \| "on-failure" \| "never" | "on-failure" (services), "never" (tasks) | When to auto-restart: always, on non-zero exit only, or never |
 
 ### Events Config
 
@@ -110,6 +111,7 @@ Then send input: `clier input repl "print('hello')"`
 
 **Built-in Events:**
 - `${name}:error` - stderr output (if `on_stderr: true`)
+- `${name}:success` - clean exit (exit 0) for tasks, or services with `restart: "on-failure"` / `"never"`
 - `${name}:crashed` - non-zero exit (if `on_crash: true`)
 - `circuit-breaker:triggered` - too many crashes (3 in 5 sec)
 

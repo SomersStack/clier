@@ -26,8 +26,9 @@ Clier is a powerful orchestration tool that manages complex multi-process pipeli
 - **Circuit Breaker**: Stop cascading failures automatically
 
 ### Process Types
-- **Services**: Long-running processes (web servers, APIs, workers) - auto-restarted on crash
-- **Tasks**: One-off operations (builds, tests, migrations) - exit when complete
+- **Services**: Long-running processes (web servers, APIs, workers) - auto-restarted on failure (non-zero exit) by default
+- **Tasks**: One-off operations (builds, tests, migrations) - exit when complete, never restarted
+- **Restart Policy**: Control restart behavior per process with `restart: "always" | "on-failure" | "never"`
 
 ### Flexible Configuration
 - Environment variable substitution

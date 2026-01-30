@@ -159,7 +159,7 @@ describe("Service Commands", () => {
           type: "service",
           cwd: undefined,
           env: undefined,
-          restart: undefined,
+          restart: { enabled: true, mode: "on-failure" },
         },
       });
       expect(mockClient.disconnect).toHaveBeenCalled();
@@ -173,7 +173,7 @@ describe("Service Commands", () => {
         cwd: "/app/backend",
         type: "service",
         env: ["PORT=3000", "NODE_ENV=production"],
-        restart: true,
+        restart: "always",
       });
 
       expect(exitCode).toBe(0);
@@ -187,7 +187,7 @@ describe("Service Commands", () => {
             PORT: "3000",
             NODE_ENV: "production",
           },
-          restart: { enabled: true },
+          restart: { enabled: true, mode: "always" },
         },
       });
     });

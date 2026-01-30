@@ -482,17 +482,19 @@ export class Orchestrator {
       // Use item's cwd if specified, otherwise default to project root
       cwd: item.cwd || this.projectRoot,
       type: item.type,
-      // Services auto-restart by default
-      restart:
-        item.type === "service"
-          ? {
-              enabled: true,
-              maxRetries: 10,
-              delay: 1000,
-              backoff: "exponential",
-              maxDelay: 60000,
-            }
-          : undefined,
+      // Determine restart mode from config, defaulting based on type
+      restart: (() => {
+        const restartMode = item.restart ?? (item.type === "service" ? "on-failure" : "never");
+        if (restartMode === "never") return undefined;
+        return {
+          enabled: true,
+          maxRetries: 10,
+          delay: 1000,
+          backoff: "exponential" as const,
+          maxDelay: 60000,
+          mode: restartMode,
+        };
+      })(),
       // Pass through detached option (defaults to true if not specified)
       // Set to false in tests to prevent orphan processes
       detached: this.options.detached,

@@ -263,8 +263,11 @@ export class EventHandler {
       exitCode = isNaN(parsed) ? 1 : parsed; // Default to 1 (error) if unparseable
     }
 
-    // For tasks: exit code 0 = success
-    if (item.type === "task" && exitCode === 0) {
+    // For tasks or services with on-failure/never restart: exit code 0 = success
+    const restartMode = item.restart ?? (item.type === "service" ? "on-failure" : "never");
+    const willRestart = item.type === "service" && restartMode === "always" && exitCode === 0;
+
+    if (exitCode === 0 && !willRestart) {
       const successEvent: ClierEvent = {
         name: `${item.name}:success`,
         processName: item.name,
@@ -273,7 +276,7 @@ export class EventHandler {
         timestamp: event.timestamp,
       };
 
-      logger.info(`Task ${item.name} completed successfully`);
+      logger.info(`${item.type === "task" ? "Task" : "Service"} ${item.name} completed successfully`);
       this.emit(`${item.name}:success`, successEvent);
       return;
     }

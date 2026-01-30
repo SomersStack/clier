@@ -27,8 +27,8 @@ export interface AddServiceOptions {
   type?: "service" | "task";
   /** Environment variables in KEY=VALUE format */
   env?: string[];
-  /** Auto-restart enabled (default: true for services) */
-  restart?: boolean;
+  /** Restart policy: "always", "on-failure" (default for services), or "never" */
+  restart?: "always" | "on-failure" | "never";
 }
 
 /**
@@ -189,10 +189,12 @@ export async function serviceAddCommand(
       type: options.type || "service",
       cwd: options.cwd,
       env: Object.keys(env).length > 0 ? env : undefined,
-      restart:
-        options.restart !== undefined
-          ? { enabled: options.restart }
-          : undefined,
+      restart: (() => {
+        const type = options.type || "service";
+        const mode = options.restart ?? (type === "service" ? "on-failure" : "never");
+        if (mode === "never") return undefined;
+        return { enabled: true, mode };
+      })(),
     };
 
     console.log(chalk.cyan(`\nAdding service: ${serviceName}`));

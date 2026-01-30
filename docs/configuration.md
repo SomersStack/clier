@@ -116,7 +116,8 @@ Clier uses a JSON configuration file (default: `clier-pipeline.json`) to define 
   "cwd": string,                  // Optional: Working directory
   "events": EventsConfig,         // Optional: Event configuration
   "manual": boolean,              // Optional: Manual start only
-  "input": InputConfig            // Optional: Stdin input support
+  "input": InputConfig,           // Optional: Stdin input support
+  "restart": "always" | "on-failure" | "never"  // Optional: Restart policy
 }
 ```
 
@@ -144,8 +145,10 @@ Clier uses a JSON configuration file (default: `clier-pipeline.json`) to define 
 
 | Type | Behavior | Use Cases |
 |------|----------|-----------|
-| `service` | Long-running, restarted on crash | Web servers, APIs, workers, databases |
-| `task` | One-off, exits when complete | Builds, tests, migrations, deployments |
+| `service` | Long-running, restarted on failure (non-zero exit) by default | Web servers, APIs, workers, databases |
+| `task` | One-off, exits when complete, never restarted | Builds, tests, migrations, deployments |
+
+See [`restart`](#restart-optional) for controlling restart behavior.
 
 **`trigger_on`** (optional)
 - Type: `string[]` (array of event names)
@@ -205,6 +208,32 @@ See [Continue on Failure](#continue-on-failure) for details.
 - Description: Stdin input configuration for interactive processes
 - Default: If omitted, stdin is not available
 - See [Input Configuration](#input-configuration)
+
+**`restart`** (optional)
+- Type: `"always"` | `"on-failure"` | `"never"`
+- Default: `"on-failure"` for services, `"never"` for tasks
+- Description: Controls when a process is automatically restarted after exiting
+
+| Value | Behavior |
+|-------|----------|
+| `"on-failure"` | Restart only on non-zero exit code (default for services) |
+| `"always"` | Restart on any exit, including exit code 0 |
+| `"never"` | Never restart, regardless of exit code |
+
+When a service exits with code 0 and `restart` is `"on-failure"` or `"never"`, a `${name}:success` event is emitted, allowing downstream stages to trigger. With `"always"`, the service restarts immediately without emitting a success event.
+
+This is useful for interactive CLI processes with menu loops: they run as services (long-lived, stdin-enabled) but should not restart when the user quits cleanly (exit 0).
+
+Example:
+```json
+{
+  "name": "interactive-cli",
+  "command": "node cli.js",
+  "type": "service",
+  "restart": "on-failure",
+  "input": { "enabled": true }
+}
+```
 
 ---
 
