@@ -49,7 +49,8 @@ export function createCLI(): Command {
     .description(
       "Process orchestration framework with event-driven pipeline management"
     )
-    .version(packageJson.version);
+    .version(packageJson.version)
+    .enablePositionalOptions();
 
   // Start command
   program
@@ -312,7 +313,8 @@ export function createCLI(): Command {
   // Service commands (for controlling individual processes)
   const service = program
     .command("service")
-    .description("Control individual services/processes");
+    .description("Control individual services/processes")
+    .enablePositionalOptions();
 
   service
     .command("start")
