@@ -72,14 +72,22 @@ clier validate              # Validate configuration
 clier start                 # Start pipeline daemon
 clier status                # View process status
 clier status -w             # Watch mode (live updates)
+clier watch                 # Watch mode (alias for status -w)
 clier logs <name>           # View process logs
 clier logs --daemon         # View daemon logs
 clier stop                  # Stop all processes
+clier kill <name>           # Force stop a service (SIGKILL)
 clier restart               # Restart daemon (new PID)
+clier restart <name>        # Restart a specific service
 clier reload                # Reload config (same PID, faster)
+clier reload <name>         # Restart a specific service
+clier refresh               # Reload + restart manual services
 clier update                # Update to latest version
 
 # Service control
+clier run <name>            # Start a service
+clier kill <name>           # Force stop a service
+clier send <process> "data" # Send stdin input to a process
 clier service start <name>
 clier service stop <name> [--force]
 clier service restart <name> [--force]

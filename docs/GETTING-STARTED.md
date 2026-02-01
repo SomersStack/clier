@@ -287,6 +287,8 @@ clier start
 clier status
 clier status -w                      # Watch mode (live updates)
 clier status -w -n 5                 # Watch with 5 second refresh
+clier watch                          # Watch mode (alias for status -w)
+clier watch -n 5                     # Watch with 5 second refresh
 
 # View logs
 clier logs <name>                    # Specific process logs
@@ -297,13 +299,19 @@ clier logs --daemon --level error    # View daemon error logs only
 
 # Stop all processes
 clier stop
+clier kill <name>                    # Force stop a service (SIGKILL)
 
-# Restart daemon completely (new daemon PID)
-clier restart
+# Restart a service, or restart daemon completely (new daemon PID)
+clier restart <name>                 # Restart a specific service
+clier restart                        # Restart daemon (new PID)
+clier restart --config ./path        # Restart daemon with specific config
 
 # Reload configuration (fast: same daemon PID, restarts all processes)
-clier reload
+clier reload                         # Reload config, restart all processes
+clier reload <name>                  # Restart a specific service
 clier reload --restart-manual        # Also restart running manual services
+clier reload --config ./path         # Reload with specific config
+clier refresh                        # Alias for reload --restart-manual
 
 # Update Clier to latest version
 clier update                         # Update to latest version
@@ -325,6 +333,8 @@ clier service add <name> -c "command" [options]
 clier service remove <name>
 
 # Send stdin input to processes (requires input.enabled: true in config)
+clier send <process> "data"              # Send input with newline (alias for input)
+clier send <process> "data" --no-newline # Send without newline
 clier input <process> "data"             # Send input with newline
 clier input <process> "data" --no-newline  # Send without newline
 ```

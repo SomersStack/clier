@@ -25,6 +25,8 @@ clier start
 
 # Check process status
 clier status
+clier watch                          # Watch mode (alias for status -w)
+clier watch -n 5                     # Watch with 5 second refresh
 
 # View logs
 clier logs <name>                    # All logs for process
@@ -36,12 +38,20 @@ clier logs --daemon --level error    # Daemon error logs only
 # Stop all processes
 clier stop
 
-# Restart daemon completely (new PID)
-clier restart
+# Restart a service, or restart daemon completely (new PID)
+clier restart <name>                 # Restart a specific service
+clier restart                        # Restart daemon (new PID)
+clier restart --config ./path        # Restart daemon with specific config
 
 # Hot reload configuration (same daemon PID, restarts all processes)
-clier reload
+clier reload                         # Reload config, restart all processes
+clier reload <name>                  # Restart a specific service
 clier reload --restart-manual        # Also restart running manual services
+clier reload --config ./path         # Reload with specific config
+clier refresh                        # Alias for reload --restart-manual
+
+# Force stop a service
+clier kill <name>                    # Immediate kill (SIGKILL)
 
 # Update Clier
 clier update                         # Update to latest
@@ -72,6 +82,8 @@ clier emit <event-name>                  # Emit event (triggers stages with matc
 clier emit <event-name> -d '{"key":"value"}'  # Emit with JSON data payload
 
 # Send stdin input to running processes (requires input.enabled: true in config)
+clier send <process> "data"              # Send input with newline (alias for input)
+clier send <process> "data" --no-newline # Send input without newline
 clier input <process> "data"             # Send input with newline
 clier input <process> "data" --no-newline  # Send input without newline
 ```
@@ -137,7 +149,7 @@ clier status                         # Check which process failed
 clier logs failing-process           # View error logs
 # Fix issue in code or config
 clier reload                         # Hot reload if config changed
-clier service restart failing-process # Or restart specific service
+clier restart failing-process         # Or restart specific service
 ```
 
 ### Add Process to Running Pipeline
@@ -157,7 +169,7 @@ clier service remove temp-worker     # When done
 ### Restart Misbehaving Service
 ```bash
 clier logs problematic-service       # Diagnose issue
-clier service restart problematic-service
+clier restart problematic-service    # Restart it
 clier logs problematic-service       # Verify fix
 ```
 

@@ -77,14 +77,20 @@ export function createCLI(): Command {
   // Restart command
   program
     .command("restart")
-    .description("Restart daemon completely (new PID)")
-    .argument(
-      "[config]",
+    .description("Restart a service by name, or restart daemon completely (new PID)")
+    .argument("[name]", "Service name to restart (omit to restart daemon)")
+    .option(
+      "--config <path>",
       "Path to clier-pipeline.json (default: ./clier-pipeline.json)"
     )
-    .action(async (configPath?: string) => {
-      const exitCode = await restartCommand(configPath);
-      process.exit(exitCode);
+    .action(async (name?: string, options?: { config?: string }) => {
+      if (name) {
+        const exitCode = await serviceRestartCommand(name, false);
+        process.exit(exitCode);
+      } else {
+        const exitCode = await restartCommand(options?.config);
+        process.exit(exitCode);
+      }
     });
 
   // Status command
@@ -100,6 +106,23 @@ export function createCLI(): Command {
     .action(async (options: { watch?: boolean; interval: string }) => {
       const exitCode = await statusCommand({
         watch: options.watch,
+        interval: parseFloat(options.interval),
+      });
+      process.exit(exitCode);
+    });
+
+  // Watch command (alias for status -w)
+  program
+    .command("watch")
+    .description("Watch process status (alias for status -w)")
+    .option(
+      "-n, --interval <seconds>",
+      "Refresh interval in seconds (default: 2)",
+      "2"
+    )
+    .action(async (options: { interval: string }) => {
+      const exitCode = await statusCommand({
+        watch: true,
         interval: parseFloat(options.interval),
       });
       process.exit(exitCode);
@@ -186,18 +209,48 @@ export function createCLI(): Command {
   // Reload command
   program
     .command("reload")
-    .description("Hot-reload config without restarting daemon (same PID, restarts all processes)")
-    .argument(
-      "[config]",
+    .description(
+      "Reload config (same PID, restarts all processes), or restart a service by name"
+    )
+    .argument("[name]", "Service name to restart (omit to reload config)")
+    .option(
+      "--config <path>",
       "Path to clier-pipeline.json (default: ./clier-pipeline.json)"
     )
     .option(
       "--restart-manual",
       "Re-start any services that were manually started (via 'clier service start')"
     )
-    .action(async (configPath?: string, options?: { restartManual?: boolean }) => {
-      const exitCode = await reloadCommand(configPath, {
-        restartManualServices: options?.restartManual,
+    .action(
+      async (
+        name?: string,
+        options?: { config?: string; restartManual?: boolean }
+      ) => {
+        if (name) {
+          const exitCode = await serviceRestartCommand(name, false);
+          process.exit(exitCode);
+        } else {
+          const exitCode = await reloadCommand(options?.config, {
+            restartManualServices: options?.restartManual,
+          });
+          process.exit(exitCode);
+        }
+      }
+    );
+
+  // Refresh command (alias for reload --restart-manual)
+  program
+    .command("refresh")
+    .description(
+      "Reload config and restart manual services (alias for reload --restart-manual)"
+    )
+    .option(
+      "--config <path>",
+      "Path to clier-pipeline.json (default: ./clier-pipeline.json)"
+    )
+    .action(async (options?: { config?: string }) => {
+      const exitCode = await reloadCommand(options?.config, {
+        restartManualServices: true,
       });
       process.exit(exitCode);
     });
@@ -310,6 +363,16 @@ export function createCLI(): Command {
       process.exit(exitCode);
     });
 
+  // Kill command (alias for service stop --force)
+  program
+    .command("kill")
+    .description("Force stop a service (alias for service stop --force)")
+    .argument("<name>", "Service name")
+    .action(async (name: string) => {
+      const exitCode = await serviceStopCommand(name, true);
+      process.exit(exitCode);
+    });
+
   // Service commands (for controlling individual processes)
   const service = program
     .command("service")
@@ -394,6 +457,26 @@ export function createCLI(): Command {
       });
       process.exit(exitCode);
     });
+
+  // Send command (alias for input)
+  program
+    .command("send")
+    .description("Send input to a running process (alias for input)")
+    .argument("<process>", "Process name to send input to")
+    .argument("<data>", "Data to send to the process")
+    .option("--no-newline", "Do not append newline to the input")
+    .action(
+      async (
+        processName: string,
+        data: string,
+        options: { newline: boolean }
+      ) => {
+        const exitCode = await inputCommand(processName, data, {
+          newline: options.newline,
+        });
+        process.exit(exitCode);
+      }
+    );
 
   // Emit command - emit custom events to trigger waiting stages
   program
