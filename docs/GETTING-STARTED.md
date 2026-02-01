@@ -325,19 +325,23 @@ Control individual services/processes dynamically:
 
 ```bash
 # Start/stop/restart individual services
-clier service start <name>
-clier service stop <name> [--force]      # --force for immediate kill
-clier service restart <name> [--force]
+clier run <name>                         # Start a service
+clier stop <name>                        # Graceful stop (SIGTERM)
+clier restart <name>                     # Graceful restart
+clier kill <name>                        # Immediate kill (SIGKILL)
+
+# Long-form equivalents (with extra options)
+clier service start <name>               # Same as: clier run <name>
+clier service stop <name> [--force]      # --force same as: clier kill <name>
+clier service restart <name> [--force]   # --force for immediate kill before restart
 
 # Dynamically add/remove services (runtime-only, not persisted to JSON)
 clier service add <name> -c "command" [options]
 clier service remove <name>
 
 # Send stdin input to processes (requires input.enabled: true in config)
-clier send <process> "data"              # Send input with newline (alias for input)
+clier send <process> "data"              # Send input with newline
 clier send <process> "data" --no-newline # Send without newline
-clier input <process> "data"             # Send input with newline
-clier input <process> "data" --no-newline  # Send without newline
 ```
 
 **Note**: Service control commands modify the running daemon only. Changes do NOT persist to `clier-pipeline.json`. To persist changes, edit the config file and run `clier reload`.

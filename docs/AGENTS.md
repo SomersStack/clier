@@ -64,14 +64,16 @@ clier update --check                 # Check for updates
 **Important**: These changes are NOT persisted to `clier-pipeline.json`
 
 ```bash
-# Start a stage (bypasses event triggers, works with manual: true stages)
-clier service start <name>
+# Start/stop/restart individual services
+clier run <name>                         # Start a service
+clier stop <name>                        # Graceful stop (SIGTERM)
+clier restart <name>                     # Graceful restart
+clier kill <name>                        # Immediate kill (SIGKILL)
 
-# Stop/restart services
-clier service stop <name>                # Graceful stop (SIGTERM)
-clier service stop <name> --force        # Immediate kill (SIGKILL)
-clier service restart <name>             # Graceful restart
-clier service restart <name> --force     # Force restart (immediate kill)
+# Long-form equivalents (with extra options)
+clier service start <name>               # Same as: clier run <name>
+clier service stop <name> [--force]      # --force same as: clier kill <name>
+clier service restart <name> [--force]   # --force for immediate kill before restart
 
 # Dynamic add/remove (temporary)
 clier service add <name> -c "command" [options]
@@ -83,10 +85,8 @@ clier emit <event-name>                  # Emit event (triggers stages with matc
 clier emit <event-name> -d '{"key":"value"}'  # Emit with JSON data payload
 
 # Send stdin input to running processes (requires input.enabled: true in config)
-clier send <process> "data"              # Send input with newline (alias for input)
-clier send <process> "data" --no-newline # Send input without newline
-clier input <process> "data"             # Send input with newline
-clier input <process> "data" --no-newline  # Send input without newline
+clier send <process> "data"              # Send input with newline
+clier send <process> "data" --no-newline # Send without newline
 ```
 
 ## Stage Templates

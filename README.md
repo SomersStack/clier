@@ -85,11 +85,14 @@ clier reload <name>         # Restart a specific service
 clier refresh               # Reload + restart manual services
 clier update                # Update to latest version
 
-# Service control
+# Service control (short form)
 clier run <name>            # Start a service
-clier kill <name>           # Force stop a service
+clier stop <name>           # Stop a service (graceful)
+clier restart <name>        # Restart a service
+clier kill <name>           # Force stop a service (SIGKILL)
 clier send <process> "data" # Send stdin input to a process
-clier service start <name>
+
+# Service control (long form, with extra options)
 clier service stop <name> [--force]
 clier service restart <name> [--force]
 clier service add <name> -c "command" [options]
