@@ -22,7 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `clier refresh` - Alias for `clier reload --restart-manual`
 - `clier kill <name>` - Alias for `clier service stop --force` (SIGKILL)
 - `clier send <process> <data>` - Alias for `clier input`
-- `clier restart <name>` and `clier reload <name>` now restart a specific service when given a name
+- `clier stop <name>`, `clier restart <name>`, and `clier reload <name>` now target a specific service when given a name
+- `clier stop`, `clier restart`, and `clier reload` with no args continue to operate on the entire daemon
 - `clier restart` and `clier reload` now use `--config <path>` instead of positional argument for config path
 
 ### Changed

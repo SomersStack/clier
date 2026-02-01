@@ -68,9 +68,10 @@ export function createCLI(): Command {
   // Stop command
   program
     .command("stop")
-    .description("Show instructions for stopping the pipeline")
-    .action(async () => {
-      const exitCode = await stopCommand();
+    .description("Stop a service by name, or stop the entire pipeline")
+    .argument("[name]", "Service name to stop (omit to stop entire pipeline)")
+    .action(async (name?: string) => {
+      const exitCode = await stopCommand(name ? { process: name } : {});
       process.exit(exitCode);
     });
 

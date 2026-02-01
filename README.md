@@ -76,6 +76,7 @@ clier watch                 # Watch mode (alias for status -w)
 clier logs <name>           # View process logs
 clier logs --daemon         # View daemon logs
 clier stop                  # Stop all processes
+clier stop <name>           # Stop a specific service
 clier kill <name>           # Force stop a service (SIGKILL)
 clier restart               # Restart daemon (new PID)
 clier restart <name>        # Restart a specific service

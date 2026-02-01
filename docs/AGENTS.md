@@ -35,8 +35,9 @@ clier logs <name> --since 5m         # Last 5 minutes
 clier logs --daemon                  # View daemon logs
 clier logs --daemon --level error    # Daemon error logs only
 
-# Stop all processes
-clier stop
+# Stop a service, or stop all processes
+clier stop <name>                    # Stop a specific service
+clier stop                           # Stop entire pipeline
 
 # Restart a service, or restart daemon completely (new PID)
 clier restart <name>                 # Restart a specific service
