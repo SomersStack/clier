@@ -17,6 +17,8 @@ Run `clier status` to see:
 - If a process is waiting for a trigger event
 - Pipeline state before making changes
 
+Use `clier watch` for live-updating status display.
+
 ## View Logs
 
 **Process logs:** `clier logs <name>` - When debugging a specific process
@@ -25,11 +27,13 @@ Run `clier status` to see:
 ## Control Services
 
 **Individual services:**
-- Start: `clier service start <name>`
+- Start: `clier run <name>` or `clier service start <name>`
 - Stop: `clier service stop <name>`
-- Restart: `clier service restart <name>`
+- Restart: `clier restart <name>` or `clier service restart <name>`
+- Force stop: `clier kill <name>`
+- Send stdin: `clier send <process> "data"`
 
-**Entire daemon:** **Run `clier docs commands` and read before using `clier restart` or `clier reload`**
+**Entire daemon:** **Run `clier docs commands` and read before using `clier restart` (no args) or `clier reload`**
 
 ## Configuration Location
 

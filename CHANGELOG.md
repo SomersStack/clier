@@ -16,7 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `clier status --watch` - Watch mode for live status updates with configurable refresh interval
 - `clier reload --restart-manual` - Option to restart manually-started services during reload
 - `clier input <process> <data>` - Send stdin input to running processes
+- `clier events` - View event history from the running pipeline
 - Alternate screen buffer for `status --watch` mode (cleaner terminal output)
+- `clier watch` - Alias for `clier status -w` (live status updates)
+- `clier refresh` - Alias for `clier reload --restart-manual`
+- `clier kill <name>` - Alias for `clier service stop --force` (SIGKILL)
+- `clier send <process> <data>` - Alias for `clier input`
+- `clier restart <name>` and `clier reload <name>` now restart a specific service when given a name
+- `clier restart` and `clier reload` now use `--config <path>` instead of positional argument for config path
 
 ### Changed
 - **Breaking**: Services now default to `restart: "on-failure"` instead of always restarting. Services that need restart on clean exit should set `restart: "always"`
