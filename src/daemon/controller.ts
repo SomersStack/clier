@@ -201,6 +201,15 @@ export class DaemonController {
       throw new Error("LogManager not initialized");
     }
 
+    // Validate that the service/task exists in the pipeline
+    const orchestrator = this.watcher.getOrchestrator();
+    if (orchestrator && !orchestrator.hasStage(params.name)) {
+      throw new Error(
+        `Service or task "${params.name}" not found in pipeline. ` +
+          `Use "clier status" to see available services and tasks.`
+      );
+    }
+
     if (params.since !== undefined) {
       return logManager.getSince(params.name, params.since);
     }

@@ -17,6 +17,7 @@ describe("DaemonController", () => {
   let controller: DaemonController;
   let mockWatcher: any;
   let mockProcessManager: any;
+  let mockOrchestrator: any;
 
   beforeEach(() => {
     // Create mock ProcessManager
@@ -28,10 +29,16 @@ describe("DaemonController", () => {
       listProcesses: vi.fn(),
     };
 
+    // Create mock Orchestrator
+    mockOrchestrator = {
+      hasStage: vi.fn().mockReturnValue(true),
+    };
+
     // Create mock Watcher
     mockWatcher = {
       getProcessManager: vi.fn().mockReturnValue(mockProcessManager),
       getLogManager: vi.fn(),
+      getOrchestrator: vi.fn().mockReturnValue(mockOrchestrator),
       start: vi.fn(),
       stop: vi.fn(),
     };
@@ -327,6 +334,23 @@ describe("DaemonController", () => {
       await expect(
         controller["logs.query"]({ name: "backend" })
       ).rejects.toThrow("LogManager not initialized");
+    });
+
+    it("should throw error if service not found in pipeline", async () => {
+      const mockLogManager = {
+        getLastN: vi.fn().mockReturnValue([]),
+        getSince: vi.fn(),
+      };
+
+      mockWatcher.getLogManager.mockReturnValue(mockLogManager);
+      mockOrchestrator.hasStage.mockReturnValue(false);
+
+      await expect(
+        controller["logs.query"]({ name: "nonexistent-service" })
+      ).rejects.toThrow(
+        'Service or task "nonexistent-service" not found in pipeline'
+      );
+      expect(mockLogManager.getLastN).not.toHaveBeenCalled();
     });
   });
 

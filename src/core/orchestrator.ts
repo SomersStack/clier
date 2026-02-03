@@ -367,6 +367,16 @@ export class Orchestrator {
   }
 
   /**
+   * Check if a stage exists in the pipeline
+   *
+   * @param stageName - Name of the stage to check
+   * @returns True if the stage exists in the pipeline
+   */
+  hasStage(stageName: string): boolean {
+    return this.pipelineItems.has(stageName);
+  }
+
+  /**
    * Get processes that were manually triggered via triggerStage() and are currently running
    *
    * These are services that were started explicitly by the user (e.g., via `clier service start`)
