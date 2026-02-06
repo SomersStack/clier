@@ -39,6 +39,7 @@ export class EventBus {
   private processManager: ProcessManager;
   private connected = false;
   private emitter = new EventEmitter();
+  private pmListeners: Array<{ event: string; handler: (...args: any[]) => void }> = [];
 
   constructor(processManager: ProcessManager) {
     this.processManager = processManager;
@@ -77,6 +78,10 @@ export class EventBus {
     }
 
     this.emitter.removeAllListeners();
+    for (const { event, handler } of this.pmListeners) {
+      this.processManager.removeListener(event, handler);
+    }
+    this.pmListeners = [];
     this.connected = false;
     logger.info("Event bus disconnected");
   }
@@ -148,8 +153,13 @@ export class EventBus {
    * Setup event listeners on ProcessManager
    */
   private setupEventListeners(): void {
+    const track = (event: string, handler: (...args: any[]) => void) => {
+      this.processManager.on(event, handler);
+      this.pmListeners.push({ event, handler });
+    };
+
     // Handle stdout
-    this.processManager.on(
+    track(
       "stdout",
       (name: string, data: string, timestamp: number) => {
         const event = this.normalizeLogEvent(name, "stdout", data, timestamp);
@@ -158,7 +168,7 @@ export class EventBus {
     );
 
     // Handle stderr
-    this.processManager.on(
+    track(
       "stderr",
       (name: string, data: string, timestamp: number) => {
         const event = this.normalizeLogEvent(name, "stderr", data, timestamp);
@@ -167,7 +177,7 @@ export class EventBus {
     );
 
     // Handle process exit - now guaranteed to have complete logs
-    this.processManager.on(
+    track(
       "exit",
       (
         name: string,
@@ -193,7 +203,7 @@ export class EventBus {
     );
 
     // Handle process start
-    this.processManager.on("start", (name: string, pid: number) => {
+    track("start", (name: string, pid: number) => {
       const event: ClierEvent = {
         name: "process:start",
         processName: name,
@@ -205,7 +215,7 @@ export class EventBus {
     });
 
     // Handle process restart
-    this.processManager.on("restart", (name: string, attempt: number) => {
+    track("restart", (name: string, attempt: number) => {
       const event: ClierEvent = {
         name: "process:restart",
         processName: name,
@@ -217,7 +227,7 @@ export class EventBus {
     });
 
     // Handle errors
-    this.processManager.on("error", (name: string, error: Error) => {
+    track("error", (name: string, error: Error) => {
       const event: ClierEvent = {
         name: "process:error",
         processName: name,

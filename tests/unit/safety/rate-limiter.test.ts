@@ -13,9 +13,12 @@ describe("RateLimiter", () => {
   };
 
   afterEach(async () => {
-    // Stop all limiters to clean up Bottleneck's internal timers
+    // Stop all limiters to clean up Bottleneck's internal timers.
+    // Some tests call stop() directly, so ignore "already stopped" errors.
     await Promise.all(
-      limiters.map((limiter) => limiter.stop({ dropWaitingJobs: true })),
+      limiters.map((limiter) =>
+        limiter.stop({ dropWaitingJobs: true }).catch(() => {}),
+      ),
     );
     limiters.length = 0;
   });
@@ -165,6 +168,7 @@ describe("RateLimiter", () => {
     it("should stop the rate limiter", async () => {
       // Don't use createLimiter here since we're testing stop() directly
       const limiter = new RateLimiter(60);
+      limiters.push(limiter);
       const fn = vi.fn(() => Promise.resolve("result"));
 
       // Execute before stopping
@@ -181,6 +185,7 @@ describe("RateLimiter", () => {
     it("should handle stop when no operations are pending", async () => {
       // Don't use createLimiter here since we're testing stop() directly
       const limiter = new RateLimiter(60);
+      limiters.push(limiter);
       await expect(limiter.stop()).resolves.toBeUndefined();
     });
   });

@@ -121,6 +121,8 @@ export class CircuitBreaker {
     fn: T,
   ): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
     const breaker = new CircuitBreakerLib(fn, this.options);
+    const key = `protect-${this.breakers.size}`;
+    this.breakers.set(key, breaker);
 
     // Forward all events to default breaker for centralized event handling
     const events: Array<

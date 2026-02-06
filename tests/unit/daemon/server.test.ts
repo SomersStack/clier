@@ -40,6 +40,11 @@ function sendRequest(
       client.write(JSON.stringify(request) + "\n");
     });
 
+    const timeout = setTimeout(() => {
+      client.destroy();
+      reject(new Error("Request timeout"));
+    }, 5000);
+
     let buffer = "";
     client.on("data", (chunk) => {
       buffer += chunk.toString();
@@ -48,6 +53,7 @@ function sendRequest(
         if (!line.trim()) continue;
         try {
           const response = JSON.parse(line);
+          clearTimeout(timeout);
           client.end();
           resolve(response);
         } catch {
@@ -56,20 +62,23 @@ function sendRequest(
       }
     });
 
-    client.on("error", reject);
-    setTimeout(() => {
-      client.destroy();
-      reject(new Error("Request timeout"));
-    }, 5000);
+    client.on("error", (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
   });
 }
 
 /**
- * Helper: create a raw socket connection that stays open for multi-message testing
+ * Helper: create a raw socket connection that stays open for multi-message testing.
+ * Callers must pass the openConnections array so sockets are tracked for cleanup.
  */
-function createRawConnection(socketPath: string): Promise<net.Socket> {
+function createRawConnection(socketPath: string, track?: net.Socket[]): Promise<net.Socket> {
   return new Promise((resolve, reject) => {
-    const socket = net.createConnection(socketPath, () => resolve(socket));
+    const socket = net.createConnection(socketPath, () => {
+      track?.push(socket);
+      resolve(socket);
+    });
     socket.on("error", reject);
   });
 }
@@ -102,6 +111,7 @@ describe("DaemonServer", () => {
   let server: DaemonServer;
   let socketPath: string;
   let tmpDir: string;
+  const openConnections: net.Socket[] = [];
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "clier-server-test-"));
@@ -112,6 +122,10 @@ describe("DaemonServer", () => {
   });
 
   afterEach(async () => {
+    for (const conn of openConnections) {
+      conn.destroy();
+    }
+    openConnections.length = 0;
     await server.stop();
     // Clean up temp dir
     try {
@@ -213,6 +227,11 @@ describe("DaemonServer", () => {
           client.write("not valid json\n");
         });
 
+        const timeout = setTimeout(() => {
+          client.destroy();
+          reject(new Error("timeout"));
+        }, 5000);
+
         let buffer = "";
         client.on("data", (chunk) => {
           buffer += chunk.toString();
@@ -221,6 +240,7 @@ describe("DaemonServer", () => {
             if (!line.trim()) continue;
             try {
               const resp = JSON.parse(line);
+              clearTimeout(timeout);
               client.end();
               resolve(resp);
             } catch {
@@ -229,11 +249,10 @@ describe("DaemonServer", () => {
           }
         });
 
-        client.on("error", reject);
-        setTimeout(() => {
-          client.destroy();
-          reject(new Error("timeout"));
-        }, 5000);
+        client.on("error", (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        });
       });
 
       expect(response.jsonrpc).toBe("2.0");
@@ -307,7 +326,7 @@ describe("DaemonServer", () => {
     });
 
     it("should handle multiple messages sent in a single chunk", async () => {
-      const conn = await createRawConnection(socketPath);
+      const conn = await createRawConnection(socketPath, openConnections);
       const responses = collectResponses(conn);
 
       // Send two requests in one write
@@ -326,7 +345,7 @@ describe("DaemonServer", () => {
     });
 
     it("should handle a message split across multiple chunks", async () => {
-      const conn = await createRawConnection(socketPath);
+      const conn = await createRawConnection(socketPath, openConnections);
       const responses = collectResponses(conn);
 
       const fullMessage = JSON.stringify({ jsonrpc: "2.0", method: "ping", id: 3 });
@@ -349,7 +368,7 @@ describe("DaemonServer", () => {
     });
 
     it("should skip empty lines", async () => {
-      const conn = await createRawConnection(socketPath);
+      const conn = await createRawConnection(socketPath, openConnections);
       const responses = collectResponses(conn);
 
       conn.write("\n\n" + JSON.stringify({ jsonrpc: "2.0", method: "ping", id: 1 }) + "\n\n");
@@ -393,7 +412,7 @@ describe("DaemonServer", () => {
     });
 
     it("should handle client disconnect gracefully", async () => {
-      const conn = await createRawConnection(socketPath);
+      const conn = await createRawConnection(socketPath, openConnections);
 
       // Immediately close the client
       conn.destroy();
