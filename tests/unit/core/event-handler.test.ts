@@ -422,6 +422,126 @@ describe("EventHandler", () => {
     });
   });
 
+  describe("default event emission behavior", () => {
+    it("should emit error events by default when events config is omitted", () => {
+      const item: PipelineItem = {
+        name: "backend",
+        command: "npm start",
+        type: "service",
+        // No events config at all
+      };
+
+      handler.registerPipelineItem(item);
+
+      const emittedEvents: ClierEvent[] = [];
+      handler.on("backend:error", (event) => emittedEvents.push(event));
+
+      const stderrEvent: ClierEvent = {
+        name: "backend",
+        processName: "backend",
+        type: "stderr",
+        data: "Error: Connection refused",
+        timestamp: Date.now(),
+      };
+
+      handler.handleEvent(stderrEvent);
+
+      expect(emittedEvents).toHaveLength(1);
+      expect(emittedEvents[0].name).toBe("backend:error");
+      expect(emittedEvents[0].type).toBe("error");
+    });
+
+    it("should emit crash events by default when events config is omitted", () => {
+      const item: PipelineItem = {
+        name: "backend",
+        command: "npm start",
+        type: "service",
+        // No events config at all
+      };
+
+      handler.registerPipelineItem(item);
+
+      const emittedEvents: ClierEvent[] = [];
+      handler.on("backend:crashed", (event) => emittedEvents.push(event));
+
+      const exitEvent: ClierEvent = {
+        name: "process:exit",
+        processName: "backend",
+        type: "custom",
+        data: 1,
+        timestamp: Date.now(),
+      };
+
+      handler.handleEvent(exitEvent);
+
+      expect(emittedEvents).toHaveLength(1);
+      expect(emittedEvents[0].name).toBe("backend:crashed");
+      expect(emittedEvents[0].type).toBe("crashed");
+    });
+
+    it("should emit error events when on_stderr is not specified in events config", () => {
+      const item: PipelineItem = {
+        name: "backend",
+        command: "npm start",
+        type: "service",
+        events: {
+          on_stdout: [{ pattern: "ready", emit: "backend:ready" }],
+          // on_stderr not specified - should default to true
+          on_crash: false,
+        },
+      };
+
+      handler.registerPipelineItem(item);
+
+      const emittedEvents: ClierEvent[] = [];
+      handler.on("backend:error", (event) => emittedEvents.push(event));
+
+      const stderrEvent: ClierEvent = {
+        name: "backend",
+        processName: "backend",
+        type: "stderr",
+        data: "Warning: deprecated API",
+        timestamp: Date.now(),
+      };
+
+      handler.handleEvent(stderrEvent);
+
+      expect(emittedEvents).toHaveLength(1);
+      expect(emittedEvents[0].name).toBe("backend:error");
+    });
+
+    it("should emit crash events when on_crash is not specified in events config", () => {
+      const item: PipelineItem = {
+        name: "backend",
+        command: "npm start",
+        type: "service",
+        events: {
+          on_stdout: [],
+          on_stderr: false,
+          // on_crash not specified - should default to true
+        },
+      };
+
+      handler.registerPipelineItem(item);
+
+      const emittedEvents: ClierEvent[] = [];
+      handler.on("backend:crashed", (event) => emittedEvents.push(event));
+
+      const exitEvent: ClierEvent = {
+        name: "process:exit",
+        processName: "backend",
+        type: "custom",
+        data: 1,
+        timestamp: Date.now(),
+      };
+
+      handler.handleEvent(exitEvent);
+
+      expect(emittedEvents).toHaveLength(1);
+      expect(emittedEvents[0].name).toBe("backend:crashed");
+    });
+  });
+
   describe("getEventHistory", () => {
     it("should track event history", () => {
       const item = createPipelineItem({

@@ -47,7 +47,7 @@ export type PipelineItem = {
   env?: Record<string, string>;
   /** Working directory for command execution */
   cwd?: string;
-  /** Event configuration for this item (optional - if omitted, no special event emissions occur) */
+  /** Event configuration for this item (optional - defaults to emitting error/crash events) */
   events?: Events;
   /** Enable event template variable substitution in command and env (default: false) */
   enable_event_templates?: boolean;
