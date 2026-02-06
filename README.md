@@ -1,26 +1,42 @@
 # Clier
 
-> Native Node.js process orchestration framework with event-driven pipeline management
+> Give your AI agents shared, persistent access to running processes, logs, and orchestrated workflows.
 
-## What is Clier?
+## The Problem
 
-Clier manages multi-process pipelines with event-driven coordination. Define your services and tasks in a JSON config, and Clier handles dependencies, restarts, and event-based triggers.
+When AI agents work on your codebase, they constantly need to start servers, run builds, check logs, and coordinate multiple processes. Each agent session starts blind -- no visibility into what's already running, no way to share a running process with another session, and no structured way to define "start the database, then the API, then the frontend."
 
-**Key Features:**
-- Event-driven process coordination
-- Pattern-based stdout/stderr monitoring
-- Built-in safety (rate limiting, debouncing, circuit breakers)
-- Type-safe configuration with Zod validation
-- Background daemon architecture
+Clier solves this. It runs your processes in a background daemon that any agent session (or terminal) can connect to, inspect, and control.
+
+## What Clier Does
+
+- **Shared process access** -- Multiple AI agent sessions and terminals connect to the same running processes. One agent starts the server, another checks its logs, a third restarts it.
+- **Persistent background daemon** -- Processes keep running after your terminal or agent session closes. Come back later and pick up where you left off.
+- **Declarative pipelines** -- Define your services, tasks, and their dependencies in a single JSON file. Clier handles startup order, event coordination, and restarts.
+- **Live logs and status** -- Any connected session can tail logs, check process status, or watch for errors in real time.
+- **Built-in safety** -- Rate limiting, debouncing, and circuit breakers prevent runaway restarts and cascading failures.
+
+## Install
+
+```bash
+npm install -g clier-ai
+```
+
+Verify it's working:
+
+```bash
+clier --version
+```
+
+**Requirements:** Node.js >= 18.0.0, macOS or Linux.
 
 ## Quick Start
 
-```bash
-# Install globally
-npm install -g clier
+### 1. Create a pipeline config
 
-# Create configuration
-cat > clier-pipeline.json << 'EOF'
+Create `clier-pipeline.json` in your project root:
+
+```json
 {
   "project_name": "my-app",
   "global_env": true,
@@ -36,121 +52,179 @@ cat > clier-pipeline.json << 'EOF'
       "events": {
         "on_stdout": [
           { "pattern": "Server listening", "emit": "backend:ready" }
-        ],
-        "on_stderr": true,
-        "on_crash": true
+        ]
       }
+    },
+    {
+      "name": "frontend",
+      "command": "npm run dev",
+      "type": "service",
+      "trigger_on": ["backend:ready"]
     }
   ]
 }
-EOF
+```
 
-# Validate and start
+### 2. Validate and start
+
+```bash
 clier validate
 clier start
+```
 
-# Monitor
-clier status
-clier logs backend
-clier logs --daemon  # View daemon orchestration logs
+### 3. Check on things from any terminal or agent session
+
+```bash
+clier status            # See what's running
+clier logs backend      # Tail backend output
+clier logs --daemon     # See orchestration events
+```
+
+### 4. Stop when you're done
+
+```bash
+clier stop
+```
+
+## How It Works
+
+Clier runs a background daemon that manages your processes over a Unix socket. Any terminal, script, or AI agent session can connect to it.
+
+```
+  Terminal 1       Agent Session       Terminal 2
+      |                 |                  |
+      '----------.------'------.-----------'
+                 |             |
+           Unix Socket IPC
+                 |
+         +-------v--------+
+         | Clier Daemon   |
+         | (background)   |
+         +-------+--------+
+                 |
+     +-----------+-----------+
+     |           |           |
+  Process 1  Process 2  Process 3
+```
+
+## Pipeline Configuration
+
+The `clier-pipeline.json` file is where you define what runs and how it connects together.
+
+### Pipeline items
+
+Each entry in the `pipeline` array is either a **service** (long-running, auto-restarted) or a **task** (runs once, exits):
+
+```json
+{
+  "name": "api",
+  "command": "node server.js",
+  "type": "service",
+  "env": { "PORT": "3000" },
+  "cwd": "./backend"
+}
+```
+
+Items without a `trigger_on` field start immediately. Items with `trigger_on` wait for the named event before starting.
+
+### Events and triggers
+
+This is the core of Clier's coordination. Processes can watch their own stdout for patterns and emit named events when they match. Other processes can wait for those events before starting.
+
+```json
+{
+  "name": "database",
+  "command": "docker-compose up db",
+  "type": "service",
+  "events": {
+    "on_stdout": [
+      { "pattern": "ready to accept connections", "emit": "db:ready" }
+    ]
+  }
+}
+```
+
+The `pattern` is a regex matched against each line of stdout. When it matches, the named event is emitted on Clier's internal event bus. Any process with a matching `trigger_on` starts:
+
+```json
+{
+  "name": "api",
+  "command": "node server.js",
+  "type": "service",
+  "trigger_on": ["db:ready"]
+}
+```
+
+**Built-in events** are also emitted automatically:
+- `<name>:error` -- when a process writes to stderr
+- `<name>:crashed` -- when a process exits with a non-zero code
+- `<name>:success` -- when a task completes with exit code 0
+- `circuit-breaker:triggered` -- when a process crashes repeatedly (3 times in 5 seconds)
+
+You can trigger on any of these to build reactive workflows -- for example, sending an alert when a circuit breaker trips, or starting a fallback service when the primary crashes.
+
+### Safety settings
+
+The `safety` block protects against runaway restarts:
+
+```json
+{
+  "safety": {
+    "max_ops_per_minute": 60,
+    "debounce_ms": 100
+  }
+}
+```
+
+- **`max_ops_per_minute`** -- Rate limit on process starts across the whole pipeline.
+- **`debounce_ms`** -- Minimum wait time before restarting a crashed service.
+- **Circuit breaker** -- Automatically stops a service that crashes 3 times within 5 seconds.
+
+## CLI Reference
+
+```bash
+clier validate              # Check your pipeline config for errors
+clier start                 # Launch the daemon and start the pipeline
+clier status                # See all process states
+clier status -w             # Live-updating status (watch mode)
+clier logs <name>           # View a process's output
+clier logs --daemon         # View Clier's own orchestration logs
+clier stop                  # Gracefully stop everything
+clier stop <name>           # Stop a single process
+clier restart <name>        # Restart a single process
+clier reload                # Hot-reload config without restarting the daemon
+clier run <name>            # Start a stopped or manual process
+clier kill <name>           # Force-stop a process (SIGKILL)
+clier send <name> "input"   # Send stdin to a running process
+clier emit <event>          # Manually fire an event
+clier update                # Update Clier to the latest version
+```
+
+## Agent Integration
+
+Clier is built to work with AI coding agents. Run `clier init` to generate agent-readable documentation into your project:
+
+```bash
+clier init            # Creates .claude/claude.md with Clier instructions
+clier init --agents   # Creates .agents/agents.md for multi-agent setups
+```
+
+This gives agents the context they need to use `clier status`, `clier logs`, and other commands without additional prompting.
+
+Agents can also view documentation at any time:
+
+```bash
+clier docs commands   # CLI command reference
+clier docs pipeline   # Pipeline configuration guide
 ```
 
 ## Documentation
 
-- **[Getting Started Guide](docs/GETTING-STARTED.md)** - Installation, architecture, and examples
-- **[Agent CLI Guide](docs/AGENTS.md)** - CLI commands quick reference for AI agents
-- **[Agent Pipeline Guide](docs/AGENTS-PIPELINE.md)** - Pipeline configuration for AI agents
-- **[Configuration Reference](docs/configuration.md)** - Complete schema documentation
-- **[API Reference](docs/api-reference.md)** - TypeScript types and programmatic usage
-
-## CLI Commands
-
-```bash
-clier init                  # Initialize agent documentation (.claude/claude.md)
-clier docs [subject]        # View documentation (commands, pipeline, all)
-clier validate              # Validate configuration
-clier start                 # Start pipeline daemon
-clier status                # View process status
-clier status -w             # Watch mode (live updates)
-clier watch                 # Watch mode (alias for status -w)
-clier logs <name>           # View process logs
-clier logs --daemon         # View daemon logs
-clier stop                  # Stop all processes
-clier stop <name>           # Stop a specific service
-clier kill <name>           # Force stop a service (SIGKILL)
-clier restart               # Restart daemon (new PID)
-clier restart <name>        # Restart a specific service
-clier reload                # Reload config (same PID, faster)
-clier reload <name>         # Restart a specific service
-clier refresh               # Reload + restart manual services
-clier update                # Update to latest version
-
-# Service control (short form)
-clier run <name>            # Start a service
-clier stop <name>           # Stop a service (graceful)
-clier restart <name>        # Restart a service
-clier kill <name>           # Force stop a service (SIGKILL)
-clier send <process> "data" # Send stdin input to a process
-
-# Service control (long form, with extra options)
-clier service stop <name> [--force]
-clier service restart <name> [--force]
-clier service add <name> -c "command" [options]
-clier service remove <name>
-```
-
-## Development
-
-### Prerequisites
-- Node.js >= 18.0.0
-- npm, yarn, pnpm, or bun
-
-### Setup
-
-```bash
-# Install dependencies
-npm install
-
-# Run tests
-npm test
-
-# Build
-npm run build
-
-# Type check
-npm run typecheck
-```
-
-### Project Structure
-
-```
-clier/
-├── src/
-│   ├── cli/              # CLI commands
-│   ├── config/           # Configuration schema and loader
-│   ├── core/             # Process manager and orchestrator
-│   ├── daemon/           # Background daemon
-│   └── utils/            # Logging and utilities
-├── docs/                 # Documentation
-├── examples/             # Example pipelines
-└── tests/                # Test suites
-```
-
-## Use Cases
-
-- **Development workflows**: Start database, API, and frontend in correct order
-- **CI/CD pipelines**: Sequential builds, tests, and deployments
-- **Microservices**: Coordinate service dependencies and health checks
-- **Data pipelines**: Event-driven ETL and processing workflows
-
-## Requirements
-
-- Node.js >= 18.0.0
-- Unix-like OS (macOS, Linux) - Windows support planned
-
-## Contributing
-
-Contributions welcome! Please open an issue or PR.
+- **[Getting Started](docs/GETTING-STARTED.md)** -- Installation, architecture, and walkthrough examples
+- **[Agent CLI Guide](docs/AGENTS.md)** -- Quick-reference command list optimized for AI agents
+- **[Agent Pipeline Guide](docs/AGENTS-PIPELINE.md)** -- Pipeline configuration reference for AI agents
+- **[Configuration Reference](docs/configuration.md)** -- Complete schema documentation for `clier-pipeline.json`
+- **[API Reference](docs/api-reference.md)** -- TypeScript types and programmatic usage
 
 ## License
 
