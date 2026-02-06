@@ -136,6 +136,7 @@ export class LogManager {
   private buffers = new Map<string, RingBuffer<LogEntry>>();
   private fileStreams = new Map<string, fs.WriteStream>();
   private fileSizes = new Map<string, number>();
+  private pendingCloses: Promise<void>[] = [];
   private options: Required<LogManagerOptions>;
 
   constructor(options: LogManagerOptions = {}) {
@@ -322,7 +323,11 @@ export class LogManager {
         })
     );
 
-    await Promise.all(closePromises);
+    // Also await any streams closed during rotation
+    const allPromises = [...closePromises, ...this.pendingCloses];
+    this.pendingCloses = [];
+
+    await Promise.all(allPromises);
     this.fileStreams.clear();
     this.fileSizes.clear();
     logger.debug("Log streams flushed");
@@ -422,10 +427,14 @@ export class LogManager {
    * Rotate log files for a process
    */
   private rotateLogFile(processName: string): void {
-    // Close current stream
+    // Close current stream and track the pending close
     const stream = this.fileStreams.get(processName);
     if (stream) {
-      stream.end();
+      this.pendingCloses.push(
+        new Promise<void>((resolve) => {
+          stream.end(() => resolve());
+        })
+      );
       this.fileStreams.delete(processName);
     }
 

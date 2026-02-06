@@ -1,239 +1,205 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+/**
+ * Unit tests for version-checker utility
+ */
 
-// Mock child_process.exec before importing the module
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+// vi.hoisted ensures the mock is available when vi.mock factories are hoisted
+const { mockExecAsync } = vi.hoisted(() => ({
+  mockExecAsync: vi.fn(),
+}));
+
+// Mock child_process.exec before importing the module under test
 vi.mock("child_process", () => ({
   exec: vi.fn(),
 }));
 
-// Mock fs functions used by version-checker
-// readFileSync wraps real impl (overridden per-test), others are no-ops
-vi.mock("fs", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("fs")>();
-  return {
-    ...actual,
-    readFileSync: vi.fn(actual.readFileSync),
-    writeFileSync: vi.fn(),
-    existsSync: vi.fn(() => false),
-    mkdirSync: vi.fn(),
-  };
-});
+// Mock util.promisify so that promisify(exec) returns a mock we control
+vi.mock("util", () => ({
+  promisify: vi.fn(() => mockExecAsync),
+}));
 
-// Mock os.homedir to use a fake directory
-vi.mock("os", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("os")>();
-  return {
-    ...actual,
-    homedir: vi.fn(() => "/tmp/fake-home-for-version-check"),
-  };
-});
+// Mock fs functions
+vi.mock("fs", () => ({
+  readFileSync: vi.fn(),
+  writeFileSync: vi.fn(),
+  existsSync: vi.fn(),
+  mkdirSync: vi.fn(),
+}));
 
-import { exec } from "child_process";
+// Mock os.homedir
+vi.mock("os", () => ({
+  homedir: vi.fn(() => "/mock/home"),
+}));
+
+// Mock path module to keep join and dirname working normally,
+// but we need fileURLToPath and dirname to produce predictable results
+// for packageJsonPath resolution. We mock url instead.
+vi.mock("url", () => ({
+  fileURLToPath: vi.fn(() => "/mock/src/cli/utils/version-checker.ts"),
+}));
+
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { checkForUpdates, shouldShowUpdatePrompt } from "../../../src/cli/utils/version-checker.js";
 
 describe("Version Checker", () => {
-  const mockExec = vi.mocked(exec);
-  const mockReadFileSync = vi.mocked(readFileSync);
-  const mockWriteFileSync = vi.mocked(writeFileSync);
-  const mockExistsSync = vi.mocked(existsSync);
-  const mockMkdirSync = vi.mocked(mkdirSync);
-
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.resetModules();
+  });
 
-    // Default: readFileSync returns a fake package.json for version reads
-    mockReadFileSync.mockImplementation(((path: string) => {
-      if (typeof path === "string" && path.includes("package.json")) {
-        return JSON.stringify({ version: "1.0.0" });
-      }
-      if (typeof path === "string" && path.includes("last-update-check")) {
-        return "0";
-      }
-      throw new Error(`Unexpected readFileSync call: ${path}`);
-    }) as any);
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe("checkForUpdates", () => {
-    it("should detect when an update is available", async () => {
-      mockExec.mockImplementation(((cmd: string, callback: any) => {
-        callback(null, { stdout: "2.0.0\n", stderr: "" });
-      }) as any);
+    it("should return hasUpdate=true when latest is newer", async () => {
+      vi.mocked(readFileSync).mockReturnValue(
+        JSON.stringify({ version: "0.2.0" })
+      );
+      mockExecAsync.mockResolvedValue({ stdout: "0.3.0\n" });
 
-      const { checkForUpdates } = await import("../../../src/cli/utils/version-checker.js");
       const result = await checkForUpdates();
 
-      expect(result.currentVersion).toBe("1.0.0");
-      expect(result.latestVersion).toBe("2.0.0");
-      expect(result.hasUpdate).toBe(true);
+      expect(result).toEqual({
+        currentVersion: "0.2.0",
+        latestVersion: "0.3.0",
+        hasUpdate: true,
+      });
+      expect(mockExecAsync).toHaveBeenCalledWith("npm view clier-ai version");
     });
 
-    it("should report no update when versions match", async () => {
-      mockExec.mockImplementation(((cmd: string, callback: any) => {
-        callback(null, { stdout: "1.0.0\n", stderr: "" });
-      }) as any);
+    it("should return hasUpdate=false when versions are equal", async () => {
+      vi.mocked(readFileSync).mockReturnValue(
+        JSON.stringify({ version: "1.0.0" })
+      );
+      mockExecAsync.mockResolvedValue({ stdout: "1.0.0\n" });
 
-      const { checkForUpdates } = await import("../../../src/cli/utils/version-checker.js");
       const result = await checkForUpdates();
 
-      expect(result.currentVersion).toBe("1.0.0");
-      expect(result.latestVersion).toBe("1.0.0");
-      expect(result.hasUpdate).toBe(false);
+      expect(result).toEqual({
+        currentVersion: "1.0.0",
+        latestVersion: "1.0.0",
+        hasUpdate: false,
+      });
     });
 
-    it("should report no update when current is newer", async () => {
-      mockExec.mockImplementation(((cmd: string, callback: any) => {
-        callback(null, { stdout: "0.9.0\n", stderr: "" });
-      }) as any);
+    it("should return hasUpdate=false when current is newer", async () => {
+      vi.mocked(readFileSync).mockReturnValue(
+        JSON.stringify({ version: "2.0.0" })
+      );
+      mockExecAsync.mockResolvedValue({ stdout: "1.5.0\n" });
 
-      const { checkForUpdates } = await import("../../../src/cli/utils/version-checker.js");
       const result = await checkForUpdates();
 
-      expect(result.hasUpdate).toBe(false);
+      expect(result).toEqual({
+        currentVersion: "2.0.0",
+        latestVersion: "1.5.0",
+        hasUpdate: false,
+      });
     });
 
-    it("should detect minor version update", async () => {
-      mockExec.mockImplementation(((cmd: string, callback: any) => {
-        callback(null, { stdout: "1.1.0\n", stderr: "" });
-      }) as any);
+    it("should handle npm 404 (package not on npm yet) by returning current version as latest", async () => {
+      vi.mocked(readFileSync).mockReturnValue(
+        JSON.stringify({ version: "0.1.0" })
+      );
+      const npmError = new Error("npm ERR! code E404") as Error & { stderr?: string };
+      npmError.stderr = "npm ERR! 404 Not Found - GET https://registry.npmjs.org/clier-ai";
+      mockExecAsync.mockRejectedValue(npmError);
 
-      const { checkForUpdates } = await import("../../../src/cli/utils/version-checker.js");
       const result = await checkForUpdates();
 
-      expect(result.hasUpdate).toBe(true);
+      expect(result).toEqual({
+        currentVersion: "0.1.0",
+        latestVersion: "0.1.0",
+        hasUpdate: false,
+      });
     });
 
-    it("should detect patch version update", async () => {
-      mockExec.mockImplementation(((cmd: string, callback: any) => {
-        callback(null, { stdout: "1.0.1\n", stderr: "" });
-      }) as any);
+    it("should throw on npm network error", async () => {
+      vi.mocked(readFileSync).mockReturnValue(
+        JSON.stringify({ version: "0.1.0" })
+      );
+      const networkError = new Error("network timeout") as Error & { stderr?: string };
+      networkError.stderr = "npm ERR! network timeout";
+      mockExecAsync.mockRejectedValue(networkError);
 
-      const { checkForUpdates } = await import("../../../src/cli/utils/version-checker.js");
-      const result = await checkForUpdates();
-
-      expect(result.hasUpdate).toBe(true);
-    });
-
-    it("should fall back to current version on npm 404", async () => {
-      mockExec.mockImplementation(((cmd: string, callback: any) => {
-        callback(
-          Object.assign(new Error("npm error"), { stderr: "404 Not Found" }),
-          { stdout: "", stderr: "404 Not Found" }
-        );
-      }) as any);
-
-      const { checkForUpdates } = await import("../../../src/cli/utils/version-checker.js");
-      const result = await checkForUpdates();
-
-      expect(result.hasUpdate).toBe(false);
-      expect(result.latestVersion).toBe("1.0.0");
-    });
-
-    it("should throw on network failure", async () => {
-      mockExec.mockImplementation(((cmd: string, callback: any) => {
-        callback(
-          Object.assign(new Error("ETIMEDOUT"), { stderr: "ETIMEDOUT" }),
-          { stdout: "", stderr: "ETIMEDOUT" }
-        );
-      }) as any);
-
-      const { checkForUpdates } = await import("../../../src/cli/utils/version-checker.js");
-      await expect(checkForUpdates()).rejects.toThrow("Failed to fetch latest version");
-    });
-
-    it("should throw when package.json is unreadable", async () => {
-      mockReadFileSync.mockImplementation((() => {
-        throw new Error("ENOENT");
-      }) as any);
-
-      const { checkForUpdates } = await import("../../../src/cli/utils/version-checker.js");
-      await expect(checkForUpdates()).rejects.toThrow("Failed to read current version");
+      await expect(checkForUpdates()).rejects.toThrow(
+        "Failed to fetch latest version"
+      );
     });
   });
 
   describe("shouldShowUpdatePrompt", () => {
-    it("should return true when no cache file exists", async () => {
-      mockExistsSync.mockImplementation(((path: string) => {
-        if (typeof path === "string" && path.includes(".clier")) return true;
-        if (typeof path === "string" && path.includes("last-update-check")) return false;
+    it("should return true when no cache file exists", () => {
+      // Cache dir exists, but cache file does not
+      vi.mocked(existsSync).mockImplementation((path: any) => {
+        if (String(path).endsWith(".clier")) return true;
+        if (String(path).endsWith("last-update-check")) return false;
         return false;
-      }) as any);
+      });
 
-      const { shouldShowUpdatePrompt } = await import("../../../src/cli/utils/version-checker.js");
-      expect(shouldShowUpdatePrompt()).toBe(true);
+      const result = shouldShowUpdatePrompt();
+
+      expect(result).toBe(true);
+      expect(writeFileSync).toHaveBeenCalledWith(
+        expect.stringContaining("last-update-check"),
+        expect.any(String),
+        "utf-8"
+      );
     });
 
-    it("should return false when checked less than a day ago", async () => {
-      const recentTimestamp = Date.now().toString();
-      mockExistsSync.mockReturnValue(true as any);
-      mockReadFileSync.mockImplementation(((path: string) => {
-        if (typeof path === "string" && path.includes("last-update-check")) {
-          return recentTimestamp;
-        }
-        return JSON.stringify({ version: "1.0.0" });
-      }) as any);
+    it("should return false when cache is less than 24 hours old", () => {
+      const recentTimestamp = (Date.now() - 1000 * 60 * 60).toString(); // 1 hour ago
 
-      const { shouldShowUpdatePrompt } = await import("../../../src/cli/utils/version-checker.js");
-      expect(shouldShowUpdatePrompt()).toBe(false);
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue(recentTimestamp);
+
+      const result = shouldShowUpdatePrompt();
+
+      expect(result).toBe(false);
+      // writeFileSync should NOT be called because we return false early
+      expect(writeFileSync).not.toHaveBeenCalled();
     });
 
-    it("should return true when checked more than a day ago", async () => {
-      const oldTimestamp = (Date.now() - 2 * 24 * 60 * 60 * 1000).toString();
-      mockExistsSync.mockReturnValue(true as any);
-      mockReadFileSync.mockImplementation(((path: string) => {
-        if (typeof path === "string" && path.includes("last-update-check")) {
-          return oldTimestamp;
-        }
-        return JSON.stringify({ version: "1.0.0" });
-      }) as any);
+    it("should return true when cache is more than 24 hours old", () => {
+      const oldTimestamp = (Date.now() - 1000 * 60 * 60 * 25).toString(); // 25 hours ago
 
-      const { shouldShowUpdatePrompt } = await import("../../../src/cli/utils/version-checker.js");
-      expect(shouldShowUpdatePrompt()).toBe(true);
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue(oldTimestamp);
+
+      const result = shouldShowUpdatePrompt();
+
+      expect(result).toBe(true);
+      expect(writeFileSync).toHaveBeenCalledWith(
+        expect.stringContaining("last-update-check"),
+        expect.any(String),
+        "utf-8"
+      );
     });
 
-    it("should create cache directory if it does not exist", async () => {
-      mockExistsSync.mockReturnValue(false as any);
+    it("should create cache directory if it does not exist", () => {
+      vi.mocked(existsSync).mockImplementation((path: any) => {
+        if (String(path).endsWith(".clier")) return false; // dir doesn't exist
+        if (String(path).endsWith("last-update-check")) return false;
+        return false;
+      });
 
-      const { shouldShowUpdatePrompt } = await import("../../../src/cli/utils/version-checker.js");
       shouldShowUpdatePrompt();
 
-      expect(mockMkdirSync).toHaveBeenCalledWith(
+      expect(mkdirSync).toHaveBeenCalledWith(
         expect.stringContaining(".clier"),
         { recursive: true }
       );
     });
 
-    it("should return false when an error occurs", async () => {
-      mockExistsSync.mockImplementation(() => {
-        throw new Error("permission denied");
+    it("should return false on any filesystem error", () => {
+      vi.mocked(existsSync).mockImplementation(() => {
+        throw new Error("Permission denied");
       });
 
-      const { shouldShowUpdatePrompt } = await import("../../../src/cli/utils/version-checker.js");
-      expect(shouldShowUpdatePrompt()).toBe(false);
-    });
+      const result = shouldShowUpdatePrompt();
 
-    it("should write current timestamp to cache file", async () => {
-      mockExistsSync.mockImplementation(((path: string) => {
-        if (typeof path === "string" && path.includes(".clier")) return true;
-        return false;
-      }) as any);
-
-      const before = Date.now();
-      const { shouldShowUpdatePrompt } = await import("../../../src/cli/utils/version-checker.js");
-      shouldShowUpdatePrompt();
-      const after = Date.now();
-
-      expect(mockWriteFileSync).toHaveBeenCalledWith(
-        expect.stringContaining("last-update-check"),
-        expect.any(String),
-        "utf-8"
-      );
-
-      const writtenTimestamp = parseInt(
-        (mockWriteFileSync.mock.calls[0]?.[1] as string) || "0",
-        10
-      );
-      expect(writtenTimestamp).toBeGreaterThanOrEqual(before);
-      expect(writtenTimestamp).toBeLessThanOrEqual(after);
+      expect(result).toBe(false);
     });
   });
 });

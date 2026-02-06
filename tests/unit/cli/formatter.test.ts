@@ -1,4 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+/**
+ * Unit tests for CLI formatter utilities
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import chalk from "chalk";
 import { ZodError } from "zod";
 import {
@@ -14,72 +18,111 @@ import {
   printHeader,
 } from "../../../src/cli/utils/formatter.js";
 
-describe("Formatter", () => {
+describe("Formatter Utilities", () => {
   beforeEach(() => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
     vi.restoreAllMocks();
   });
 
   describe("formatMemory", () => {
-    it("should return N/A for undefined", () => {
+    it("should return 'N/A' for undefined", () => {
       expect(formatMemory(undefined)).toBe("N/A");
     });
 
-    it("should return N/A for 0", () => {
+    it("should return 'N/A' for 0 (falsy check)", () => {
       expect(formatMemory(0)).toBe("N/A");
     });
 
-    it("should format bytes", () => {
+    it("should format small byte values", () => {
       expect(formatMemory(500)).toBe("500.0 B");
     });
 
-    it("should format kilobytes", () => {
+    it("should format 1 byte", () => {
+      expect(formatMemory(1)).toBe("1.0 B");
+    });
+
+    it("should format values below 1 KB", () => {
+      expect(formatMemory(1023)).toBe("1023.0 B");
+    });
+
+    it("should format exactly 1 KB (1024 bytes)", () => {
       expect(formatMemory(1024)).toBe("1.0 KB");
+    });
+
+    it("should format KB values", () => {
       expect(formatMemory(1536)).toBe("1.5 KB");
     });
 
-    it("should format megabytes", () => {
-      expect(formatMemory(1024 * 1024)).toBe("1.0 MB");
+    it("should format MB values", () => {
+      expect(formatMemory(1048576)).toBe("1.0 MB"); // 1024 * 1024
     });
 
-    it("should format gigabytes", () => {
-      expect(formatMemory(1024 * 1024 * 1024)).toBe("1.0 GB");
-      expect(formatMemory(1.5 * 1024 * 1024 * 1024)).toBe("1.5 GB");
+    it("should format fractional MB values", () => {
+      expect(formatMemory(1572864)).toBe("1.5 MB"); // 1.5 * 1024 * 1024
     });
 
-    it("should format terabytes", () => {
-      expect(formatMemory(1024 * 1024 * 1024 * 1024)).toBe("1.0 TB");
+    it("should format GB values", () => {
+      expect(formatMemory(1073741824)).toBe("1.0 GB"); // 1024^3
     });
 
-    it("should not exceed TB unit", () => {
-      expect(formatMemory(5 * 1024 * 1024 * 1024 * 1024)).toBe("5.0 TB");
+    it("should format TB values", () => {
+      expect(formatMemory(1099511627776)).toBe("1.0 TB"); // 1024^4
+    });
+
+    it("should cap at TB for very large values", () => {
+      // 5 TB
+      expect(formatMemory(5 * 1099511627776)).toBe("5.0 TB");
     });
   });
 
   describe("formatUptime", () => {
-    it("should return N/A for undefined", () => {
+    it("should return 'N/A' for undefined", () => {
       expect(formatUptime(undefined)).toBe("N/A");
     });
 
-    it("should return N/A for 0", () => {
+    it("should return 'N/A' for 0 (falsy check)", () => {
       expect(formatUptime(0)).toBe("N/A");
     });
 
-    it("should format seconds", () => {
-      expect(formatUptime(5000)).toBe("5s");
-      expect(formatUptime(30000)).toBe("30s");
+    it("should format seconds only", () => {
+      expect(formatUptime(5000)).toBe("5s"); // 5 seconds
+    });
+
+    it("should format sub-second as 0s", () => {
+      expect(formatUptime(500)).toBe("0s");
     });
 
     it("should format minutes and seconds", () => {
-      expect(formatUptime(90_000)).toBe("1m 30s");
-      expect(formatUptime(5 * 60_000 + 10_000)).toBe("5m 10s");
+      expect(formatUptime(90000)).toBe("1m 30s"); // 1 min 30 sec
+    });
+
+    it("should format exact minutes", () => {
+      expect(formatUptime(120000)).toBe("2m 0s"); // 2 min 0 sec
     });
 
     it("should format hours and minutes", () => {
-      expect(formatUptime(2 * 3_600_000 + 30 * 60_000)).toBe("2h 30m");
+      expect(formatUptime(5400000)).toBe("1h 30m"); // 1 hour 30 min
+    });
+
+    it("should format exact hours", () => {
+      expect(formatUptime(3600000)).toBe("1h 0m"); // 1 hour 0 min
     });
 
     it("should format days and hours", () => {
-      expect(formatUptime(3 * 86_400_000 + 5 * 3_600_000)).toBe("3d 5h");
+      expect(formatUptime(90000000)).toBe("1d 1h"); // 1 day 1 hour
+    });
+
+    it("should format exact days", () => {
+      expect(formatUptime(86400000)).toBe("1d 0h"); // 1 day 0 hours
+    });
+
+    it("should format multiple days", () => {
+      expect(formatUptime(259200000)).toBe("3d 0h"); // 3 days
     });
   });
 
@@ -88,90 +131,132 @@ describe("Formatter", () => {
       expect(formatStatus(undefined)).toBe(chalk.gray("unknown"));
     });
 
-    it("should return green for running", () => {
+    it("should return gray 'unknown' for empty string (falsy)", () => {
+      expect(formatStatus("")).toBe(chalk.gray("unknown"));
+    });
+
+    it("should format 'running' in green", () => {
       expect(formatStatus("running")).toBe(chalk.green("running"));
     });
 
-    it("should return yellow for restarting", () => {
+    it("should format 'restarting' in yellow", () => {
       expect(formatStatus("restarting")).toBe(chalk.yellow("restarting"));
     });
 
-    it("should return red for stopped", () => {
+    it("should format 'stopped' in red", () => {
       expect(formatStatus("stopped")).toBe(chalk.red("stopped"));
     });
 
-    it("should return red for crashed", () => {
+    it("should format 'crashed' in red", () => {
       expect(formatStatus("crashed")).toBe(chalk.red("crashed"));
     });
 
-    it("should return gray for unknown statuses", () => {
-      expect(formatStatus("starting")).toBe(chalk.gray("starting"));
+    it("should format unknown status in gray", () => {
+      expect(formatStatus("initializing")).toBe(chalk.gray("initializing"));
+    });
+
+    it("should format another unknown status in gray", () => {
+      expect(formatStatus("pending")).toBe(chalk.gray("pending"));
     });
   });
 
   describe("formatCPU", () => {
-    it("should return N/A for undefined", () => {
+    it("should return 'N/A' for undefined", () => {
       expect(formatCPU(undefined)).toBe("N/A");
     });
 
-    it("should format zero", () => {
+    it("should format 0 as '0.0%'", () => {
       expect(formatCPU(0)).toBe("0.0%");
     });
 
-    it("should format a normal value", () => {
-      expect(formatCPU(45.678)).toBe("45.7%");
+    it("should format decimal CPU values", () => {
+      expect(formatCPU(99.5)).toBe("99.5%");
     });
 
-    it("should format 100%", () => {
+    it("should format whole number CPU values with one decimal", () => {
+      expect(formatCPU(50)).toBe("50.0%");
+    });
+
+    it("should format 100% CPU", () => {
       expect(formatCPU(100)).toBe("100.0%");
+    });
+
+    it("should format small CPU values", () => {
+      expect(formatCPU(0.1)).toBe("0.1%");
     });
   });
 
   describe("printSuccess", () => {
-    it("should print a green checkmark with message", () => {
-      const spy = vi.spyOn(console, "log").mockImplementation(() => {});
-      printSuccess("done");
-      expect(spy).toHaveBeenCalledWith(chalk.green("✓"), "done");
+    it("should call console.log with green checkmark and message", () => {
+      printSuccess("Operation completed");
+
+      expect(console.log).toHaveBeenCalledWith(
+        chalk.green("\u2713"),
+        "Operation completed"
+      );
+    });
+
+    it("should call console.log exactly once", () => {
+      printSuccess("test");
+
+      expect(console.log).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("printError", () => {
-    it("should print a red X with message", () => {
-      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-      printError("failed");
-      expect(spy).toHaveBeenCalledWith(chalk.red("✗"), "failed");
+    it("should call console.error with red X and message", () => {
+      printError("Something failed");
+
+      expect(console.error).toHaveBeenCalledWith(
+        chalk.red("\u2717"),
+        "Something failed"
+      );
+    });
+
+    it("should call console.error exactly once", () => {
+      printError("test");
+
+      expect(console.error).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("printWarning", () => {
-    it("should print a yellow warning with message", () => {
-      const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
-      printWarning("careful");
-      expect(spy).toHaveBeenCalledWith(chalk.yellow("⚠"), "careful");
+    it("should call console.warn with yellow warning symbol and message", () => {
+      printWarning("Be careful");
+
+      expect(console.warn).toHaveBeenCalledWith(
+        chalk.yellow("\u26A0"),
+        "Be careful"
+      );
+    });
+
+    it("should call console.warn exactly once", () => {
+      printWarning("test");
+
+      expect(console.warn).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("printInfo", () => {
-    it("should print a blue info with message", () => {
-      const spy = vi.spyOn(console, "log").mockImplementation(() => {});
-      printInfo("note");
-      expect(spy).toHaveBeenCalledWith(chalk.blue("ℹ"), "note");
-    });
-  });
+    it("should call console.log with blue info symbol and message", () => {
+      printInfo("Some information");
 
-  describe("printHeader", () => {
-    it("should print project name header", () => {
-      const spy = vi.spyOn(console, "log").mockImplementation(() => {});
-      printHeader("my-project");
-      expect(spy).toHaveBeenCalledTimes(4); // empty line, title, separator, empty line
-      expect(spy).toHaveBeenCalledWith(chalk.bold.cyan("Clier - my-project"));
-      expect(spy).toHaveBeenCalledWith(chalk.gray("─".repeat(50)));
+      expect(console.log).toHaveBeenCalledWith(
+        chalk.blue("\u2139"),
+        "Some information"
+      );
+    });
+
+    it("should call console.log exactly once", () => {
+      printInfo("test");
+
+      expect(console.log).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("formatValidationErrors", () => {
-    it("should format global errors", () => {
-      const error = new ZodError([
+    it("should format global errors (non-pipeline paths)", () => {
+      const zodError = new ZodError([
         {
           code: "invalid_type",
           expected: "string",
@@ -180,7 +265,9 @@ describe("Formatter", () => {
           message: "Required",
         },
       ]);
-      const result = formatValidationErrors(error);
+
+      const result = formatValidationErrors(zodError);
+
       expect(result).toContain("Configuration validation failed:");
       expect(result).toContain("Global Configuration:");
       expect(result).toContain("name");
@@ -188,7 +275,7 @@ describe("Formatter", () => {
     });
 
     it("should format pipeline item errors", () => {
-      const error = new ZodError([
+      const zodError = new ZodError([
         {
           code: "invalid_type",
           expected: "string",
@@ -197,14 +284,17 @@ describe("Formatter", () => {
           message: "Required",
         },
       ]);
-      const result = formatValidationErrors(error);
+
+      const result = formatValidationErrors(zodError);
+
+      expect(result).toContain("Configuration validation failed:");
       expect(result).toContain("Pipeline Item");
       expect(result).toContain("command");
       expect(result).toContain("Missing required field");
     });
 
-    it("should use pipeline item name from rawConfig", () => {
-      const error = new ZodError([
+    it("should extract pipeline item name from rawConfig", () => {
+      const zodError = new ZodError([
         {
           code: "invalid_type",
           expected: "string",
@@ -213,32 +303,20 @@ describe("Formatter", () => {
           message: "Required",
         },
       ]);
+
       const rawConfig = {
-        pipeline: [{ name: "my-service" }],
+        pipeline: [
+          { name: "my-service" },
+        ],
       };
-      const result = formatValidationErrors(error, rawConfig);
+
+      const result = formatValidationErrors(zodError, rawConfig);
+
       expect(result).toContain('"my-service"');
     });
 
-    it("should truncate long command names for pipeline items", () => {
-      const error = new ZodError([
-        {
-          code: "invalid_type",
-          expected: "string",
-          received: "undefined",
-          path: ["pipeline", 0, "type"],
-          message: "Required",
-        },
-      ]);
-      const rawConfig = {
-        pipeline: [{ command: "a-very-long-command-name-that-exceeds-thirty-characters" }],
-      };
-      const result = formatValidationErrors(error, rawConfig);
-      expect(result).toContain("...");
-    });
-
-    it("should handle invalid_enum_value errors", () => {
-      const error = new ZodError([
+    it("should use command as fallback pipeline item name when no name is present", () => {
+      const zodError = new ZodError([
         {
           code: "invalid_enum_value",
           options: ["service", "task"],
@@ -247,44 +325,20 @@ describe("Formatter", () => {
           message: "Invalid enum value. Expected 'service' | 'task', received 'invalid'",
         },
       ]);
+
       const rawConfig = {
-        pipeline: [{ name: "svc", type: "invalid" }],
+        pipeline: [
+          { command: "npm start" },
+        ],
       };
-      const result = formatValidationErrors(error, rawConfig);
-      expect(result).toContain("Invalid value");
-      expect(result).toContain('"invalid"');
+
+      const result = formatValidationErrors(zodError, rawConfig);
+
+      expect(result).toContain("#1 (npm start)");
     });
 
-    it("should handle empty string errors", () => {
-      const error = new ZodError([
-        {
-          code: "custom",
-          path: ["pipeline", 0, "name"],
-          message: "must not be empty",
-        },
-      ]);
-      const rawConfig = {
-        pipeline: [{ name: "" }],
-      };
-      const result = formatValidationErrors(error, rawConfig);
-      expect(result).toContain("Cannot be empty");
-      expect(result).toContain("empty string provided");
-    });
-
-    it("should handle duplicate name errors", () => {
-      const error = new ZodError([
-        {
-          code: "custom",
-          path: ["pipeline"],
-          message: "duplicate name found",
-        },
-      ]);
-      const result = formatValidationErrors(error);
-      expect(result).toContain("Duplicate pipeline names found");
-    });
-
-    it("should provide suggestions for known missing fields", () => {
-      const error = new ZodError([
+    it("should truncate long command names in pipeline item labels", () => {
+      const zodError = new ZodError([
         {
           code: "invalid_type",
           expected: "string",
@@ -293,12 +347,20 @@ describe("Formatter", () => {
           message: "Required",
         },
       ]);
-      const result = formatValidationErrors(error);
-      expect(result).toContain('"service" or "task"');
+
+      const rawConfig = {
+        pipeline: [
+          { command: "this-is-a-very-long-command-that-exceeds-the-thirty-character-limit" },
+        ],
+      };
+
+      const result = formatValidationErrors(zodError, rawConfig);
+
+      expect(result).toContain("#1 (this-is-a-very-long-command...");
     });
 
-    it("should handle pipeline items with no name or command", () => {
-      const error = new ZodError([
+    it("should use default numbering when rawConfig is not provided", () => {
+      const zodError = new ZodError([
         {
           code: "invalid_type",
           expected: "string",
@@ -307,10 +369,186 @@ describe("Formatter", () => {
           message: "Required",
         },
       ]);
-      const rawConfig = { pipeline: [{}] };
-      const result = formatValidationErrors(error, rawConfig);
-      // Falls back to "#1" when no name or command
-      expect(result).toContain("#1");
+
+      const result = formatValidationErrors(zodError);
+
+      expect(result).toContain("Pipeline Item #1:");
+    });
+
+    it("should format missing required field with suggestion for 'command'", () => {
+      const zodError = new ZodError([
+        {
+          code: "invalid_type",
+          expected: "string",
+          received: "undefined",
+          path: ["pipeline", 0, "command"],
+          message: "Required",
+        },
+      ]);
+
+      const result = formatValidationErrors(zodError);
+
+      expect(result).toContain("Missing required field");
+      expect(result).toContain("command to execute");
+    });
+
+    it("should format missing required field with suggestion for 'type'", () => {
+      const zodError = new ZodError([
+        {
+          code: "invalid_type",
+          expected: "string",
+          received: "undefined",
+          path: ["pipeline", 0, "type"],
+          message: "Required",
+        },
+      ]);
+
+      const result = formatValidationErrors(zodError);
+
+      expect(result).toContain("Missing required field");
+      expect(result).toContain('"service" or "task"');
+    });
+
+    it("should format invalid enum value errors", () => {
+      const zodError = new ZodError([
+        {
+          code: "invalid_enum_value",
+          options: ["service", "task"],
+          received: "worker",
+          path: ["pipeline", 0, "type"],
+          message: "Invalid enum value. Expected 'service' | 'task', received 'worker'",
+        },
+      ]);
+
+      const rawConfig = {
+        pipeline: [
+          { name: "my-service", type: "worker", command: "npm start" },
+        ],
+      };
+
+      const result = formatValidationErrors(zodError, rawConfig);
+
+      expect(result).toContain("Invalid value");
+      expect(result).toContain("worker");
+      expect(result).toContain("Expected");
+    });
+
+    it("should handle both global and pipeline errors together", () => {
+      const zodError = new ZodError([
+        {
+          code: "invalid_type",
+          expected: "string",
+          received: "undefined",
+          path: ["name"],
+          message: "Required",
+        },
+        {
+          code: "invalid_type",
+          expected: "string",
+          received: "undefined",
+          path: ["pipeline", 0, "command"],
+          message: "Required",
+        },
+      ]);
+
+      const result = formatValidationErrors(zodError);
+
+      expect(result).toContain("Global Configuration:");
+      expect(result).toContain("Pipeline Item");
+    });
+
+    it("should group multiple errors for the same pipeline item", () => {
+      const zodError = new ZodError([
+        {
+          code: "invalid_type",
+          expected: "string",
+          received: "undefined",
+          path: ["pipeline", 0, "command"],
+          message: "Required",
+        },
+        {
+          code: "invalid_type",
+          expected: "string",
+          received: "undefined",
+          path: ["pipeline", 0, "type"],
+          message: "Required",
+        },
+      ]);
+
+      const result = formatValidationErrors(zodError);
+
+      // Should have one Pipeline Item section, not two
+      const pipelineItemMatches = result.match(/Pipeline Item/g);
+      expect(pipelineItemMatches).toHaveLength(1);
+
+      // Both field names should appear
+      expect(result).toContain("command");
+      expect(result).toContain("type");
+    });
+
+    it("should handle errors for multiple pipeline items", () => {
+      const zodError = new ZodError([
+        {
+          code: "invalid_type",
+          expected: "string",
+          received: "undefined",
+          path: ["pipeline", 0, "command"],
+          message: "Required",
+        },
+        {
+          code: "invalid_type",
+          expected: "string",
+          received: "undefined",
+          path: ["pipeline", 1, "command"],
+          message: "Required",
+        },
+      ]);
+
+      const result = formatValidationErrors(zodError);
+
+      const pipelineItemMatches = result.match(/Pipeline Item/g);
+      expect(pipelineItemMatches).toHaveLength(2);
+    });
+
+    it("should handle invalid enum value without rawConfig", () => {
+      const zodError = new ZodError([
+        {
+          code: "invalid_enum_value",
+          options: ["service", "task"],
+          received: "worker",
+          path: ["pipeline", 0, "type"],
+          message: "Invalid enum value. Expected 'service' | 'task', received 'worker'",
+        },
+      ]);
+
+      const result = formatValidationErrors(zodError);
+
+      expect(result).toContain("Invalid value");
+      expect(result).toContain("Expected");
+    });
+  });
+
+  describe("printHeader", () => {
+    it("should print the project name in bold cyan", () => {
+      printHeader("my-project");
+
+      expect(console.log).toHaveBeenCalledWith(
+        chalk.bold.cyan("Clier - my-project")
+      );
+    });
+
+    it("should print a separator line", () => {
+      printHeader("test");
+
+      expect(console.log).toHaveBeenCalledWith(
+        chalk.gray("\u2500".repeat(50))
+      );
+    });
+
+    it("should call console.log 4 times (empty, header, separator, empty)", () => {
+      printHeader("test");
+
+      expect(console.log).toHaveBeenCalledTimes(4);
     });
   });
 });

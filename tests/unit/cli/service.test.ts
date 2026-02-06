@@ -32,6 +32,8 @@ describe("Service Commands", () => {
 
     // Suppress console output during tests
     vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   afterEach(() => {
