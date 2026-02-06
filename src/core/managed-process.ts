@@ -464,8 +464,8 @@ export class ManagedProcess extends EventEmitter {
 
     const { code, signal } = this.exitInfo;
 
-    // Update status
-    if (code === 0) {
+    // Update status - "stopped" if explicitly requested or clean exit, "crashed" otherwise
+    if (this.stopRequested || code === 0) {
       this._status = "stopped";
     } else {
       this._status = "crashed";
@@ -611,7 +611,7 @@ export class ManagedProcess extends EventEmitter {
     const code = this.exitInfo?.code ?? -1;
     const signal = this.exitInfo?.signal ?? null;
 
-    this._status = code === 0 ? "stopped" : "crashed";
+    this._status = (this.stopRequested || code === 0) ? "stopped" : "crashed";
 
     logger.warn("Force cleanup - emitting exit without waiting for streams", {
       name: this.config.name,
