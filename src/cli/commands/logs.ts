@@ -73,14 +73,23 @@ export async function logsCommand(
       const logType = options.level === "error" ? "Error Logs" : "Combined Logs";
       console.log(chalk.cyan(`\nDaemon ${logType}`));
       console.log(chalk.gray("─".repeat(50)));
-      console.log(chalk.gray(`Showing last ${options.lines || 100} lines`));
-      console.log();
 
       // Display logs
       if (logLines.length === 0) {
-        printWarning("No daemon logs found");
+        console.log();
+        printWarning("No daemon logs available");
+        console.log();
         return 0;
       }
+
+      // Show count when we have logs
+      const requested = options.lines || 100;
+      if (logLines.length < requested) {
+        console.log(chalk.gray(`Showing ${logLines.length} line${logLines.length === 1 ? "" : "s"} (${requested} requested, only ${logLines.length} available)`));
+      } else {
+        console.log(chalk.gray(`Showing last ${logLines.length} line${logLines.length === 1 ? "" : "s"}`));
+      }
+      console.log();
 
       for (const line of logLines) {
         // Parse JSON log line
@@ -157,23 +166,44 @@ export async function logsCommand(
     console.log(chalk.cyan(`\nLogs for: ${processName}`));
     console.log(chalk.gray("─".repeat(50)));
 
-    if (options.since) {
-      console.log(chalk.gray(`Showing logs from the last ${options.since}`));
-    } else {
-      console.log(chalk.gray(`Showing last ${options.lines || 100} lines`));
-    }
-    console.log();
-
     // Display logs
     if (logs.length === 0) {
-      printWarning(`No logs found for process: ${processName}`);
+      console.log();
+      if (options.since) {
+        printWarning(`No logs found in the last ${options.since}`);
+      } else {
+        printWarning("No logs available");
+      }
+      console.log();
       return 0;
     }
 
+    // Show filter info when we have logs
+    if (options.since) {
+      console.log(chalk.gray(`Showing ${logs.length} line${logs.length === 1 ? "" : "s"} from the last ${options.since}`));
+    } else {
+      const requested = options.lines || 100;
+      if (logs.length < requested) {
+        console.log(chalk.gray(`Showing ${logs.length} line${logs.length === 1 ? "" : "s"} (${requested} requested, only ${logs.length} available)`));
+      } else {
+        console.log(chalk.gray(`Showing last ${logs.length} line${logs.length === 1 ? "" : "s"}`));
+      }
+    }
+    console.log();
+
     for (const entry of logs) {
       const timestamp = new Date(entry.timestamp).toISOString();
-      const stream =
-        entry.stream === "stderr" ? chalk.red("[ERR]") : chalk.gray("[OUT]");
+      let stream: string;
+      switch (entry.stream) {
+        case "stderr":
+          stream = chalk.red("[ERR]");
+          break;
+        case "command":
+          stream = chalk.cyan("[CMD]");
+          break;
+        default:
+          stream = chalk.gray("[OUT]");
+      }
       console.log(`${chalk.gray(timestamp)} ${stream} ${entry.data}`);
     }
 
