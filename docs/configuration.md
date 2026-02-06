@@ -6,6 +6,7 @@ Complete reference for `clier-pipeline.json` configuration file.
 
 - [Overview](#overview)
 - [Schema Reference](#schema-reference)
+- [Stage Configuration](#stage-configuration)
 - [Input Configuration](#input-configuration)
 - [Manual Start Mode](#manual-start-mode)
 - [Event System](#event-system)
@@ -233,6 +234,128 @@ Example:
   "restart": "on-failure",
   "input": { "enabled": true }
 }
+```
+
+---
+
+## Stage Configuration
+
+Stages allow you to group related pipeline items together. When the pipeline is loaded, stages are "flattened" into individual items, with stage properties propagating to their steps.
+
+### Stage Schema
+
+```typescript
+{
+  "name": string,                 // Required: Unique stage name
+  "type": "stage",                // Required: Must be "stage"
+  "manual": boolean,              // Optional: All steps require manual start
+  "trigger_on": string[],         // Optional: Event triggers for all steps
+  "steps": PipelineItem[]         // Required: Array of pipeline items
+}
+```
+
+### How Flattening Works
+
+When a stage is flattened:
+
+1. **`manual` propagation**: `effectiveManual = stage.manual OR step.manual`
+2. **`trigger_on` propagation**: Non-manual steps inherit stage's `trigger_on` merged with their own
+3. **Manual steps don't inherit triggers**: If a step is manual (directly or via stage), it doesn't inherit `trigger_on`
+
+### Example: Build Stage
+
+```json
+{
+  "name": "build-stage",
+  "type": "stage",
+  "trigger_on": ["lint:success"],
+  "steps": [
+    {
+      "name": "build-frontend",
+      "command": "npm run build:frontend",
+      "type": "task",
+      "events": {
+        "on_stdout": [{ "pattern": "Built", "emit": "frontend:built" }]
+      }
+    },
+    {
+      "name": "build-backend",
+      "command": "npm run build:backend",
+      "type": "task",
+      "events": {
+        "on_stdout": [{ "pattern": "Built", "emit": "backend:built" }]
+      }
+    }
+  ]
+}
+```
+
+After flattening, both `build-frontend` and `build-backend` will have `trigger_on: ["lint:success"]`.
+
+### Example: Manual Stage
+
+```json
+{
+  "name": "deploy-stage",
+  "type": "stage",
+  "manual": true,
+  "steps": [
+    {
+      "name": "deploy-frontend",
+      "command": "npm run deploy:frontend",
+      "type": "task"
+    },
+    {
+      "name": "deploy-backend",
+      "command": "npm run deploy:backend",
+      "type": "task"
+    }
+  ]
+}
+```
+
+Both steps become manual and must be started explicitly with `clier service start deploy-frontend`.
+
+### Mixed Pipeline Example
+
+You can mix stages with top-level items:
+
+```json
+{
+  "pipeline": [
+    {
+      "name": "db",
+      "command": "docker-compose up db",
+      "type": "service",
+      "events": {
+        "on_stdout": [{ "pattern": "ready", "emit": "db:ready" }]
+      }
+    },
+    {
+      "name": "build-stage",
+      "type": "stage",
+      "trigger_on": ["db:ready"],
+      "steps": [
+        { "name": "build-api", "command": "npm run build:api", "type": "task" },
+        { "name": "build-worker", "command": "npm run build:worker", "type": "task" }
+      ]
+    },
+    {
+      "name": "tests",
+      "command": "npm test",
+      "type": "task",
+      "trigger_on": ["build-api:exit", "build-worker:exit"]
+    }
+  ]
+}
+```
+
+### Viewing Stage Groupings
+
+Use `clier status --json` to see which processes belong to which stages:
+
+```bash
+clier status --json | jq '.stages'
 ```
 
 ---

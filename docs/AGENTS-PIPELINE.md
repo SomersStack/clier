@@ -61,7 +61,7 @@ Create `clier-pipeline.json` in project root:
 |-------|----------|------|---------|-------------|
 | `name` | Yes | string | - | Unique process name |
 | `command` | Yes | string | - | Shell command |
-| `type` | Yes | "service" \| "task" | - | Service=long-running, Task=one-off |
+| `type` | Yes | "service" \| "task" \| "stage" | - | Service=long-running, Task=one-off, Stage=grouping |
 | `trigger_on` | No | string[] | - | Events that start this process (omit = starts immediately) |
 | `manual` | No | boolean | false | Only start via `clier service start` (not auto-started or event-triggered) |
 | `continue_on_failure` | No | boolean | false | true=continue on failure, false=block pipeline |
@@ -70,6 +70,8 @@ Create `clier-pipeline.json` in project root:
 | `events` | No | object | - | Event config (omit = no event coordination) |
 | `input` | No | object | - | Stdin input config (see Input Config below) |
 | `restart` | No | "always" \| "on-failure" \| "never" | "on-failure" (services), "never" (tasks) | When to auto-restart: always, on non-zero exit only, or never |
+
+**Note:** When `type: "stage"`, use the Stage Config schema instead (see below).
 
 ### Events Config
 
@@ -101,6 +103,38 @@ Create `clier-pipeline.json` in project root:
 ```
 
 Then send input: `clier input repl "print('hello')"`
+
+### Stage Config (Grouping)
+
+Stages group related pipeline items with shared configuration:
+
+| Field | Required | Type | Default | Description |
+|-------|----------|------|---------|-------------|
+| `name` | Yes | string | - | Unique stage name |
+| `type` | Yes | "stage" | - | Must be "stage" |
+| `manual` | No | boolean | false | All steps require manual start |
+| `trigger_on` | No | string[] | - | Triggers for all non-manual steps |
+| `steps` | Yes | array | - | Pipeline items in this stage |
+
+**Usage:**
+```json
+{
+  "name": "build-stage",
+  "type": "stage",
+  "trigger_on": ["lint:success"],
+  "steps": [
+    { "name": "build-fe", "command": "npm run build:fe", "type": "task" },
+    { "name": "build-be", "command": "npm run build:be", "type": "task" }
+  ]
+}
+```
+
+**Flattening Rules:**
+- `manual = stage.manual OR step.manual`
+- Non-manual steps inherit `trigger_on` from stage
+- Manual steps don't inherit `trigger_on`
+
+**View stage groupings:** `clier status --json | jq '.stages'`
 
 ## Event System
 
@@ -440,10 +474,12 @@ clier logs
 1. **No `trigger_on`** = starts immediately
 2. **`manual: true`** = only starts via `clier service start` command
 3. **Service vs Task** - Services restart on crash, tasks exit
-4. **Multi-pattern** - ALL matching patterns emit (not just first)
-5. **Event naming** - Use `process:event` convention
-6. **Lenient mode** - `continue_on_failure: true` for optional operations
-7. **Events optional** - Omit `events` field if no coordination needed
+4. **Stages** - Use `type: "stage"` to group related items with shared triggers
+5. **Multi-pattern** - ALL matching patterns emit (not just first)
+6. **Event naming** - Use `process:event` convention
+7. **Lenient mode** - `continue_on_failure: true` for optional operations
+8. **Events optional** - Omit `events` field if no coordination needed
+9. **JSON output** - Use `clier status --json` for scripting/automation
 
 ## Further Reading
 

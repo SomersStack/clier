@@ -20,7 +20,7 @@ interface ClierConfig {
   project_name: string;
   global_env: boolean;
   safety: Safety;
-  pipeline: PipelineItem[];
+  pipeline: PipelineEntry[];  // Can contain PipelineItem or StageItem
 }
 ```
 
@@ -28,7 +28,7 @@ interface ClierConfig {
 - `project_name`: Unique identifier for the project
 - `global_env`: Whether to inherit system environment variables
 - `safety`: Safety configuration (debounce, rate limit)
-- `pipeline`: Array of pipeline items (services and tasks)
+- `pipeline`: Array of pipeline entries (services, tasks, or stages)
 
 **Example**:
 ```typescript
@@ -112,6 +112,68 @@ const item: PipelineItem = {
   }
 };
 ```
+
+---
+
+### StageItem
+
+Configuration for a stage that groups multiple pipeline items.
+
+```typescript
+interface StageItem {
+  name: string;
+  type: 'stage';
+  manual?: boolean;
+  trigger_on?: string[];
+  steps: PipelineItem[];
+}
+```
+
+**Fields**:
+- `name`: Unique stage name
+- `type`: Must be `'stage'`
+- `manual`: Optional flag to make all steps manual (default: false)
+- `trigger_on`: Optional event triggers that propagate to non-manual steps
+- `steps`: Array of pipeline items within this stage
+
+**Example**:
+```typescript
+const stage: StageItem = {
+  name: 'build-stage',
+  type: 'stage',
+  trigger_on: ['lint:success'],
+  steps: [
+    { name: 'build-frontend', command: 'npm run build:fe', type: 'task' },
+    { name: 'build-backend', command: 'npm run build:be', type: 'task' }
+  ]
+};
+```
+
+---
+
+### PipelineEntry
+
+Union type for pipeline entries (either a step or a stage).
+
+```typescript
+type PipelineEntry = PipelineItem | StageItem;
+```
+
+Used in `ClierConfig.pipeline` to allow mixing individual items with stages.
+
+---
+
+### FlattenedConfig
+
+Configuration type after stage flattening.
+
+```typescript
+type FlattenedConfig = Omit<ClierConfig, 'pipeline'> & {
+  pipeline: PipelineItem[];
+};
+```
+
+After loading, stages are expanded into individual `PipelineItem`s. This type represents the config after that transformation, where `pipeline` contains only flat items.
 
 ---
 
@@ -429,8 +491,39 @@ The Watcher class is used internally by the CLI. For command-line usage, see:
 clier start          # Uses Watcher.start()
 clier stop           # Uses Watcher.stop()
 clier status         # Queries daemon for process status
+clier status --json  # JSON output for scripting/automation
+clier status -w      # Watch mode (live updates)
 clier logs [name]    # Streams logs from daemon
 ```
+
+### JSON Output
+
+The `clier status --json` flag outputs structured JSON for scripting and automation:
+
+```typescript
+interface JsonOutput {
+  daemon: {
+    running: boolean;
+    pid?: number;
+    uptime?: string;
+    config?: string;
+  };
+  stages: Array<{
+    name: string;
+    processes: Array<{
+      name: string;
+      type: 'service' | 'task';
+      status: string;
+      pid: number | null;
+      uptime: string;
+      restarts: number;
+    }>;
+  }>;
+  processes: Array<{...}>;  // Processes not in a stage
+}
+```
+
+**Note**: `--json` and `--watch` are mutually exclusive.
 
 ---
 

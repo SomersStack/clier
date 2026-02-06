@@ -285,6 +285,7 @@ clier start
 
 # Check process status
 clier status
+clier status --json                  # JSON output for scripting
 clier status -w                      # Watch mode (live updates)
 clier status -w -n 5                 # Watch with 5 second refresh
 clier watch                          # Watch mode (alias for status -w)
