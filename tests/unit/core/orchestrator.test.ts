@@ -493,6 +493,203 @@ describe("Orchestrator", () => {
     });
   });
 
+  describe("circular dependency detection", () => {
+    it("should throw on direct circular dependency (A → B → A)", () => {
+      const config = createConfig([
+        createPipelineItem({
+          name: "a",
+          events: {
+            on_stdout: [{ pattern: "ready", emit: "a:ready" }],
+            on_stderr: true,
+            on_crash: true,
+          },
+          trigger_on: ["b:ready"],
+        }),
+        createPipelineItem({
+          name: "b",
+          events: {
+            on_stdout: [{ pattern: "ready", emit: "b:ready" }],
+            on_stderr: true,
+            on_crash: true,
+          },
+          trigger_on: ["a:ready"],
+        }),
+      ]);
+
+      expect(() => orchestrator.loadPipeline(config)).toThrow(
+        /Circular dependency detected in pipeline/
+      );
+    });
+
+    it("should throw on indirect circular dependency (A → B → C → A)", () => {
+      const config = createConfig([
+        createPipelineItem({
+          name: "a",
+          events: {
+            on_stdout: [{ pattern: "ready", emit: "a:ready" }],
+            on_stderr: true,
+            on_crash: true,
+          },
+          trigger_on: ["c:ready"],
+        }),
+        createPipelineItem({
+          name: "b",
+          events: {
+            on_stdout: [{ pattern: "ready", emit: "b:ready" }],
+            on_stderr: true,
+            on_crash: true,
+          },
+          trigger_on: ["a:ready"],
+        }),
+        createPipelineItem({
+          name: "c",
+          events: {
+            on_stdout: [{ pattern: "ready", emit: "c:ready" }],
+            on_stderr: true,
+            on_crash: true,
+          },
+          trigger_on: ["b:ready"],
+        }),
+      ]);
+
+      expect(() => orchestrator.loadPipeline(config)).toThrow(
+        /Circular dependency detected in pipeline/
+      );
+    });
+
+    it("should throw on self-referencing process", () => {
+      const config = createConfig([
+        createPipelineItem({
+          name: "loop",
+          events: {
+            on_stdout: [{ pattern: "go", emit: "loop:go" }],
+            on_stderr: true,
+            on_crash: true,
+          },
+          trigger_on: ["loop:go"],
+        }),
+      ]);
+
+      expect(() => orchestrator.loadPipeline(config)).toThrow(
+        /Circular dependency detected in pipeline.*loop → loop/
+      );
+    });
+
+    it("should include cycle path in error message", () => {
+      const config = createConfig([
+        createPipelineItem({
+          name: "alpha",
+          events: {
+            on_stdout: [{ pattern: "done", emit: "alpha:done" }],
+            on_stderr: true,
+            on_crash: true,
+          },
+          trigger_on: ["beta:done"],
+        }),
+        createPipelineItem({
+          name: "beta",
+          events: {
+            on_stdout: [{ pattern: "done", emit: "beta:done" }],
+            on_stderr: true,
+            on_crash: true,
+          },
+          trigger_on: ["alpha:done"],
+        }),
+      ]);
+
+      expect(() => orchestrator.loadPipeline(config)).toThrow(
+        /alpha → beta → alpha|beta → alpha → beta/
+      );
+    });
+
+    it("should NOT throw for valid DAG pipelines", () => {
+      const config = createConfig([
+        createPipelineItem({
+          name: "backend",
+          events: {
+            on_stdout: [{ pattern: "ready", emit: "backend:ready" }],
+            on_stderr: true,
+            on_crash: true,
+          },
+        }),
+        createPipelineItem({
+          name: "frontend",
+          trigger_on: ["backend:ready"],
+        }),
+        createPipelineItem({
+          name: "admin",
+          trigger_on: ["backend:ready"],
+        }),
+      ]);
+
+      expect(() => orchestrator.loadPipeline(config)).not.toThrow();
+    });
+
+    it("should NOT throw for diamond dependencies (A → B,C → D)", () => {
+      const config = createConfig([
+        createPipelineItem({
+          name: "a",
+          events: {
+            on_stdout: [{ pattern: "ready", emit: "a:ready" }],
+            on_stderr: true,
+            on_crash: true,
+          },
+        }),
+        createPipelineItem({
+          name: "b",
+          trigger_on: ["a:ready"],
+          events: {
+            on_stdout: [{ pattern: "ready", emit: "b:ready" }],
+            on_stderr: true,
+            on_crash: true,
+          },
+        }),
+        createPipelineItem({
+          name: "c",
+          trigger_on: ["a:ready"],
+          events: {
+            on_stdout: [{ pattern: "ready", emit: "c:ready" }],
+            on_stderr: true,
+            on_crash: true,
+          },
+        }),
+        createPipelineItem({
+          name: "d",
+          trigger_on: ["b:ready", "c:ready"],
+        }),
+      ]);
+
+      expect(() => orchestrator.loadPipeline(config)).not.toThrow();
+    });
+
+    it("should detect cycle via built-in exit events", () => {
+      const config = createConfig([
+        createPipelineItem({
+          name: "worker",
+          events: {
+            on_stdout: [],
+            on_stderr: true,
+            on_crash: true,
+          },
+          trigger_on: ["cleanup:exit"],
+        }),
+        createPipelineItem({
+          name: "cleanup",
+          events: {
+            on_stdout: [],
+            on_stderr: true,
+            on_crash: true,
+          },
+          trigger_on: ["worker:exit"],
+        }),
+      ]);
+
+      expect(() => orchestrator.loadPipeline(config)).toThrow(
+        /Circular dependency detected in pipeline/
+      );
+    });
+  });
+
   describe("Event Template Substitution", () => {
     it("should substitute event templates in command when enabled", async () => {
       const config = createConfig([

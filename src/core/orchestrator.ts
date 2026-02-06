@@ -144,31 +144,32 @@ export class Orchestrator {
       return;
     }
 
-    const allEventNames = new Set<string>();
     const warnings: string[] = [];
 
-    // Collect all possible event names from pipeline items
+    // Build map of event name → source process name
+    const eventToProcess = new Map<string, string>();
+
     for (const item of this.config.pipeline) {
-      // Only collect events if events config exists
       if (item.events) {
-        // Events can be emitted by:
-        // 1. Pattern matches (from events.on_stdout field)
+        // Custom events from stdout pattern matches
         if (item.events.on_stdout) {
           for (const stdout of item.events.on_stdout) {
-            allEventNames.add(stdout.emit);
+            eventToProcess.set(stdout.emit, item.name);
           }
         }
 
-        // 2. Process exit, error, and crash events
-        allEventNames.add(`${item.name}:exit`);
+        // Built-in events
+        eventToProcess.set(`${item.name}:exit`, item.name);
         if (item.events.on_stderr) {
-          allEventNames.add(`${item.name}:error`);
+          eventToProcess.set(`${item.name}:error`, item.name);
         }
         if (item.events.on_crash) {
-          allEventNames.add(`${item.name}:crashed`);
+          eventToProcess.set(`${item.name}:crashed`, item.name);
         }
       }
     }
+
+    const allEventNames = new Set(eventToProcess.keys());
 
     // Check for missing dependencies
     for (const item of this.config.pipeline) {
@@ -179,6 +180,68 @@ export class Orchestrator {
               `Process "${item.name}" waits for event "${trigger}" which may never be emitted`
             );
           }
+        }
+      }
+    }
+
+    // Build process dependency graph: process → set of processes it depends on
+    const dependsOn = new Map<string, Set<string>>();
+    for (const item of this.config.pipeline) {
+      if (item.trigger_on && item.trigger_on.length > 0) {
+        const deps = new Set<string>();
+        for (const trigger of item.trigger_on) {
+          const sourceProcess = eventToProcess.get(trigger);
+          if (sourceProcess) {
+            deps.add(sourceProcess);
+          }
+        }
+        if (deps.size > 0) {
+          dependsOn.set(item.name, deps);
+        }
+      }
+    }
+
+    // DFS-based cycle detection
+    const visited = new Set<string>();
+    const inStack = new Set<string>();
+    const path: string[] = [];
+
+    const hasCycle = (node: string): string[] | null => {
+      if (inStack.has(node)) {
+        // Found cycle - extract the cycle path from where it starts repeating
+        const cycleStart = path.indexOf(node);
+        return [...path.slice(cycleStart), node];
+      }
+      if (visited.has(node)) {
+        return null;
+      }
+
+      visited.add(node);
+      inStack.add(node);
+      path.push(node);
+
+      const deps = dependsOn.get(node);
+      if (deps) {
+        for (const dep of deps) {
+          const cycle = hasCycle(dep);
+          if (cycle) {
+            return cycle;
+          }
+        }
+      }
+
+      path.pop();
+      inStack.delete(node);
+      return null;
+    };
+
+    for (const item of this.config.pipeline) {
+      if (!visited.has(item.name)) {
+        const cycle = hasCycle(item.name);
+        if (cycle) {
+          throw new Error(
+            `Circular dependency detected in pipeline: ${cycle.join(" → ")}`
+          );
         }
       }
     }
