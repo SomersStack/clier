@@ -733,7 +733,7 @@ clier service start debug-inspector
 3. Emit `circuit-breaker:triggered` event
 4. Stop the failing process
 
-**Built-in behavior** (not configurable in Phase 5):
+**Built-in behavior** (not configurable):
 - Threshold: 3 crashes
 - Time window: 5 seconds
 - Reset timeout: 10 seconds

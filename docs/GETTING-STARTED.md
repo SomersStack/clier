@@ -40,7 +40,7 @@ Clier is a powerful orchestration tool that manages complex multi-process pipeli
 ## Installation
 
 ```bash
-npm install -g clier
+npm install -g clier-ai
 ```
 
 This installs:
