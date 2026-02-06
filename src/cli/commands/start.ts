@@ -7,7 +7,7 @@
  */
 
 import path from "path";
-import { mkdir } from "fs/promises";
+import { mkdir, readFile, unlink } from "fs/promises";
 import ora from "ora";
 import { ZodError } from "zod";
 import { loadConfig } from "../../config/loader.js";
@@ -114,6 +114,9 @@ export async function startCommand(configPath?: string): Promise<number> {
 
     spinner.succeed("Daemon started");
 
+    // Check for recovery state from a previous unclean shutdown
+    await checkRecoveryState(projectRoot);
+
     console.log();
     printSuccess("Clier pipeline running in background");
     console.log();
@@ -152,4 +155,28 @@ async function waitForDaemon(
     }
   }
   throw new Error("Daemon did not become ready in time");
+}
+
+/**
+ * Check for daemon state file from a previous unclean shutdown
+ */
+async function checkRecoveryState(projectRoot: string): Promise<void> {
+  const statePath = path.join(projectRoot, ".clier", "daemon-state.json");
+
+  try {
+    const content = await readFile(statePath, "utf-8");
+    const state = JSON.parse(content);
+
+    if (state.runningProcesses?.length > 0) {
+      printWarning("Previous daemon did not shut down cleanly");
+      console.log(`  PID: ${state.pid}`);
+      console.log(`  Processes that were running: ${state.runningProcesses.join(", ")}`);
+      console.log();
+    }
+
+    // Remove the state file now that we've warned the user
+    await unlink(statePath);
+  } catch {
+    // No state file or invalid — nothing to report
+  }
 }

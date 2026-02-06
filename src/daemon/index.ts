@@ -9,10 +9,24 @@ import { fork } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import { DaemonServer } from "./server.js";
+import { probeSocket } from "./utils.js";
 import { Watcher } from "../watcher.js";
 import { createContextLogger } from "../utils/logger.js";
 
 const logger = createContextLogger("Daemon");
+
+const SHUTDOWN_TIMEOUT_MS = 15000;
+const HEALTH_CHECK_INTERVAL_MS = 30000;
+const HEAP_WARNING_MB = 512;
+
+/**
+ * Daemon state saved before shutdown for crash recovery
+ */
+export interface DaemonState {
+  savedAt: number;
+  pid: number;
+  runningProcesses: string[];
+}
 
 /**
  * Daemon options
@@ -35,6 +49,7 @@ export interface DaemonOptions {
 export class Daemon {
   private server?: DaemonServer;
   private watcher?: Watcher;
+  private healthCheckInterval?: ReturnType<typeof setInterval>;
 
   constructor(private options: DaemonOptions) {}
 
@@ -54,12 +69,51 @@ export class Daemon {
       if (await this.isDaemonRunning()) {
         throw new Error("Daemon already running");
       }
+
+      // Clean up stale socket files from previous crashed daemons
+      await this.cleanStaleFiles();
+
       this.spawnDetached();
       return; // Parent exits, child continues
     }
 
     // We're in the detached child process now - don't check if running
     await this.runAsDaemon();
+  }
+
+  /**
+   * Clean up stale socket files from previous crashed daemons.
+   *
+   * Called after isDaemonRunning() returns false, meaning the PID file
+   * is gone or the process is dead. Probes the socket to confirm it's
+   * not owned by a live daemon whose PID file was deleted.
+   */
+  private async cleanStaleFiles(): Promise<void> {
+    const socketPath = this.getSocketPath();
+
+    if (!fs.existsSync(socketPath)) {
+      return;
+    }
+
+    const isAlive = await probeSocket(socketPath, 500);
+
+    if (isAlive) {
+      throw new Error(
+        "A daemon appears to be running without a PID file. " +
+          'Run "clier stop" to shut it down first.'
+      );
+    }
+
+    // Socket is stale — safe to remove
+    try {
+      fs.unlinkSync(socketPath);
+      logger.info("Cleaned up stale socket file", { socketPath });
+    } catch (error) {
+      logger.warn("Failed to clean up stale socket file", {
+        socketPath,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   /**
@@ -122,6 +176,9 @@ export class Daemon {
       this.server = new DaemonServer(this.watcher);
       await this.server.start(this.getSocketPath());
 
+      // Start health check watchdog
+      this.startHealthCheck();
+
       logger.info("Daemon running", {
         socket: this.getSocketPath(),
         pid: process.pid,
@@ -136,14 +193,100 @@ export class Daemon {
   }
 
   /**
+   * Start periodic health check watchdog
+   */
+  private startHealthCheck(): void {
+    this.healthCheckInterval = setInterval(() => {
+      const checks: Record<string, boolean> = {};
+
+      // Check watcher exists
+      checks.watcher = !!this.watcher;
+
+      // Check process manager exists
+      const pm = this.watcher?.getProcessManager();
+      checks.processManager = !!pm;
+
+      // Check memory usage
+      const mem = process.memoryUsage();
+      const heapUsedMB = Math.round(mem.heapUsed / 1024 / 1024);
+      const heapTotalMB = Math.round(mem.heapTotal / 1024 / 1024);
+
+      if (heapUsedMB > HEAP_WARNING_MB) {
+        logger.warn("High memory usage detected", {
+          heapUsedMB,
+          heapTotalMB,
+          rssMB: Math.round(mem.rss / 1024 / 1024),
+        });
+      }
+
+      const allHealthy = Object.values(checks).every(Boolean);
+      if (!allHealthy) {
+        logger.warn("Health check found issues", { checks });
+      }
+    }, HEALTH_CHECK_INTERVAL_MS);
+
+    // Don't let the interval prevent exit
+    this.healthCheckInterval.unref();
+  }
+
+  /**
    * Shutdown the daemon gracefully
    */
   private async shutdown(signal: string): Promise<void> {
     logger.info("Shutting down daemon", { signal });
 
-    await this.cleanup();
+    try {
+      // Save state before stopping processes
+      await this.saveState();
 
-    process.exit(0);
+      // Wrap cleanup in a hard timeout to prevent hanging forever
+      await Promise.race([
+        this.cleanup(),
+        new Promise<void>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Shutdown timed out")),
+            SHUTDOWN_TIMEOUT_MS
+          )
+        ),
+      ]);
+
+      // Clean shutdown — remove state file
+      this.removeStateFile();
+    } catch (error) {
+      logger.error("Error during shutdown", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      process.exit(0);
+    }
+  }
+
+  /**
+   * Save daemon state for crash recovery
+   */
+  private async saveState(): Promise<void> {
+    try {
+      const pm = this.watcher?.getProcessManager();
+      const runningProcesses = pm
+        ? pm.listProcesses()
+            .filter((p) => p.status === "running")
+            .map((p) => p.name)
+        : [];
+
+      const state: DaemonState = {
+        savedAt: Date.now(),
+        pid: process.pid,
+        runningProcesses,
+      };
+
+      const statePath = this.getStatePath();
+      fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
+      logger.debug("Daemon state saved", { statePath, runningProcesses });
+    } catch (error) {
+      logger.warn("Failed to save daemon state", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   /**
@@ -151,6 +294,12 @@ export class Daemon {
    */
   private async cleanup(): Promise<void> {
     try {
+      // Clear health check interval
+      if (this.healthCheckInterval) {
+        clearInterval(this.healthCheckInterval);
+        this.healthCheckInterval = undefined;
+      }
+
       // Stop IPC server
       await this.server?.stop();
 
@@ -244,6 +393,22 @@ export class Daemon {
   }
 
   /**
+   * Remove state file
+   */
+  private removeStateFile(): void {
+    const statePath = this.getStatePath();
+    try {
+      if (fs.existsSync(statePath)) {
+        fs.unlinkSync(statePath);
+      }
+    } catch (error) {
+      logger.warn("Failed to remove state file", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
    * Get daemon directory path
    */
   private getDaemonDir(): string {
@@ -255,6 +420,13 @@ export class Daemon {
    */
   private getSocketPath(): string {
     return path.join(this.getDaemonDir(), "daemon.sock");
+  }
+
+  /**
+   * Get state file path
+   */
+  private getStatePath(): string {
+    return path.join(this.getDaemonDir(), "daemon-state.json");
   }
 }
 

@@ -28,6 +28,11 @@ vi.mock("../../../src/daemon/controller.js", () => ({
   })),
 }));
 
+// Mock probeSocket (default: socket is not alive / stale)
+vi.mock("../../../src/daemon/utils.js", () => ({
+  probeSocket: vi.fn().mockResolvedValue(false),
+}));
+
 /**
  * Helper: send a JSON-RPC request over a Unix socket and receive the response
  */
@@ -166,6 +171,18 @@ describe("DaemonServer", () => {
         id: 1,
       });
       expect(response.result).toEqual({ pong: true });
+    });
+
+    it("should throw if socket is probed as alive (another daemon listening)", async () => {
+      // Create a socket file
+      fs.writeFileSync(socketPath, "active");
+
+      const { probeSocket } = await import("../../../src/daemon/utils.js");
+      vi.mocked(probeSocket).mockResolvedValueOnce(true);
+
+      await expect(server.start(socketPath)).rejects.toThrow(
+        "Another daemon is already listening"
+      );
     });
   });
 

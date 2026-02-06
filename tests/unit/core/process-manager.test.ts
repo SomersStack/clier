@@ -299,9 +299,82 @@ describe("ProcessManager", () => {
 
       expect(manager.listProcesses()).toHaveLength(2);
 
-      await manager.shutdown(2000);
+      const result = await manager.shutdown(2000);
 
       expect(manager.listProcesses()).toHaveLength(0);
+      expect(result.stopped).toContain("shutdown-1");
+      expect(result.stopped).toContain("shutdown-2");
+      expect(result.failed).toHaveLength(0);
+    });
+
+    it("should return ShutdownResult with stopped and failed lists", async () => {
+      await manager.startProcess({
+        name: "shutdown-ok",
+        command: "sleep 10",
+        type: "service",
+      });
+
+      const result = await manager.shutdown(2000);
+
+      expect(result).toHaveProperty("stopped");
+      expect(result).toHaveProperty("failed");
+      expect(Array.isArray(result.stopped)).toBe(true);
+      expect(Array.isArray(result.failed)).toBe(true);
+      expect(result.stopped).toContain("shutdown-ok");
+    });
+
+    it("should stop processes in reverse order when provided", async () => {
+      const stopOrder: string[] = [];
+      const originalStopProcess = manager.stopProcess.bind(manager);
+
+      await manager.startProcess({
+        name: "first",
+        command: "sleep 10",
+        type: "service",
+      });
+      await manager.startProcess({
+        name: "second",
+        command: "sleep 10",
+        type: "service",
+      });
+      await manager.startProcess({
+        name: "third",
+        command: "sleep 10",
+        type: "service",
+      });
+
+      // Track shutdown order by monitoring the exit events
+      manager.on("exit", (name) => {
+        stopOrder.push(name);
+      });
+
+      const result = await manager.shutdown(2000, ["third", "second", "first"]);
+
+      expect(result.stopped).toHaveLength(3);
+      // The sequential order should be maintained for reverse-ordered stops
+      expect(stopOrder[0]).toBe("third");
+      expect(stopOrder[1]).toBe("second");
+      expect(stopOrder[2]).toBe("first");
+    });
+
+    it("should stop remaining processes in parallel after ordered ones", async () => {
+      await manager.startProcess({
+        name: "ordered-1",
+        command: "sleep 10",
+        type: "service",
+      });
+      await manager.startProcess({
+        name: "extra",
+        command: "sleep 10",
+        type: "service",
+      });
+
+      // Only order one process, leave "extra" to be stopped in parallel
+      const result = await manager.shutdown(2000, ["ordered-1"]);
+
+      expect(result.stopped).toContain("ordered-1");
+      expect(result.stopped).toContain("extra");
+      expect(result.failed).toHaveLength(0);
     });
   });
 

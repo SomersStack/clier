@@ -21,6 +21,14 @@ const logger = createContextLogger("ProcessManager");
 export { ProcessConfig, ProcessStatus, ExitLogs } from "./managed-process.js";
 
 /**
+ * Result of a shutdown operation
+ */
+export interface ShutdownResult {
+  stopped: string[];
+  failed: { name: string; error: string }[];
+}
+
+/**
  * Events emitted by ProcessManager
  */
 export interface ProcessManagerEvents {
@@ -275,34 +283,80 @@ export class ProcessManager extends EventEmitter {
    * Graceful shutdown of all processes
    *
    * @param timeout - Timeout for graceful shutdown per process (default: 5000ms)
+   * @param reverseOrder - When provided, stop these processes sequentially in order,
+   *                       then stop any remaining in parallel
+   * @returns Result indicating which processes stopped and which failed
    *
    * @example
    * ```ts
-   * await manager.shutdown();
+   * const result = await manager.shutdown();
+   * console.log('Stopped:', result.stopped);
+   * console.log('Failed:', result.failed);
    * ```
    */
-  async shutdown(timeout = 5000): Promise<void> {
+  async shutdown(timeout = 5000, reverseOrder?: string[]): Promise<ShutdownResult> {
     logger.info("Shutting down all processes", {
       count: this.processes.size,
+      reverseOrder,
     });
 
-    // Phase 1: Send SIGTERM to all running processes
-    const stopPromises = Array.from(this.processes.values())
-      .filter((p) => p.isRunning)
-      .map((p) =>
-        p.stop(false, timeout).catch((err) => {
-          logger.warn("Error stopping process during shutdown", {
-            name: p.name,
-            error: err.message,
+    const result: ShutdownResult = { stopped: [], failed: [] };
+    const alreadyStopped = new Set<string>();
+
+    // Phase 1: If reverseOrder provided, stop those processes sequentially
+    if (reverseOrder && reverseOrder.length > 0) {
+      for (const name of reverseOrder) {
+        const proc = this.processes.get(name);
+        if (!proc || !proc.isRunning) continue;
+
+        try {
+          await proc.stop(false, timeout);
+          result.stopped.push(name);
+        } catch (err: any) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          logger.warn("Error stopping process during ordered shutdown", {
+            name,
+            error: errorMsg,
           });
-        })
-      );
+          result.failed.push({ name, error: errorMsg });
+        }
+        alreadyStopped.add(name);
+      }
+    }
+
+    // Phase 2: Stop remaining running processes in parallel
+    const remaining = Array.from(this.processes.values())
+      .filter((p) => p.isRunning && !alreadyStopped.has(p.name));
+
+    const stopPromises = remaining.map(async (p) => {
+      try {
+        await p.stop(false, timeout);
+        result.stopped.push(p.name);
+      } catch (err: any) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        logger.warn("Error stopping process during shutdown", {
+          name: p.name,
+          error: errorMsg,
+        });
+        result.failed.push({ name: p.name, error: errorMsg });
+      }
+    });
 
     await Promise.all(stopPromises);
 
     // Clear all processes
     this.processes.clear();
-    logger.info("All processes shut down");
+
+    if (result.failed.length > 0) {
+      logger.warn("Some processes failed to stop", { failed: result.failed });
+    }
+
+    logger.info("All processes shut down", {
+      stopped: result.stopped.length,
+      failed: result.failed.length,
+    });
+
+    return result;
   }
 
   /**

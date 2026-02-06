@@ -598,8 +598,11 @@ export class Watcher {
       // Disconnect from event bus
       await this.eventBus?.disconnect();
 
-      // Shutdown all processes gracefully
-      await this.processManager?.shutdown(5000);
+      // Shutdown all processes gracefully (in reverse stage order when possible)
+      const reverseOrder = this.orchestrator
+        ? [...this.orchestrator.getStageNames()].reverse()
+        : undefined;
+      await this.processManager?.shutdown(5000, reverseOrder);
 
       // Flush logs
       await this.logManager?.flush();

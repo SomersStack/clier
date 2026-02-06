@@ -9,6 +9,7 @@ import * as net from "net";
 import * as fs from "fs";
 import { EventEmitter } from "events";
 import { DaemonController } from "./controller.js";
+import { probeSocket } from "./utils.js";
 import type { Watcher } from "../watcher.js";
 import { createContextLogger } from "../utils/logger.js";
 
@@ -57,8 +58,14 @@ export class DaemonServer extends EventEmitter {
    * Start the IPC server on the specified Unix socket path
    */
   async start(socketPath: string): Promise<void> {
-    // Remove stale socket if it exists
+    // Validate and remove stale socket if it exists
     if (fs.existsSync(socketPath)) {
+      // Probe the socket to check if another daemon is listening
+      const isAlive = await probeSocket(socketPath, 500);
+      if (isAlive) {
+        throw new Error("Another daemon is already listening");
+      }
+
       try {
         fs.unlinkSync(socketPath);
         logger.debug("Removed stale socket file", { socketPath });
