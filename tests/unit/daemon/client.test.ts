@@ -365,6 +365,105 @@ describe("DaemonClient", () => {
     });
   });
 
+  describe("retry logic", () => {
+    it("should retry connection on failure", async () => {
+      // No server running initially — first attempt fails, then start server
+      const client = new DaemonClient({
+        socketPath,
+        retries: 2,
+        retryDelay: 100,
+      });
+
+      // Start server after a short delay
+      setTimeout(async () => {
+        const result = await createTestServer(socketPath, () => ({ ok: true }));
+        testServer = result.server;
+        testSockets = result.sockets;
+      }, 50);
+
+      await client.connect();
+
+      const response = await client.request("ping");
+      expect(response).toEqual({ ok: true });
+
+      client.disconnect();
+    });
+
+    it("should exhaust retries and throw last error", async () => {
+      const client = new DaemonClient({
+        socketPath: path.join(tmpDir, "nonexistent.sock"),
+        retries: 1,
+        retryDelay: 50,
+      });
+
+      await expect(client.connect()).rejects.toThrow("Cannot connect to daemon");
+    });
+
+    it("should use default values when retries not specified", async () => {
+      const client = new DaemonClient({
+        socketPath: path.join(tmpDir, "nonexistent.sock"),
+      });
+
+      // With 0 retries (default), should fail immediately
+      await expect(client.connect()).rejects.toThrow("Cannot connect to daemon");
+    });
+  });
+
+  describe("auto-reconnect", () => {
+    it("should auto-reconnect on connection error during request", async () => {
+      // Start a server that closes connection after first request, then stays up
+      let requestCount = 0;
+      const sockets = new Set<net.Socket>();
+      testSockets = sockets;
+      testServer = await new Promise<net.Server>((resolve, reject) => {
+        const server = net.createServer((socket) => {
+          sockets.add(socket);
+          socket.on("close", () => sockets.delete(socket));
+
+          let buffer = "";
+          socket.on("data", (chunk) => {
+            buffer += chunk.toString();
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              try {
+                const request = JSON.parse(line);
+                requestCount++;
+
+                if (requestCount === 1) {
+                  // Close connection on first request
+                  socket.destroy();
+                } else {
+                  // Respond normally on subsequent requests
+                  const response = {
+                    jsonrpc: "2.0",
+                    result: { reconnected: true },
+                    id: request.id,
+                  };
+                  socket.write(JSON.stringify(response) + "\n");
+                }
+              } catch {
+                // ignore
+              }
+            }
+          });
+        });
+        server.listen(socketPath, () => resolve(server));
+        server.on("error", reject);
+      });
+
+      const client = new DaemonClient({ socketPath, timeout: 2000 });
+
+      // First request will fail due to connection close, then auto-reconnect
+      const result = await client.request("ping");
+      expect(result).toEqual({ reconnected: true });
+
+      client.disconnect();
+    });
+  });
+
   describe("getDaemonClient", () => {
     it("should throw when socket file does not exist", async () => {
       const { getDaemonClient } = await import("../../../src/daemon/client.js");
@@ -387,6 +486,27 @@ describe("DaemonClient", () => {
       const { getDaemonClient } = await import("../../../src/daemon/client.js");
 
       const client = await getDaemonClient(tmpDir);
+      expect(client).toBeInstanceOf(DaemonClient);
+
+      client.disconnect();
+    });
+
+    it("should accept options object with retries", async () => {
+      const clierDir = path.join(tmpDir, ".clier");
+      fs.mkdirSync(clierDir, { recursive: true });
+      const expectedSocketPath = path.join(clierDir, "daemon.sock");
+
+      const result = await createTestServer(expectedSocketPath);
+      testServer = result.server;
+      testSockets = result.sockets;
+
+      const { getDaemonClient } = await import("../../../src/daemon/client.js");
+
+      const client = await getDaemonClient({
+        projectRoot: tmpDir,
+        retries: 2,
+        retryDelay: 100,
+      });
       expect(client).toBeInstanceOf(DaemonClient);
 
       client.disconnect();

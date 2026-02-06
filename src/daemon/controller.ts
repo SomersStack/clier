@@ -21,6 +21,31 @@ export interface DaemonStatus {
 }
 
 /**
+ * Daemon health check result
+ */
+export interface DaemonHealth {
+  healthy: boolean;
+  uptime: number;
+  pid: number;
+  memory: {
+    heapUsedMB: number;
+    heapTotalMB: number;
+    rssMB: number;
+  };
+  processes: {
+    total: number;
+    running: number;
+    crashed: number;
+    stopped: number;
+  };
+  checks: {
+    processManager: boolean;
+    eventHandler: boolean;
+    orchestrator: boolean;
+  };
+}
+
+/**
  * DaemonController class
  *
  * Provides RPC methods that CLI clients can call via the IPC server.
@@ -358,6 +383,42 @@ export class DaemonController {
       processCount: processes.length,
       configPath: process.env.CLIER_CONFIG_PATH || "",
       pid: process.pid,
+    };
+  }
+
+  /**
+   * Rich health check with component status and resource usage
+   */
+  async "daemon.health"(): Promise<DaemonHealth> {
+    const manager = this.watcher.getProcessManager();
+    const eventHandler = this.watcher.getEventHandler();
+    const orchestrator = this.watcher.getOrchestrator();
+    const processes = manager?.listProcesses() || [];
+
+    const mem = process.memoryUsage();
+
+    const checks = {
+      processManager: !!manager,
+      eventHandler: !!eventHandler,
+      orchestrator: !!orchestrator,
+    };
+
+    return {
+      healthy: Object.values(checks).every(Boolean),
+      uptime: Date.now() - this.startTime,
+      pid: process.pid,
+      memory: {
+        heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+        heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+        rssMB: Math.round(mem.rss / 1024 / 1024),
+      },
+      processes: {
+        total: processes.length,
+        running: processes.filter((p) => p.status === "running").length,
+        crashed: processes.filter((p) => p.status === "crashed").length,
+        stopped: processes.filter((p) => p.status === "stopped").length,
+      },
+      checks,
     };
   }
 

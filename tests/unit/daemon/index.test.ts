@@ -42,6 +42,11 @@ vi.mock("child_process", () => ({
   }),
 }));
 
+// Mock probeSocket (default: socket is not alive)
+vi.mock("../../../src/daemon/utils.js", () => ({
+  probeSocket: vi.fn().mockResolvedValue(false),
+}));
+
 describe("Daemon", () => {
   let tmpDir: string;
   let configPath: string;
@@ -423,6 +428,178 @@ describe("Daemon", () => {
 
       (daemon as any).removeSocketFile();
       expect(fs.existsSync(socketPath)).toBe(false);
+    });
+  });
+
+  describe("cleanStaleFiles", () => {
+    it("should do nothing when no socket file exists", async () => {
+      const clierDir = path.join(tmpDir, ".clier");
+      fs.mkdirSync(clierDir, { recursive: true });
+
+      const daemon = new Daemon({
+        configPath,
+        projectRoot: tmpDir,
+        detached: true,
+      });
+
+      // Should not throw
+      await (daemon as any).cleanStaleFiles();
+    });
+
+    it("should remove stale socket file when probe returns false", async () => {
+      const clierDir = path.join(tmpDir, ".clier");
+      fs.mkdirSync(clierDir, { recursive: true });
+      const socketPath = path.join(clierDir, "daemon.sock");
+      fs.writeFileSync(socketPath, "stale");
+
+      const { probeSocket } = await import("../../../src/daemon/utils.js");
+      vi.mocked(probeSocket).mockResolvedValue(false);
+
+      const daemon = new Daemon({
+        configPath,
+        projectRoot: tmpDir,
+        detached: true,
+      });
+
+      await (daemon as any).cleanStaleFiles();
+      expect(fs.existsSync(socketPath)).toBe(false);
+    });
+
+    it("should throw when socket probe returns true (live daemon without PID)", async () => {
+      const clierDir = path.join(tmpDir, ".clier");
+      fs.mkdirSync(clierDir, { recursive: true });
+      const socketPath = path.join(clierDir, "daemon.sock");
+      fs.writeFileSync(socketPath, "live");
+
+      const { probeSocket } = await import("../../../src/daemon/utils.js");
+      vi.mocked(probeSocket).mockResolvedValue(true);
+
+      const daemon = new Daemon({
+        configPath,
+        projectRoot: tmpDir,
+        detached: true,
+      });
+
+      await expect((daemon as any).cleanStaleFiles()).rejects.toThrow(
+        "A daemon appears to be running without a PID file"
+      );
+    });
+  });
+
+  describe("saveState", () => {
+    it("should write state file with running process names", async () => {
+      const clierDir = path.join(tmpDir, ".clier");
+      fs.mkdirSync(clierDir, { recursive: true });
+
+      const daemon = new Daemon({
+        configPath,
+        projectRoot: tmpDir,
+        detached: false,
+      });
+
+      // Mock watcher with process manager
+      const mockPM = {
+        listProcesses: vi.fn().mockReturnValue([
+          { name: "backend", status: "running" },
+          { name: "db", status: "stopped" },
+          { name: "worker", status: "running" },
+        ]),
+      };
+      (daemon as any).watcher = { getProcessManager: () => mockPM };
+
+      await (daemon as any).saveState();
+
+      const statePath = path.join(clierDir, "daemon-state.json");
+      expect(fs.existsSync(statePath)).toBe(true);
+
+      const state = JSON.parse(fs.readFileSync(statePath, "utf-8"));
+      expect(state.pid).toBe(process.pid);
+      expect(state.runningProcesses).toEqual(["backend", "worker"]);
+      expect(state.savedAt).toBeGreaterThan(0);
+    });
+
+    it("should not throw when watcher is not set", async () => {
+      const clierDir = path.join(tmpDir, ".clier");
+      fs.mkdirSync(clierDir, { recursive: true });
+
+      const daemon = new Daemon({
+        configPath,
+        projectRoot: tmpDir,
+        detached: false,
+      });
+
+      // Should not throw
+      await (daemon as any).saveState();
+    });
+  });
+
+  describe("startHealthCheck", () => {
+    it("should set a health check interval", () => {
+      const daemon = new Daemon({
+        configPath,
+        projectRoot: tmpDir,
+        detached: false,
+      });
+
+      (daemon as any).startHealthCheck();
+
+      expect((daemon as any).healthCheckInterval).toBeDefined();
+
+      // Cleanup
+      clearInterval((daemon as any).healthCheckInterval);
+    });
+  });
+
+  describe("cleanup with health check", () => {
+    it("should clear health check interval during cleanup", async () => {
+      const clierDir = path.join(tmpDir, ".clier");
+      fs.mkdirSync(clierDir, { recursive: true });
+
+      const daemon = new Daemon({
+        configPath,
+        projectRoot: tmpDir,
+        detached: false,
+      });
+
+      // Start a health check interval
+      (daemon as any).startHealthCheck();
+      expect((daemon as any).healthCheckInterval).toBeDefined();
+
+      await (daemon as any).cleanup();
+
+      expect((daemon as any).healthCheckInterval).toBeUndefined();
+    });
+  });
+
+  describe("removeStateFile", () => {
+    it("should remove existing state file", () => {
+      const clierDir = path.join(tmpDir, ".clier");
+      fs.mkdirSync(clierDir, { recursive: true });
+      const statePath = path.join(clierDir, "daemon-state.json");
+      fs.writeFileSync(statePath, "{}");
+
+      const daemon = new Daemon({
+        configPath,
+        projectRoot: tmpDir,
+        detached: false,
+      });
+
+      (daemon as any).removeStateFile();
+      expect(fs.existsSync(statePath)).toBe(false);
+    });
+
+    it("should be a no-op if state file does not exist", () => {
+      const clierDir = path.join(tmpDir, ".clier");
+      fs.mkdirSync(clierDir, { recursive: true });
+
+      const daemon = new Daemon({
+        configPath,
+        projectRoot: tmpDir,
+        detached: false,
+      });
+
+      // Should not throw
+      (daemon as any).removeStateFile();
     });
   });
 });

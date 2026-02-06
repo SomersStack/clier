@@ -19,6 +19,8 @@ describe("DaemonController", () => {
   let mockProcessManager: any;
   let mockOrchestrator: any;
 
+  let mockEventHandler: any;
+
   beforeEach(() => {
     // Create mock ProcessManager
     mockProcessManager = {
@@ -34,11 +36,17 @@ describe("DaemonController", () => {
       hasStage: vi.fn().mockReturnValue(true),
     };
 
+    // Create mock EventHandler
+    mockEventHandler = {
+      getEventHistory: vi.fn().mockReturnValue([]),
+    };
+
     // Create mock Watcher
     mockWatcher = {
       getProcessManager: vi.fn().mockReturnValue(mockProcessManager),
       getLogManager: vi.fn(),
       getOrchestrator: vi.fn().mockReturnValue(mockOrchestrator),
+      getEventHandler: vi.fn().mockReturnValue(mockEventHandler),
       start: vi.fn(),
       stop: vi.fn(),
     };
@@ -425,6 +433,62 @@ describe("DaemonController", () => {
       await expect(controller["logs.clear"]({ name: "backend" })).rejects.toThrow(
         "LogManager not initialized"
       );
+    });
+  });
+
+  describe("daemon.health", () => {
+    it("should return health information when all components are initialized", async () => {
+      mockProcessManager.listProcesses.mockReturnValue([
+        { name: "backend", status: "running" },
+        { name: "frontend", status: "running" },
+        { name: "worker", status: "stopped" },
+        { name: "failed", status: "crashed" },
+      ]);
+
+      const result = await controller["daemon.health"]();
+
+      expect(result.healthy).toBe(true);
+      expect(result.pid).toBe(process.pid);
+      expect(result.uptime).toBeGreaterThanOrEqual(0);
+      expect(result.memory.heapUsedMB).toBeGreaterThan(0);
+      expect(result.memory.heapTotalMB).toBeGreaterThan(0);
+      expect(result.memory.rssMB).toBeGreaterThan(0);
+      expect(result.processes.total).toBe(4);
+      expect(result.processes.running).toBe(2);
+      expect(result.processes.stopped).toBe(1);
+      expect(result.processes.crashed).toBe(1);
+      expect(result.checks.processManager).toBe(true);
+      expect(result.checks.eventHandler).toBe(true);
+      expect(result.checks.orchestrator).toBe(true);
+    });
+
+    it("should report unhealthy when process manager is missing", async () => {
+      mockWatcher.getProcessManager.mockReturnValue(null);
+
+      const result = await controller["daemon.health"]();
+
+      expect(result.healthy).toBe(false);
+      expect(result.checks.processManager).toBe(false);
+    });
+
+    it("should report unhealthy when event handler is missing", async () => {
+      mockWatcher.getEventHandler.mockReturnValue(null);
+      mockProcessManager.listProcesses.mockReturnValue([]);
+
+      const result = await controller["daemon.health"]();
+
+      expect(result.healthy).toBe(false);
+      expect(result.checks.eventHandler).toBe(false);
+    });
+
+    it("should report unhealthy when orchestrator is missing", async () => {
+      mockWatcher.getOrchestrator.mockReturnValue(null);
+      mockProcessManager.listProcesses.mockReturnValue([]);
+
+      const result = await controller["daemon.health"]();
+
+      expect(result.healthy).toBe(false);
+      expect(result.checks.orchestrator).toBe(false);
     });
   });
 });

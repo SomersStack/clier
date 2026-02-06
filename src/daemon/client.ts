@@ -16,9 +16,20 @@ const logger = createContextLogger("DaemonClient");
 /**
  * Client options
  */
-interface ClientOptions {
+export interface ClientOptions {
   socketPath: string;
   timeout?: number;
+  retries?: number;
+  retryDelay?: number;
+}
+
+/**
+ * Options for getDaemonClient helper
+ */
+export interface GetDaemonClientOptions {
+  projectRoot?: string;
+  retries?: number;
+  retryDelay?: number;
 }
 
 /**
@@ -38,9 +49,37 @@ export class DaemonClient {
   constructor(private options: ClientOptions) {}
 
   /**
-   * Connect to the daemon socket
+   * Connect to the daemon socket, with optional retry logic
    */
   async connect(): Promise<void> {
+    const retries = this.options.retries ?? 0;
+    const retryDelay = this.options.retryDelay ?? 500;
+
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        await this.connectOnce();
+        return;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        if (attempt < retries) {
+          logger.debug("Connection attempt failed, retrying", {
+            attempt: attempt + 1,
+            maxRetries: retries,
+            delay: retryDelay,
+          });
+          await new Promise((resolve) => setTimeout(resolve, retryDelay));
+        }
+      }
+    }
+
+    throw lastError!;
+  }
+
+  /**
+   * Single connection attempt to the daemon socket
+   */
+  private async connectOnce(): Promise<void> {
     if (this.socket?.readable && this.socket?.writable) {
       return; // Already connected
     }
@@ -128,11 +167,31 @@ export class DaemonClient {
   }
 
   /**
-   * Send a JSON-RPC request to the daemon
+   * Send a JSON-RPC request to the daemon.
+   * If a write fails due to a connection error, attempts one reconnect and retry.
    */
   async request<T = any>(method: string, params?: any): Promise<T> {
     await this.connect();
 
+    try {
+      return await this.sendRequest<T>(method, params);
+    } catch (error) {
+      // Auto-reconnect on connection errors
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("Connection closed") || msg.includes("Cannot connect") || msg.includes("write after end")) {
+        logger.debug("Request failed with connection error, attempting reconnect", { method, error: msg });
+        this.socket = undefined;
+        await this.connectOnce();
+        return this.sendRequest<T>(method, params);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Send a single JSON-RPC request
+   */
+  private sendRequest<T = any>(method: string, params?: any): Promise<T> {
     const id = ++this.requestId;
     const request = {
       jsonrpc: "2.0",
@@ -197,13 +256,25 @@ export class DaemonClient {
  * Automatically searches upward from the current directory to find
  * the project root (directory containing .clier/).
  *
- * @param projectRoot - Project root directory (optional, defaults to auto-detection)
+ * @param projectRootOrOptions - Project root string or options object
  * @returns DaemonClient instance connected to the daemon
  * @throws Error if daemon is not running or project not found
  */
 export async function getDaemonClient(
-  projectRoot?: string
+  projectRootOrOptions?: string | GetDaemonClientOptions
 ): Promise<DaemonClient> {
+  let projectRoot: string | undefined;
+  let retries: number | undefined;
+  let retryDelay: number | undefined;
+
+  if (typeof projectRootOrOptions === "string") {
+    projectRoot = projectRootOrOptions;
+  } else if (projectRootOrOptions) {
+    projectRoot = projectRootOrOptions.projectRoot;
+    retries = projectRootOrOptions.retries;
+    retryDelay = projectRootOrOptions.retryDelay;
+  }
+
   // If explicit project root provided, use it
   // Otherwise, search upward for .clier/ directory
   const root = projectRoot || findProjectRootForDaemon();
@@ -217,7 +288,7 @@ export async function getDaemonClient(
     );
   }
 
-  const client = new DaemonClient({ socketPath });
+  const client = new DaemonClient({ socketPath, retries, retryDelay });
   await client.connect();
   return client;
 }
