@@ -477,4 +477,14 @@ export class DaemonController {
     return events;
   }
 
+  /**
+   * Get stage mappings (process name → stage name)
+   *
+   * Returns a record mapping process names to their containing stage names.
+   * Processes not in a stage will not appear in this map.
+   */
+  async "stages.map"(): Promise<Record<string, string>> {
+    const stageMap = this.watcher.getStageMap();
+    return stageMap ? Object.fromEntries(stageMap) : {};
+  }
 }

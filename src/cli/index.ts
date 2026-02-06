@@ -104,10 +104,12 @@ export function createCLI(): Command {
       "Refresh interval in seconds (default: 2)",
       "2"
     )
-    .action(async (options: { watch?: boolean; interval: string }) => {
+    .option("--json", "Output as JSON (cannot be used with --watch)")
+    .action(async (options: { watch?: boolean; interval: string; json?: boolean }) => {
       const exitCode = await statusCommand({
         watch: options.watch,
         interval: parseFloat(options.interval),
+        json: options.json,
       });
       process.exit(exitCode);
     });

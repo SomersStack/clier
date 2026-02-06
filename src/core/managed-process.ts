@@ -66,6 +66,7 @@ export interface RestartPolicy {
  */
 export interface ProcessStatus {
   name: string;
+  type: "service" | "task";
   pid?: number;
   status: "running" | "stopped" | "crashed" | "restarting";
   uptime: number;
@@ -130,6 +131,7 @@ export class ManagedProcess extends EventEmitter {
   get status(): ProcessStatus {
     return {
       name: this.config.name,
+      type: this.config.type,
       pid: this.child?.pid,
       status: this._status,
       // Only count uptime while actually running

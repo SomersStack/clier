@@ -20,6 +20,118 @@ import {
 export interface StatusOptions {
   watch?: boolean;
   interval?: number;
+  json?: boolean;
+}
+
+/**
+ * JSON output structure for daemon status
+ */
+interface JsonDaemonStatus {
+  running: boolean;
+  pid?: number;
+  uptime?: string;
+  config?: string;
+}
+
+/**
+ * JSON output structure for a process
+ */
+interface JsonProcessStatus {
+  name: string;
+  type: "service" | "task";
+  status: string;
+  pid: number | null;
+  uptime: string;
+  restarts: number;
+}
+
+/**
+ * JSON output structure for a stage
+ */
+interface JsonStage {
+  name: string;
+  processes: JsonProcessStatus[];
+}
+
+/**
+ * Complete JSON output structure
+ */
+interface JsonOutput {
+  daemon: JsonDaemonStatus;
+  stages: JsonStage[];
+  processes: JsonProcessStatus[];
+}
+
+/**
+ * Convert ProcessStatus to JSON format
+ */
+function toJsonProcess(proc: ProcessStatus): JsonProcessStatus {
+  return {
+    name: proc.name,
+    type: proc.type,
+    status: proc.status,
+    pid: proc.pid ?? null,
+    uptime: formatUptime(proc.uptime),
+    restarts: proc.restarts,
+  };
+}
+
+/**
+ * Group processes by stage
+ */
+function groupByStage(
+  processes: ProcessStatus[],
+  stageMap: Record<string, string>
+): { stageGroups: Map<string, ProcessStatus[]>; ungrouped: ProcessStatus[] } {
+  const stageGroups = new Map<string, ProcessStatus[]>();
+  const ungrouped: ProcessStatus[] = [];
+
+  for (const proc of processes) {
+    const stageName = stageMap[proc.name];
+    if (stageName) {
+      if (!stageGroups.has(stageName)) {
+        stageGroups.set(stageName, []);
+      }
+      stageGroups.get(stageName)!.push(proc);
+    } else {
+      ungrouped.push(proc);
+    }
+  }
+
+  return { stageGroups, ungrouped };
+}
+
+/**
+ * Create a process table
+ */
+function createProcessTable(processes: ProcessStatus[]): Table.Table {
+  const table = new Table({
+    head: [
+      chalk.white("Name"),
+      chalk.white("Type"),
+      chalk.white("Status"),
+      chalk.white("PID"),
+      chalk.white("Uptime"),
+      chalk.white("Restarts"),
+    ],
+    style: {
+      head: [],
+      border: [],
+    },
+  });
+
+  for (const proc of processes) {
+    table.push([
+      proc.name,
+      proc.type,
+      formatStatus(proc.status),
+      proc.pid?.toString() || "-",
+      formatUptime(proc.uptime),
+      proc.restarts.toString(),
+    ]);
+  }
+
+  return table;
 }
 
 /**
@@ -28,6 +140,7 @@ export interface StatusOptions {
 function buildStatusOutput(
   daemonStatus: DaemonStatus,
   processes: ProcessStatus[],
+  stageMap: Record<string, string>,
   isWatch: boolean
 ): { output: string; lineCount: number } {
   const lines: string[] = [];
@@ -41,43 +154,38 @@ function buildStatusOutput(
   lines.push(`  Config:   ${daemonStatus.configPath}`);
   lines.push("");
 
-  // Display process status
-  lines.push(chalk.bold("Processes"));
-  lines.push(chalk.gray("─────────────────"));
+  // Group processes by stage
+  const { stageGroups, ungrouped } = groupByStage(processes, stageMap);
 
-  if (processes.length === 0) {
-    lines.push(chalk.gray("  No processes running"));
-  } else {
-    const table = new Table({
-      head: [
-        chalk.white("Name"),
-        chalk.white("Status"),
-        chalk.white("PID"),
-        chalk.white("Uptime"),
-        chalk.white("Restarts"),
-      ],
-      style: {
-        head: [],
-        border: [],
-      },
-    });
+  // Display each stage
+  for (const [stageName, stageProcesses] of stageGroups) {
+    lines.push(chalk.bold(`Stage: ${stageName}`));
+    lines.push(chalk.gray("─────────────────"));
 
-    for (const proc of processes) {
-      table.push([
-        proc.name,
-        formatStatus(proc.status),
-        proc.pid?.toString() || "-",
-        formatUptime(proc.uptime),
-        proc.restarts.toString(),
-      ]);
+    if (stageProcesses.length === 0) {
+      lines.push(chalk.gray("  No processes"));
+    } else {
+      const tableOutput = createProcessTable(stageProcesses).toString();
+      lines.push(...tableOutput.split("\n"));
     }
 
-    // Table output can contain multiple lines
-    const tableOutput = table.toString();
-    lines.push(...tableOutput.split("\n"));
+    lines.push("");
   }
 
-  lines.push("");
+  // Display ungrouped processes (or all processes if no stages)
+  if (ungrouped.length > 0 || stageGroups.size === 0) {
+    lines.push(chalk.bold("Processes"));
+    lines.push(chalk.gray("─────────────────"));
+
+    if (ungrouped.length === 0 && stageGroups.size === 0) {
+      lines.push(chalk.gray("  No processes running"));
+    } else if (ungrouped.length > 0) {
+      const tableOutput = createProcessTable(ungrouped).toString();
+      lines.push(...tableOutput.split("\n"));
+    }
+
+    lines.push("");
+  }
 
   if (isWatch) {
     lines.push(chalk.gray("Press Ctrl+C to exit watch mode"));
@@ -92,9 +200,10 @@ function buildStatusOutput(
 function renderStatus(
   daemonStatus: DaemonStatus,
   processes: ProcessStatus[],
+  stageMap: Record<string, string>,
   isWatch: boolean
 ): number {
-  const { output, lineCount } = buildStatusOutput(daemonStatus, processes, isWatch);
+  const { output, lineCount } = buildStatusOutput(daemonStatus, processes, stageMap, isWatch);
   console.log(output);
   return lineCount;
 }
@@ -105,12 +214,14 @@ function renderStatus(
 async function fetchStatus(): Promise<{
   daemonStatus: DaemonStatus;
   processes: ProcessStatus[];
+  stageMap: Record<string, string>;
 }> {
   const client = await getDaemonClient();
   const daemonStatus: DaemonStatus = await client.request("daemon.status");
   const processes: ProcessStatus[] = await client.request("process.list");
+  const stageMap: Record<string, string> = await client.request("stages.map");
   client.disconnect();
-  return { daemonStatus, processes };
+  return { daemonStatus, processes, stageMap };
 }
 
 /**
@@ -145,9 +256,38 @@ function clearScreen(): void {
 export async function statusCommand(
   options: StatusOptions = {}
 ): Promise<number> {
-  const { watch = false, interval = 2 } = options;
+  const { watch = false, interval = 2, json = false } = options;
+
+  // --json and --watch are mutually exclusive
+  if (json && watch) {
+    printError("Cannot use --json with --watch");
+    return 1;
+  }
 
   try {
+    if (json) {
+      // JSON output mode
+      const { daemonStatus, processes, stageMap } = await fetchStatus();
+      const { stageGroups, ungrouped } = groupByStage(processes, stageMap);
+
+      const output: JsonOutput = {
+        daemon: {
+          running: true,
+          pid: daemonStatus.pid,
+          uptime: formatUptime(daemonStatus.uptime),
+          config: daemonStatus.configPath,
+        },
+        stages: Array.from(stageGroups.entries()).map(([name, procs]) => ({
+          name,
+          processes: procs.map(toJsonProcess),
+        })),
+        processes: ungrouped.map(toJsonProcess),
+      };
+
+      console.log(JSON.stringify(output, null, 2));
+      return 0;
+    }
+
     if (watch) {
       // Watch mode - continuously update using alternate screen buffer
       let running = true;
@@ -167,8 +307,8 @@ export async function statusCommand(
       while (running) {
         try {
           clearScreen();
-          const { daemonStatus, processes } = await fetchStatus();
-          renderStatus(daemonStatus, processes, true);
+          const { daemonStatus, processes, stageMap } = await fetchStatus();
+          renderStatus(daemonStatus, processes, stageMap, true);
         } catch (error) {
           clearScreen();
           if (
@@ -200,8 +340,8 @@ export async function statusCommand(
       return 0;
     } else {
       // Single status check
-      const { daemonStatus, processes } = await fetchStatus();
-      renderStatus(daemonStatus, processes, false);
+      const { daemonStatus, processes, stageMap } = await fetchStatus();
+      renderStatus(daemonStatus, processes, stageMap, false);
       return 0;
     }
   } catch (error) {
@@ -209,6 +349,17 @@ export async function statusCommand(
       error instanceof Error &&
       error.message.includes("not running")
     ) {
+      if (json) {
+        // JSON output when daemon not running
+        const output: JsonOutput = {
+          daemon: { running: false },
+          stages: [],
+          processes: [],
+        };
+        console.log(JSON.stringify(output, null, 2));
+        return 0;
+      }
+
       printWarning("Clier daemon is not running");
       console.log();
       console.log("  Start it with: clier start");
@@ -216,7 +367,13 @@ export async function statusCommand(
       return 1;
     }
 
-    printError(error instanceof Error ? error.message : String(error));
+    if (json) {
+      console.error(
+        JSON.stringify({ error: error instanceof Error ? error.message : String(error) })
+      );
+    } else {
+      printError(error instanceof Error ? error.message : String(error));
+    }
     return 1;
   }
 }

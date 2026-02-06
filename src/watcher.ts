@@ -7,6 +7,7 @@
 
 import path from "path";
 import { loadConfig } from "./config/loader.js";
+import { flattenPipeline } from "./config/flatten.js";
 import { EventBus } from "./core/event-bus.js";
 import { ProcessManager } from "./core/process-manager.js";
 import { LogManager } from "./core/log-manager.js";
@@ -16,7 +17,7 @@ import { Orchestrator } from "./core/orchestrator.js";
 import { Debouncer } from "./safety/debouncer.js";
 import { RateLimiter } from "./safety/rate-limiter.js";
 import { CircuitBreaker } from "./safety/circuit-breaker.js";
-import type { ClierConfig } from "./config/types.js";
+import type { ClierConfig, FlattenedConfig } from "./config/types.js";
 import type { ClierEvent } from "./types/events.js";
 import { createContextLogger } from "./utils/logger.js";
 
@@ -41,6 +42,8 @@ const logger = createContextLogger("Watcher");
  */
 export class Watcher {
   private config?: ClierConfig;
+  private flattenedConfig?: FlattenedConfig;
+  private stageMap?: Map<string, string>;
   private processManager?: ProcessManager;
   private logManager?: LogManager;
   private eventBus?: EventBus;
@@ -100,9 +103,16 @@ export class Watcher {
       // Load configuration
       try {
         this.config = await loadConfig(configPath);
+
+        // Flatten stages into individual pipeline items
+        const { config: flattenedConfig, stageMap } = flattenPipeline(this.config);
+        this.flattenedConfig = flattenedConfig;
+        this.stageMap = stageMap;
+
         logger.info("Configuration loaded successfully", {
           projectName: this.config.project_name,
-          pipelineItems: this.config.pipeline.length,
+          pipelineItems: flattenedConfig.pipeline.length,
+          stageCount: stageMap.size,
         });
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
@@ -215,6 +225,18 @@ export class Watcher {
    */
   getEventHandler(): EventHandler | undefined {
     return this.eventHandler;
+  }
+
+  /**
+   * Get the stage map (process name → stage name)
+   *
+   * Returns a map of process names to their containing stage names.
+   * Processes not in a stage will not appear in this map.
+   *
+   * @returns Map of process name to stage name, or undefined if not initialized
+   */
+  getStageMap(): Map<string, string> | undefined {
+    return this.stageMap;
   }
 
   /**
@@ -386,13 +408,13 @@ export class Watcher {
       throw new Error(`Core component initialization failed: ${errorMsg}`);
     }
 
-    // Register pipeline items with event handler
+    // Register pipeline items with event handler (use flattened config)
     try {
-      for (const item of this.config.pipeline) {
+      for (const item of this.flattenedConfig!.pipeline) {
         this.eventHandler.registerPipelineItem(item);
       }
       logger.debug("Pipeline items registered", {
-        count: this.config.pipeline.length,
+        count: this.flattenedConfig!.pipeline.length,
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

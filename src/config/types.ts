@@ -63,6 +63,39 @@ export type PipelineItem = {
 };
 
 /**
+ * TypeScript type for a stage that groups pipeline items
+ *
+ * Stages are expanded into their constituent steps before orchestration.
+ * Stage properties like `manual` and `trigger_on` propagate to steps.
+ */
+export type StageItem = {
+  /** Unique name for this stage */
+  name: string;
+  /** Must be "stage" */
+  type: "stage";
+  /** Whether all steps in this stage require manual start */
+  manual?: boolean;
+  /** Event triggers that propagate to non-manual steps */
+  trigger_on?: string[];
+  /** Steps within this stage */
+  steps: PipelineItem[];
+};
+
+/**
+ * Union type for pipeline entries (either a step or a stage)
+ */
+export type PipelineEntry = PipelineItem | StageItem;
+
+/**
+ * Configuration type after stage flattening
+ *
+ * Same as ClierConfig but pipeline is guaranteed to contain only PipelineItem[].
+ */
+export type FlattenedConfig = Omit<ClierConfig, "pipeline"> & {
+  pipeline: PipelineItem[];
+};
+
+/**
  * TypeScript type for circuit breaker configuration
  *
  * Configures the circuit breaker that prevents cascading failures.

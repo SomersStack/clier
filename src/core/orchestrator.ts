@@ -5,9 +5,10 @@
  * Tracks process dependencies, handles triggers, and starts dependent processes.
  */
 
-import type { ClierConfig, PipelineItem } from "../config/types.js";
+import type { ClierConfig, PipelineItem, FlattenedConfig } from "../config/types.js";
 import type { ClierEvent } from "../types/events.js";
 import type { ProcessManager, ProcessConfig } from "./process-manager.js";
+import { flattenPipeline } from "../config/flatten.js";
 import { createContextLogger } from "../utils/logger.js";
 import {
   substituteEventTemplates,
@@ -50,8 +51,9 @@ export interface OrchestratorOptions {
 
 export class Orchestrator {
   private processManager: ProcessManager;
-  private config?: ClierConfig;
+  private config?: FlattenedConfig;
   private pipelineItems = new Map<string, PipelineItem>();
+  private stageMap = new Map<string, string>();
   private startedProcesses = new Set<string>();
   private manuallyTriggeredProcesses = new Set<string>();
   private receivedEvents = new Set<string>();
@@ -81,7 +83,9 @@ export class Orchestrator {
   /**
    * Load pipeline configuration
    *
-   * @param config - Clier configuration
+   * Flattens stages into individual pipeline items and builds the stage map.
+   *
+   * @param config - Clier configuration (may contain stages)
    * @throws Error if pipeline has circular dependencies or invalid trigger_on references
    *
    * @example
@@ -90,14 +94,18 @@ export class Orchestrator {
    * ```
    */
   loadPipeline(config: ClierConfig): void {
-    this.config = config;
+    // Flatten stages into individual pipeline items
+    const { config: flattenedConfig, stageMap } = flattenPipeline(config);
+
+    this.config = flattenedConfig;
+    this.stageMap = stageMap;
     this.pipelineItems.clear();
     this.startedProcesses.clear();
     this.manuallyTriggeredProcesses.clear();
     this.receivedEvents.clear();
 
     // Build pipeline item map
-    for (const item of config.pipeline) {
+    for (const item of flattenedConfig.pipeline) {
       this.pipelineItems.set(item.name, item);
     }
 
@@ -105,9 +113,22 @@ export class Orchestrator {
     this.validatePipeline();
 
     logger.info("Loaded pipeline", {
-      itemCount: config.pipeline.length,
+      itemCount: flattenedConfig.pipeline.length,
+      stageCount: stageMap.size,
       entryPoints: this.getEntryPoints().length,
     });
+  }
+
+  /**
+   * Get the stage map (process name → stage name)
+   *
+   * Returns a map of process names to their containing stage names.
+   * Processes not in a stage will not appear in this map.
+   *
+   * @returns Map of process name to stage name
+   */
+  getStageMap(): Map<string, string> {
+    return this.stageMap;
   }
 
   /**

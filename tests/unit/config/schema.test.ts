@@ -637,4 +637,242 @@ describe("Config Schema Validation", () => {
       expect(() => configSchema.parse(config)).toThrow();
     });
   });
+
+  describe("Stage Configuration", () => {
+    it("should parse a valid stage with steps", () => {
+      const config = {
+        project_name: "stage-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "build-stage",
+            type: "stage",
+            steps: [
+              {
+                name: "frontend",
+                command: "npm run build:frontend",
+                type: "service",
+              },
+              {
+                name: "backend",
+                command: "npm run build:backend",
+                type: "service",
+              },
+            ],
+          },
+        ],
+      };
+
+      const result = configSchema.parse(config);
+      expect(result).toBeDefined();
+      expect(result.pipeline).toHaveLength(1);
+      expect(result.pipeline[0]?.type).toBe("stage");
+      if (result.pipeline[0]?.type === "stage") {
+        expect(result.pipeline[0]?.steps).toHaveLength(2);
+      }
+    });
+
+    it("should parse a stage with manual and trigger_on", () => {
+      const config = {
+        project_name: "stage-options-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "deploy-stage",
+            type: "stage",
+            manual: true,
+            trigger_on: ["build:complete"],
+            steps: [
+              {
+                name: "deploy-frontend",
+                command: "npm run deploy:frontend",
+                type: "task",
+              },
+            ],
+          },
+        ],
+      };
+
+      const result = configSchema.parse(config);
+      expect(result.pipeline[0]?.type).toBe("stage");
+      if (result.pipeline[0]?.type === "stage") {
+        expect(result.pipeline[0]?.manual).toBe(true);
+        expect(result.pipeline[0]?.trigger_on).toEqual(["build:complete"]);
+      }
+    });
+
+    it("should reject a stage without steps", () => {
+      const config = {
+        project_name: "empty-stage-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "empty-stage",
+            type: "stage",
+            steps: [],
+          },
+        ],
+      };
+
+      expect(() => configSchema.parse(config)).toThrow();
+    });
+
+    it("should reject a stage with empty name", () => {
+      const config = {
+        project_name: "no-name-stage-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "",
+            type: "stage",
+            steps: [
+              {
+                name: "step1",
+                command: "npm test",
+                type: "task",
+              },
+            ],
+          },
+        ],
+      };
+
+      expect(() => configSchema.parse(config)).toThrow();
+    });
+
+    it("should parse mixed pipeline with stages and individual items", () => {
+      const config = {
+        project_name: "mixed-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "db",
+            command: "docker-compose up db",
+            type: "service",
+          },
+          {
+            name: "build-stage",
+            type: "stage",
+            steps: [
+              {
+                name: "frontend",
+                command: "npm run build:frontend",
+                type: "task",
+              },
+              {
+                name: "backend",
+                command: "npm run build:backend",
+                type: "task",
+              },
+            ],
+          },
+          {
+            name: "tests",
+            command: "npm test",
+            type: "task",
+          },
+        ],
+      };
+
+      const result = configSchema.parse(config);
+      expect(result.pipeline).toHaveLength(3);
+      expect(result.pipeline[0]?.type).toBe("service");
+      expect(result.pipeline[1]?.type).toBe("stage");
+      expect(result.pipeline[2]?.type).toBe("task");
+    });
+
+    it("should reject duplicate names across stages and steps", () => {
+      const config = {
+        project_name: "duplicate-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "frontend",
+            command: "npm run frontend",
+            type: "service",
+          },
+          {
+            name: "build-stage",
+            type: "stage",
+            steps: [
+              {
+                name: "frontend", // Duplicate name
+                command: "npm run build:frontend",
+                type: "task",
+              },
+            ],
+          },
+        ],
+      };
+
+      expect(() => configSchema.parse(config)).toThrow(/duplicate.*name/i);
+    });
+
+    it("should reject duplicate names within a stage's steps", () => {
+      const config = {
+        project_name: "duplicate-in-stage-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "build-stage",
+            type: "stage",
+            steps: [
+              {
+                name: "step",
+                command: "npm run step1",
+                type: "task",
+              },
+              {
+                name: "step", // Duplicate name
+                command: "npm run step2",
+                type: "task",
+              },
+            ],
+          },
+        ],
+      };
+
+      expect(() => configSchema.parse(config)).toThrow(/duplicate.*name/i);
+    });
+
+    it("should use discriminatedUnion for better error messages", () => {
+      const config = {
+        project_name: "invalid-type-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "invalid",
+            type: "unknown", // Invalid type
+            command: "npm test",
+          },
+        ],
+      };
+
+      // Should throw with clear message about invalid discriminator
+      expect(() => configSchema.parse(config)).toThrow();
+    });
+  });
 });

@@ -33,7 +33,7 @@ const pipelineItemSchema = z.object({
   name: z.string().min(1, "Pipeline name must not be empty - provide a unique identifier"),
   command: z.string().min(1, "Command must not be empty - provide the shell command to execute"),
   type: z.enum(["service", "task"], {
-    errorMap: () => ({ message: "Expected 'service' or 'task'" }),
+    errorMap: () => ({ message: "Expected 'service', 'task', or 'stage'" }),
   }),
   trigger_on: z.array(z.string()).optional(),
   continue_on_failure: z.boolean().optional(),
@@ -48,6 +48,32 @@ const pipelineItemSchema = z.object({
   /** Restart policy: "always", "on-failure" (default for services), or "never" */
   restart: z.enum(["always", "on-failure", "never"]).optional(),
 });
+
+/**
+ * Schema for stage configuration (groups pipeline items)
+ *
+ * Stages allow grouping related pipeline items together with shared properties.
+ * When flattened, stage properties like `manual` and `trigger_on` propagate to steps.
+ */
+const stageSchema = z.object({
+  name: z.string().min(1, "Stage name must not be empty - provide a unique identifier"),
+  type: z.literal("stage"),
+  /** If true, all steps in this stage require manual start */
+  manual: z.boolean().optional(),
+  /** Event triggers that propagate to non-manual steps */
+  trigger_on: z.array(z.string()).optional(),
+  /** Steps within this stage - at least one required */
+  steps: z.array(pipelineItemSchema).min(1, "Stage must have at least one step"),
+});
+
+/**
+ * Schema for a pipeline entry (either a step or a stage)
+ * Uses discriminatedUnion on "type" field for better error messages
+ */
+const pipelineEntrySchema = z.discriminatedUnion("type", [
+  pipelineItemSchema,
+  stageSchema,
+]);
 
 /**
  * Schema for circuit breaker configuration
@@ -115,13 +141,21 @@ export const configSchema = z
     project_name: z.string().min(1, "Project name must not be empty - provide a descriptive name for your project"),
     global_env: z.boolean().default(true),
     safety: safetySchema,
-    pipeline: z.array(pipelineItemSchema).min(1, "Pipeline must contain at least one item"),
+    pipeline: z.array(pipelineEntrySchema).min(1, "Pipeline must contain at least one item"),
   })
   .strict()
   .refine(
     (config) => {
-      // Check for duplicate pipeline names
-      const names = config.pipeline.map((item) => item.name);
+      // Collect all names: top-level entries + steps inside stages
+      const names: string[] = [];
+      for (const entry of config.pipeline) {
+        names.push(entry.name);
+        if (entry.type === "stage") {
+          for (const step of entry.steps) {
+            names.push(step.name);
+          }
+        }
+      }
       const uniqueNames = new Set(names);
       return names.length === uniqueNames.size;
     },
@@ -154,6 +188,16 @@ export type PipelineItemSchema = typeof pipelineItemSchema;
  * Type alias for the Zod safety schema
  */
 export type SafetySchema = typeof safetySchema;
+
+/**
+ * Type alias for the Zod stage schema
+ */
+export type StageSchema = typeof stageSchema;
+
+/**
+ * Type alias for the Zod pipeline entry schema
+ */
+export type PipelineEntrySchema = typeof pipelineEntrySchema;
 
 /**
  * Type alias for the main config schema
