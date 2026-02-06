@@ -61,6 +61,14 @@ export class DaemonController {
       throw new Error("ProcessManager not initialized");
     }
     await manager.stopProcess(params.name, params.force ?? false);
+
+    // Log the stop command
+    const logManager = this.watcher.getLogManager();
+    if (logManager) {
+      const forceStr = params.force ? " (force)" : "";
+      logManager.add(params.name, "command", `STOP${forceStr}`);
+    }
+
     return { success: true };
   }
 
@@ -76,6 +84,14 @@ export class DaemonController {
       throw new Error("ProcessManager not initialized");
     }
     await manager.restartProcess(params.name, params.force ?? false);
+
+    // Log the restart command
+    const logManager = this.watcher.getLogManager();
+    if (logManager) {
+      const forceStr = params.force ? " (force)" : "";
+      logManager.add(params.name, "command", `RESTART${forceStr}`);
+    }
+
     return { success: true };
   }
 
@@ -90,6 +106,13 @@ export class DaemonController {
       throw new Error("ProcessManager not initialized");
     }
     await manager.startProcess(params.config);
+
+    // Log the add command
+    const logManager = this.watcher.getLogManager();
+    if (logManager) {
+      logManager.add(params.config.name, "command", `ADD: ${params.config.command}`);
+    }
+
     return { success: true };
   }
 
@@ -103,6 +126,13 @@ export class DaemonController {
     if (!manager) {
       throw new Error("ProcessManager not initialized");
     }
+
+    // Log the delete command before deletion (so we still have the process context)
+    const logManager = this.watcher.getLogManager();
+    if (logManager) {
+      logManager.add(params.name, "command", "DELETE");
+    }
+
     await manager.deleteProcess(params.name);
     return { success: true };
   }
@@ -133,6 +163,12 @@ export class DaemonController {
 
     await this.watcher.triggerStage(params.name);
 
+    // Log the start command
+    const logManager = this.watcher.getLogManager();
+    if (logManager) {
+      logManager.add(params.name, "command", "START");
+    }
+
     // Write initial input to stdin after process has started
     if (params.initialInput) {
       const manager = this.watcher.getProcessManager();
@@ -140,6 +176,11 @@ export class DaemonController {
         throw new Error("ProcessManager not initialized");
       }
       manager.writeInput(params.name, params.initialInput + "\n");
+
+      // Log the initial input
+      if (logManager) {
+        logManager.add(params.name, "command", `INPUT: ${params.initialInput}`);
+      }
     }
 
     return { success: true };
@@ -170,6 +211,14 @@ export class DaemonController {
 
     const data = params.appendNewline ? params.data + "\n" : params.data;
     manager.writeInput(params.name, data);
+
+    // Log the input command
+    const logManager = this.watcher.getLogManager();
+    if (logManager) {
+      // Strip trailing newline for cleaner display
+      const displayData = params.data.replace(/\n$/, "");
+      logManager.add(params.name, "command", `INPUT: ${displayData}`);
+    }
 
     return { success: true, bytesWritten: data.length };
   }
