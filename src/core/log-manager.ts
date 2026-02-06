@@ -19,8 +19,8 @@ const logger = createContextLogger("LogManager");
 export interface LogEntry {
   /** Unix timestamp in milliseconds */
   timestamp: number;
-  /** Source stream: stdout or stderr */
-  stream: "stdout" | "stderr";
+  /** Source stream: stdout, stderr, or command (for logged commands sent to the process) */
+  stream: "stdout" | "stderr" | "command";
   /** Log line content */
   data: string;
   /** Process name */
@@ -157,10 +157,10 @@ export class LogManager {
    * Add a log entry
    *
    * @param processName - Name of the process
-   * @param stream - stdout or stderr
+   * @param stream - stdout, stderr, or command
    * @param data - Log line content
    */
-  add(processName: string, stream: "stdout" | "stderr", data: string): void {
+  add(processName: string, stream: "stdout" | "stderr" | "command", data: string): void {
     const entry: LogEntry = {
       timestamp: Date.now(),
       stream,
@@ -401,7 +401,12 @@ export class LogManager {
    */
   private formatLogLine(entry: LogEntry): string {
     const timestamp = new Date(entry.timestamp).toISOString();
-    const stream = entry.stream === "stderr" ? "ERR" : "OUT";
+    const streamLabels: Record<LogEntry["stream"], string> = {
+      stdout: "OUT",
+      stderr: "ERR",
+      command: "CMD",
+    };
+    const stream = streamLabels[entry.stream];
     return `${timestamp} [${stream}] ${entry.data}\n`;
   }
 
