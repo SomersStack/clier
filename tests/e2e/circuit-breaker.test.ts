@@ -73,9 +73,8 @@ describe("E2E: Circuit Breaker", () => {
     // The crasher service will auto-restart until max retries
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // System should still be running and not have crashed
-    // The circuit breaker should eventually stop the service
-    expect(watcher).toBeDefined();
+    // Verify the crasher process is no longer running
+    expect(watcher.getProcessManager()?.isRunning("crasher")).toBe(false);
   }, 5000);
 
   it("should emit circuit-breaker:triggered event", async () => {
@@ -122,8 +121,15 @@ describe("E2E: Circuit Breaker", () => {
     // Wait for circuit breaker
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // System should still be running
-    expect(watcher).toBeDefined();
+    // Verify the unstable process is no longer running after repeated crashes
+    expect(watcher.getProcessManager()?.isRunning("unstable")).toBe(false);
+
+    // Verify the unstable process crashed (its exit events are in history)
+    const history = watcher.getEventHandler()?.getEventHistory() ?? [];
+    const unstableExits = history.filter(
+      (e) => e.processName === "unstable" && e.name === "process:exit",
+    );
+    expect(unstableExits.length).toBeGreaterThan(0);
   }, 5000);
 
   it("should stop offending process when circuit opens", async () => {
@@ -161,7 +167,12 @@ describe("E2E: Circuit Breaker", () => {
     // Wait for crashes
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // System should still be running
-    expect(watcher).toBeDefined();
+    // Verify problem-service is no longer running
+    expect(watcher.getProcessManager()?.isRunning("problem-service")).toBe(false);
+
+    // Verify its status reflects it was stopped or crashed
+    const status = watcher.getProcessManager()?.getStatus("problem-service");
+    expect(status).toBeDefined();
+    expect(status!.status).not.toBe("running");
   }, 5000);
 });

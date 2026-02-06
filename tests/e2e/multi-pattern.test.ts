@@ -86,8 +86,18 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     // Wait for all handlers to run
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // System should still be running
-    expect(watcher).toBeDefined();
+    // Verify the multi-output process produced stdout
+    const history = watcher.getEventHandler()?.getEventHistory() ?? [];
+    const sourceEvents = history.filter((e) => e.processName === "multi-output" && e.type === "stdout");
+    expect(sourceEvents.length).toBeGreaterThan(0);
+
+    // Verify all 3 handler tasks were triggered (proving all 3 patterns matched)
+    const infoHandlerEvents = history.filter((e) => e.processName === "info-handler" && e.type === "stdout");
+    const startupHandlerEvents = history.filter((e) => e.processName === "startup-handler" && e.type === "stdout");
+    const initHandlerEvents = history.filter((e) => e.processName === "init-handler" && e.type === "stdout");
+    expect(infoHandlerEvents.length).toBeGreaterThan(0);
+    expect(startupHandlerEvents.length).toBeGreaterThan(0);
+    expect(initHandlerEvents.length).toBeGreaterThan(0);
   }, 3000);
 
   it("should handle multiple patterns across multiple output lines", async () => {
@@ -167,8 +177,17 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     // Wait for all handlers
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // System should still be running
-    expect(watcher).toBeDefined();
+    // Verify the logger process produced multiple stdout lines
+    const history = watcher.getEventHandler()?.getEventHistory() ?? [];
+    const loggerEvents = history.filter((e) => e.processName === "logger" && e.type === "stdout");
+    expect(loggerEvents.length).toBeGreaterThanOrEqual(4);
+
+    // Verify all counter/handler tasks were triggered
+    const processNames = history.map((e) => e.processName);
+    expect(processNames).toContain("info-counter");
+    expect(processNames).toContain("warn-counter");
+    expect(processNames).toContain("error-counter");
+    expect(processNames).toContain("completion");
   }, 3000);
 
   it("should trigger multiple handlers from different patterns", async () => {
@@ -239,8 +258,19 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     // Wait for fanout
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // System should still be running
-    expect(watcher).toBeDefined();
+    // Verify the source process produced stdout with all 3 event markers
+    const history = watcher.getEventHandler()?.getEventHistory() ?? [];
+    const sourceEvents = history.filter((e) => e.processName === "source" && e.type === "stdout");
+    expect(sourceEvents.length).toBeGreaterThan(0);
+
+    // Verify all handlers were triggered
+    const processNames = history.map((e) => e.processName);
+    expect(processNames).toContain("handler-a");
+    expect(processNames).toContain("handler-b");
+    expect(processNames).toContain("handler-c");
+
+    // Verify aggregator ran (triggered by all 3 events)
+    expect(processNames).toContain("aggregator");
   }, 3000);
 
   it("should only emit events for patterns that match", async () => {
@@ -302,7 +332,17 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     // Wait for execution
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // System should still be running
-    expect(watcher).toBeDefined();
+    // Verify selective process produced stdout
+    const history = watcher.getEventHandler()?.getEventHistory() ?? [];
+    const selectiveEvents = history.filter((e) => e.processName === "selective" && e.type === "stdout");
+    expect(selectiveEvents.length).toBeGreaterThan(0);
+
+    // Verify info-only task ran (log:info pattern matched)
+    const processNames = history.map((e) => e.processName);
+    expect(processNames).toContain("info-only");
+
+    // Verify warn-only and error-only tasks did NOT run (patterns didn't match)
+    expect(processNames).not.toContain("warn-only");
+    expect(processNames).not.toContain("error-only");
   }, 3000);
 });

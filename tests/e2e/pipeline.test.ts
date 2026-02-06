@@ -87,23 +87,46 @@ describe("E2E: Full Pipeline", () => {
     // Wait for pipeline to execute
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // System should still be running
-    expect(watcher).toBeDefined();
+    // Verify step1 and step2 ran by checking their stdout events in history
+    const history = watcher.getEventHandler()?.getEventHistory() ?? [];
+    const step1Events = history.filter((e) => e.processName === "step1" && e.type === "stdout");
+    const step2Events = history.filter((e) => e.processName === "step2" && e.type === "stdout");
+    expect(step1Events.length).toBeGreaterThan(0);
+    expect(step2Events.length).toBeGreaterThan(0);
+
+    // Verify step2 received its success output (proving it ran to completion)
+    expect(step2Events.some((e) => String(e.data).includes("STEP2_SUCCESS"))).toBe(true);
+
+    // Verify the service started
+    const serviceStatus = watcher.getProcessManager()?.getStatus("service");
+    expect(serviceStatus).toBeDefined();
+    expect(serviceStatus!.status).toBe("running");
   }, 5000);
 
   it("should emit events in correct order", async () => {
     // Start watcher with detached: false to prevent orphan processes in tests
     watcher = new Watcher();
 
-    // We need to hook into the event bus to track events
-    // This is a bit tricky in E2E, so we'll verify through process execution
     await watcher.start(configPath, undefined, { detached: false });
 
     // Wait for pipeline
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // System should still be running
-    expect(watcher).toBeDefined();
+    // Verify event ordering by checking stdout timestamps
+    const history = watcher.getEventHandler()?.getEventHistory() ?? [];
+
+    // Find the first stdout event from each process
+    const step1First = history.find((e) => e.processName === "step1" && e.type === "stdout");
+    const step2First = history.find((e) => e.processName === "step2" && e.type === "stdout");
+    const serviceFirst = history.find((e) => e.processName === "service" && e.type === "stdout");
+
+    expect(step1First).toBeDefined();
+    expect(step2First).toBeDefined();
+    expect(serviceFirst).toBeDefined();
+
+    // Verify ordering: step1 before step2 before service
+    expect(step1First!.timestamp).toBeLessThanOrEqual(step2First!.timestamp);
+    expect(step2First!.timestamp).toBeLessThanOrEqual(serviceFirst!.timestamp);
   }, 5000);
 
   it("should not start dependent processes before trigger", async () => {
@@ -149,8 +172,17 @@ describe("E2E: Full Pipeline", () => {
       // Wait a bit
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // System should still be running
-      expect(watcher).toBeDefined();
+      // Verify independent process ran (its stdout events appear in history)
+      const history = watcher.getEventHandler()?.getEventHistory() ?? [];
+      const independentEvents = history.filter((e) => e.processName === "independent");
+      expect(independentEvents.length).toBeGreaterThan(0);
+
+      // Verify dependent process did NOT run — no events from it in history
+      const dependentEvents = history.filter((e) => e.processName === "dependent");
+      expect(dependentEvents).toHaveLength(0);
+
+      // Dependent should not be running
+      expect(watcher.getProcessManager()?.isRunning("dependent")).toBe(false);
     } finally {
       await fs.unlink(noTriggerPath).catch(() => {});
     }

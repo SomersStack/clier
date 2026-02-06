@@ -69,8 +69,14 @@ describe("E2E: Continue on Failure", () => {
     // Wait for execution
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // System should still be running
-    expect(watcher).toBeDefined();
+    // Verify failing-task ran (its stdout appears in history)
+    const history = watcher.getEventHandler()?.getEventHistory() ?? [];
+    const failingEvents = history.filter((e) => e.processName === "failing-task");
+    expect(failingEvents.length).toBeGreaterThan(0);
+
+    // Verify dependent-task never ran — no events from it in history
+    const dependentEvents = history.filter((e) => e.processName === "dependent-task");
+    expect(dependentEvents).toHaveLength(0);
   }, 3000);
 
   it("should allow dependent tasks when continue_on_failure is true", async () => {
@@ -115,8 +121,13 @@ describe("E2E: Continue on Failure", () => {
     // Wait for execution
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // System should still be running
-    expect(watcher).toBeDefined();
+    // Verify resilient-task ran (triggered by task:failure event)
+    const history = watcher.getEventHandler()?.getEventHistory() ?? [];
+    const resilientEvents = history.filter(
+      (e) => e.processName === "resilient-task" && e.type === "stdout",
+    );
+    expect(resilientEvents.length).toBeGreaterThan(0);
+    expect(resilientEvents.some((e) => String(e.data).includes("RESILIENT_RAN"))).toBe(true);
   }, 3000);
 
   it("should emit failure events even in strict mode", async () => {
@@ -158,8 +169,17 @@ describe("E2E: Continue on Failure", () => {
     // Wait for execution
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // System should still be running
-    expect(watcher).toBeDefined();
+    // Verify strict-failing task ran and produced stdout
+    const history = watcher.getEventHandler()?.getEventHistory() ?? [];
+    const failingEvents = history.filter((e) => e.processName === "strict-failing" && e.type === "stdout");
+    expect(failingEvents.length).toBeGreaterThan(0);
+
+    // Verify cleanup-handler ran (triggered by error:detected event from stdout pattern)
+    const cleanupEvents = history.filter(
+      (e) => e.processName === "cleanup-handler" && e.type === "stdout",
+    );
+    expect(cleanupEvents.length).toBeGreaterThan(0);
+    expect(cleanupEvents.some((e) => String(e.data).includes("CLEANUP_DONE"))).toBe(true);
   }, 3000);
 
   it("should demonstrate graceful degradation with continue_on_failure", async () => {
@@ -200,10 +220,19 @@ describe("E2E: Continue on Failure", () => {
     watcher = new Watcher();
     await watcher.start(configPath, undefined, { detached: false });
 
-    // Wait for execution
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Wait for execution (debounce + process spawn time)
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // System should still be running
-    expect(watcher).toBeDefined();
-  }, 3000);
+    // Verify optional-cache ran and produced CACHE_FAILED output
+    const history = watcher.getEventHandler()?.getEventHistory() ?? [];
+    const cacheEvents = history.filter((e) => e.processName === "optional-cache" && e.type === "stdout");
+    expect(cacheEvents.length).toBeGreaterThan(0);
+    expect(cacheEvents.some((e) => String(e.data).includes("CACHE_FAILED"))).toBe(true);
+
+    // Verify graceful degradation: main-app trigger_on requires all events (AND logic),
+    // so with only cache:failed emitted (not cache:ready), main-app stays pending
+    const appEvents = history.filter((e) => e.processName === "main-app");
+    expect(appEvents).toHaveLength(0);
+    expect(watcher.getProcessManager()?.isRunning("main-app")).toBe(false);
+  }, 5000);
 });
