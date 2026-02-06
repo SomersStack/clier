@@ -1,15 +1,28 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { CircuitBreaker } from "../../../src/safety/circuit-breaker.js";
 
 describe("CircuitBreaker", () => {
+  const breakers: CircuitBreaker[] = [];
+
+  const createBreaker = (opts?: ConstructorParameters<typeof CircuitBreaker>[0]): CircuitBreaker => {
+    const b = new CircuitBreaker(opts);
+    breakers.push(b);
+    return b;
+  };
+
+  afterEach(() => {
+    breakers.forEach((b) => b.shutdown());
+    breakers.length = 0;
+  });
+
   describe("constructor", () => {
     it("should create circuit breaker with default options", () => {
-      const breaker = new CircuitBreaker();
+      const breaker = createBreaker();
       expect(breaker).toBeDefined();
     });
 
     it("should create circuit breaker with custom options", () => {
-      const breaker = new CircuitBreaker({
+      const breaker = createBreaker({
         timeout: 5000,
         errorThresholdPercentage: 60,
         resetTimeout: 20000,
@@ -20,7 +33,7 @@ describe("CircuitBreaker", () => {
 
   describe("protect", () => {
     it("should execute function successfully when circuit is closed", async () => {
-      const breaker = new CircuitBreaker();
+      const breaker = createBreaker();
       const fn = vi.fn(async () => "success");
 
       const protected_fn = breaker.protect(fn);
@@ -31,7 +44,7 @@ describe("CircuitBreaker", () => {
     });
 
     it("should pass through function arguments", async () => {
-      const breaker = new CircuitBreaker();
+      const breaker = createBreaker();
       const fn = vi.fn(async (a: number, b: string) => `${a}-${b}`);
 
       const protected_fn = breaker.protect(fn);
@@ -42,7 +55,7 @@ describe("CircuitBreaker", () => {
     });
 
     it("should handle synchronous functions", async () => {
-      const breaker = new CircuitBreaker();
+      const breaker = createBreaker();
       const fn = vi.fn(() => "sync-result");
 
       const protected_fn = breaker.protect(fn);
@@ -53,7 +66,7 @@ describe("CircuitBreaker", () => {
     });
 
     it("should propagate errors from function", async () => {
-      const breaker = new CircuitBreaker();
+      const breaker = createBreaker();
       const error = new Error("Test error");
       const fn = vi.fn(async () => {
         throw error;
@@ -65,7 +78,7 @@ describe("CircuitBreaker", () => {
     });
 
     it("should open circuit after error threshold is exceeded", async () => {
-      const breaker = new CircuitBreaker({
+      const breaker = createBreaker({
         errorThresholdPercentage: 50,
         resetTimeout: 60000,
       });
@@ -101,7 +114,7 @@ describe("CircuitBreaker", () => {
     });
 
     it("should handle timeout", async () => {
-      const breaker = new CircuitBreaker({
+      const breaker = createBreaker({
         timeout: 100,
       });
 
@@ -120,7 +133,7 @@ describe("CircuitBreaker", () => {
 
   describe("on", () => {
     it("should subscribe to success events", async () => {
-      const breaker = new CircuitBreaker();
+      const breaker = createBreaker();
       const fn = vi.fn(async () => "success");
       const successHandler = vi.fn();
 
@@ -133,7 +146,7 @@ describe("CircuitBreaker", () => {
     });
 
     it("should subscribe to failure events", async () => {
-      const breaker = new CircuitBreaker();
+      const breaker = createBreaker();
       const fn = vi.fn(async () => {
         throw new Error("Failure");
       });
@@ -153,7 +166,7 @@ describe("CircuitBreaker", () => {
     });
 
     it("should subscribe to open events", async () => {
-      const breaker = new CircuitBreaker({
+      const breaker = createBreaker({
         errorThresholdPercentage: 50,
       });
       const fn = vi.fn(async () => {
@@ -179,7 +192,7 @@ describe("CircuitBreaker", () => {
     });
 
     it("should subscribe to timeout events", async () => {
-      const breaker = new CircuitBreaker({
+      const breaker = createBreaker({
         timeout: 100,
       });
       const fn = vi.fn(
@@ -204,7 +217,7 @@ describe("CircuitBreaker", () => {
     });
 
     it("should subscribe to multiple event types", async () => {
-      const breaker = new CircuitBreaker();
+      const breaker = createBreaker();
       const successHandler = vi.fn();
       const failureHandler = vi.fn();
 
@@ -231,7 +244,7 @@ describe("CircuitBreaker", () => {
     });
 
     it("should allow multiple handlers for same event", async () => {
-      const breaker = new CircuitBreaker();
+      const breaker = createBreaker();
       const handler1 = vi.fn();
       const handler2 = vi.fn();
 
@@ -248,7 +261,7 @@ describe("CircuitBreaker", () => {
 
   describe("getStats", () => {
     it("should return circuit breaker statistics", async () => {
-      const breaker = new CircuitBreaker();
+      const breaker = createBreaker();
       const fn = vi.fn(async () => "success");
 
       const protected_fn = breaker.protect(fn);
@@ -268,7 +281,7 @@ describe("CircuitBreaker", () => {
     });
 
     it("should track failures in statistics", async () => {
-      const breaker = new CircuitBreaker();
+      const breaker = createBreaker();
       const fn = vi.fn(async () => {
         throw new Error("Failure");
       });
@@ -288,12 +301,12 @@ describe("CircuitBreaker", () => {
 
   describe("shutdown", () => {
     it("should shutdown circuit breaker", () => {
-      const breaker = new CircuitBreaker();
+      const breaker = createBreaker();
       expect(() => breaker.shutdown()).not.toThrow();
     });
 
     it("should remove all event listeners on shutdown", () => {
-      const breaker = new CircuitBreaker();
+      const breaker = createBreaker();
       const handler = vi.fn();
 
       breaker.on("success", handler);
