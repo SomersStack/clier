@@ -87,7 +87,7 @@ async function runBenchmarks() {
   // Run memory leak tests
   console.log('Running Memory Leak Tests...');
   try {
-    await execAsync('npm run test:run -- tests/performance/memory-leaks.test.ts');
+    await execAsync('npm run test:run -- tests/performance/memory-leaks.test.ts', { maxBuffer: 10 * 1024 * 1024 });
     results.push({
       name: 'Memory Leaks',
       status: 'pass',

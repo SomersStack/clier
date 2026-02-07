@@ -372,7 +372,7 @@ describe("status/logs integration", () => {
       await new Promise((r) => setTimeout(r, 500));
 
       // Verify logs exist
-      let logs = await client.request("logs.query", {
+      const logs = await client.request("logs.query", {
         name: "clearable",
         lines: 50,
       });
