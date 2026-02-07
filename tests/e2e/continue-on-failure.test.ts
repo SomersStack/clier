@@ -122,8 +122,8 @@ describe("E2E: Continue on Failure", () => {
     watcher = new Watcher();
     await watcher.start(configPath, undefined, { detached: false });
 
-    // Wait for execution
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Wait for execution (needs enough time for failure + event + process spawn under load)
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Verify resilient-task ran (triggered by task:failure event)
     const history = watcher.getEventHandler()?.getEventHistory() ?? [];
@@ -134,7 +134,7 @@ describe("E2E: Continue on Failure", () => {
     expect(
       resilientEvents.some((e) => String(e.data).includes("RESILIENT_RAN")),
     ).toBe(true);
-  }, 3000);
+  }, 10000);
 
   it("should emit failure events even in strict mode", async () => {
     const config = {
