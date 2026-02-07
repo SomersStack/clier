@@ -225,6 +225,7 @@ clier docs pipeline   # Pipeline configuration guide
 - **[Agent Pipeline Guide](docs/AGENTS-PIPELINE.md)** -- Pipeline configuration reference for AI agents
 - **[Configuration Reference](docs/configuration.md)** -- Complete schema documentation for `clier-pipeline.json`
 - **[API Reference](docs/api-reference.md)** -- TypeScript types and programmatic usage
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** -- Common issues, debugging steps, and platform-specific notes
 
 ## License
 
