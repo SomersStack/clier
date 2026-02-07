@@ -8,7 +8,11 @@ import { existsSync, readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { stageTemplateSchema, templateManifestSchema } from "./schema.js";
-import type { StageTemplate, TemplateManifest, ListTemplatesOptions } from "./types.js";
+import type {
+  StageTemplate,
+  TemplateManifest,
+  ListTemplatesOptions,
+} from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -78,7 +82,9 @@ export function loadTemplate(templateId: string): StageTemplate | null {
  * @param options - Filter options
  * @returns Array of templates
  */
-export function listTemplates(options: ListTemplatesOptions = {}): StageTemplate[] {
+export function listTemplates(
+  options: ListTemplatesOptions = {},
+): StageTemplate[] {
   const manifest = loadTemplateManifest();
 
   if (!manifest) {

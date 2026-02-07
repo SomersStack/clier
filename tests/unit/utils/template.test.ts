@@ -140,10 +140,7 @@ describe("Template Engine", () => {
       ];
 
       contexts.forEach((ctx) => {
-        const result = substituteEventTemplates(
-          "{{event.type}}",
-          ctx,
-        );
+        const result = substituteEventTemplates("{{event.type}}", ctx);
         expect(result).toBe(ctx.event!.type);
       });
     });

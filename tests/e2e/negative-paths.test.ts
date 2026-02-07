@@ -104,7 +104,9 @@ describe("E2E: Negative Paths", () => {
         (e) => e.processName === "healthy" && e.type === "stdout",
       );
       expect(healthyEvents.length).toBeGreaterThan(0);
-      expect(healthyEvents.some((e) => String(e.data).includes("HEALTHY_OK"))).toBe(true);
+      expect(
+        healthyEvents.some((e) => String(e.data).includes("HEALTHY_OK")),
+      ).toBe(true);
     }, 3000);
 
     it("should continue pipeline when continue_on_failure is true and spawn fails", async () => {
@@ -146,7 +148,9 @@ describe("E2E: Negative Paths", () => {
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // The failing-spawn process should not be running
-      expect(watcher.getProcessManager()?.isRunning("failing-spawn")).toBe(false);
+      expect(watcher.getProcessManager()?.isRunning("failing-spawn")).toBe(
+        false,
+      );
     }, 3000);
   });
 
@@ -359,10 +363,14 @@ describe("E2E: Negative Paths", () => {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Unstable service should be stopped after crash-looping
-      expect(watcher.getProcessManager()?.isRunning("unstable-service")).toBe(false);
+      expect(watcher.getProcessManager()?.isRunning("unstable-service")).toBe(
+        false,
+      );
 
       // Stable service should still be running
-      expect(watcher.getProcessManager()?.isRunning("stable-service")).toBe(true);
+      expect(watcher.getProcessManager()?.isRunning("stable-service")).toBe(
+        true,
+      );
     }, 5000);
   });
 
@@ -441,7 +449,9 @@ describe("E2E: Negative Paths", () => {
         (e) => e.processName === "stderr-writer" && e.type === "stderr",
       );
       expect(stderrEvents.length).toBeGreaterThan(0);
-      expect(stderrEvents.some((e) => String(e.data).includes("ERROR_OUTPUT"))).toBe(true);
+      expect(
+        stderrEvents.some((e) => String(e.data).includes("ERROR_OUTPUT")),
+      ).toBe(true);
     }, 3000);
   });
 
@@ -449,7 +459,9 @@ describe("E2E: Negative Paths", () => {
     it("should reject start with nonexistent config path", async () => {
       watcher = new Watcher();
       await expect(
-        watcher.start("/tmp/nonexistent-config-xyz.json", undefined, { detached: false }),
+        watcher.start("/tmp/nonexistent-config-xyz.json", undefined, {
+          detached: false,
+        }),
       ).rejects.toThrow();
     }, 3000);
 

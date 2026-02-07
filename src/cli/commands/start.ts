@@ -130,7 +130,7 @@ export async function startCommand(configPath?: string): Promise<number> {
   } catch (error) {
     spinner.fail("Failed to start daemon");
     printError(
-      `Error: ${error instanceof Error ? error.message : String(error)}`
+      `Error: ${error instanceof Error ? error.message : String(error)}`,
     );
     return 1;
   }
@@ -141,7 +141,7 @@ export async function startCommand(configPath?: string): Promise<number> {
  */
 async function waitForDaemon(
   timeoutMs: number,
-  projectRoot: string
+  projectRoot: string,
 ): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -170,7 +170,9 @@ async function checkRecoveryState(projectRoot: string): Promise<void> {
     if (state.runningProcesses?.length > 0) {
       printWarning("Previous daemon did not shut down cleanly");
       console.log(`  PID: ${state.pid}`);
-      console.log(`  Processes that were running: ${state.runningProcesses.join(", ")}`);
+      console.log(
+        `  Processes that were running: ${state.runningProcesses.join(", ")}`,
+      );
       console.log();
     }
 

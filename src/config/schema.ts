@@ -4,8 +4,18 @@ import { z } from "zod";
  * Schema for stdout event pattern matching
  */
 const stdoutEventSchema = z.object({
-  pattern: z.string().min(1, "Pattern must not be empty - provide a regex pattern to match stdout"),
-  emit: z.string().min(1, "Event name must not be empty - provide the name of the event to emit"),
+  pattern: z
+    .string()
+    .min(
+      1,
+      "Pattern must not be empty - provide a regex pattern to match stdout",
+    ),
+  emit: z
+    .string()
+    .min(
+      1,
+      "Event name must not be empty - provide the name of the event to emit",
+    ),
 });
 
 /**
@@ -30,8 +40,12 @@ const inputConfigSchema = z
  * Schema for pipeline item configuration
  */
 const pipelineItemSchema = z.object({
-  name: z.string().min(1, "Pipeline name must not be empty - provide a unique identifier"),
-  command: z.string().min(1, "Command must not be empty - provide the shell command to execute"),
+  name: z
+    .string()
+    .min(1, "Pipeline name must not be empty - provide a unique identifier"),
+  command: z
+    .string()
+    .min(1, "Command must not be empty - provide the shell command to execute"),
   type: z.enum(["service", "task"], {
     errorMap: () => ({ message: "Expected 'service', 'task', or 'stage'" }),
   }),
@@ -56,14 +70,18 @@ const pipelineItemSchema = z.object({
  * When flattened, stage properties like `manual` and `trigger_on` propagate to steps.
  */
 const stageSchema = z.object({
-  name: z.string().min(1, "Stage name must not be empty - provide a unique identifier"),
+  name: z
+    .string()
+    .min(1, "Stage name must not be empty - provide a unique identifier"),
   type: z.literal("stage"),
   /** If true, all steps in this stage require manual start */
   manual: z.boolean().optional(),
   /** Event triggers that propagate to non-manual steps */
   trigger_on: z.array(z.string()).optional(),
   /** Steps within this stage - at least one required */
-  steps: z.array(pipelineItemSchema).min(1, "Stage must have at least one step"),
+  steps: z
+    .array(pipelineItemSchema)
+    .min(1, "Stage must have at least one step"),
 });
 
 /**
@@ -82,11 +100,23 @@ const circuitBreakerSchema = z.object({
   /** Whether the circuit breaker is enabled (default: true) */
   enabled: z.boolean().default(true),
   /** Error threshold count before opening circuit (default: 10) */
-  error_threshold: z.number().int().positive("error_threshold must be positive").default(10),
+  error_threshold: z
+    .number()
+    .int()
+    .positive("error_threshold must be positive")
+    .default(10),
   /** Timeout in milliseconds for protected operations (default: 30000) */
-  timeout_ms: z.number().int().positive("timeout_ms must be positive").default(30000),
+  timeout_ms: z
+    .number()
+    .int()
+    .positive("timeout_ms must be positive")
+    .default(30000),
   /** Time in milliseconds before attempting to close an open circuit (default: 60000) */
-  reset_timeout_ms: z.number().int().positive("reset_timeout_ms must be positive").default(60000),
+  reset_timeout_ms: z
+    .number()
+    .int()
+    .positive("reset_timeout_ms must be positive")
+    .default(60000),
 });
 
 /**
@@ -138,10 +168,17 @@ const safetySchema = z.object({
  */
 export const configSchema = z
   .object({
-    project_name: z.string().min(1, "Project name must not be empty - provide a descriptive name for your project"),
+    project_name: z
+      .string()
+      .min(
+        1,
+        "Project name must not be empty - provide a descriptive name for your project",
+      ),
     global_env: z.boolean().default(true),
     safety: safetySchema,
-    pipeline: z.array(pipelineEntrySchema).min(1, "Pipeline must contain at least one item"),
+    pipeline: z
+      .array(pipelineEntrySchema)
+      .min(1, "Pipeline must contain at least one item"),
   })
   .strict()
   .refine(

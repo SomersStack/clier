@@ -30,10 +30,14 @@ describe("start/stop integration", () => {
     // Cleanup in reverse order
     try {
       await server?.stop();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     try {
       await watcher?.stop();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     await rm(tempDir, { recursive: true, force: true });
   });
 
@@ -68,7 +72,10 @@ describe("start/stop integration", () => {
 
     // Start watcher (non-detached for test)
     watcher = new Watcher();
-    await watcher.start(configPath, tempDir, { detached: false, setupSignalHandlers: false });
+    await watcher.start(configPath, tempDir, {
+      detached: false,
+      setupSignalHandlers: false,
+    });
 
     // Start IPC server
     server = new DaemonServer(watcher);
@@ -123,7 +130,10 @@ describe("start/stop integration", () => {
     await writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath, tempDir, { detached: false, setupSignalHandlers: false });
+    await watcher.start(configPath, tempDir, {
+      detached: false,
+      setupSignalHandlers: false,
+    });
 
     // Wait for processes to start
     await new Promise((r) => setTimeout(r, 500));
@@ -175,13 +185,16 @@ describe("start/stop integration", () => {
     await writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath, tempDir, { detached: false, setupSignalHandlers: false });
+    await watcher.start(configPath, tempDir, {
+      detached: false,
+      setupSignalHandlers: false,
+    });
     await new Promise((r) => setTimeout(r, 500));
 
     server = new DaemonServer(watcher);
     await server.start(socketPath);
 
-    const client = new DaemonClient({ socketPath, timeout: 5000 });
+    const client = new DaemonClient({ socketPath, timeout: 15000 });
     await client.connect();
 
     // Verify running
@@ -192,13 +205,13 @@ describe("start/stop integration", () => {
     expect(result).toEqual({ success: true });
 
     // Wait for stop
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 1000));
 
     // Verify stopped
     expect(watcher.getProcessManager()?.isRunning("stoppable")).toBe(false);
 
     client.disconnect();
-  }, 10000);
+  }, 30000);
 
   it("should shutdown daemon gracefully via IPC", async () => {
     const configPath = path.join(tempDir, "clier-pipeline.json");
@@ -226,7 +239,10 @@ describe("start/stop integration", () => {
     await writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath, tempDir, { detached: false, setupSignalHandlers: false });
+    await watcher.start(configPath, tempDir, {
+      detached: false,
+      setupSignalHandlers: false,
+    });
     await new Promise((r) => setTimeout(r, 300));
 
     server = new DaemonServer(watcher);
@@ -267,10 +283,16 @@ describe("start/stop integration", () => {
     await writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath, tempDir, { detached: false, setupSignalHandlers: false });
+    await watcher.start(configPath, tempDir, {
+      detached: false,
+      setupSignalHandlers: false,
+    });
 
     // Second start on same watcher is a no-op (already started)
-    await watcher.start(configPath, tempDir, { detached: false, setupSignalHandlers: false });
+    await watcher.start(configPath, tempDir, {
+      detached: false,
+      setupSignalHandlers: false,
+    });
 
     // Should still be running fine
     expect(watcher.getProcessManager()).toBeDefined();

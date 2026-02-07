@@ -67,7 +67,7 @@ describe("Template Loader", () => {
     it("should load a valid manifest", () => {
       mockExistsSync.mockReturnValue(true);
       mockReadFileSync.mockReturnValue(
-        JSON.stringify({ templates: ["node-api", "build-task"] })
+        JSON.stringify({ templates: ["node-api", "build-task"] }),
       );
 
       const result = loadTemplateManifest();
@@ -139,7 +139,7 @@ describe("Template Loader", () => {
     it("should return null when template fails schema validation", () => {
       mockExistsSync.mockReturnValue(true);
       mockReadFileSync.mockReturnValue(
-        JSON.stringify({ id: "test", name: "Test" })
+        JSON.stringify({ id: "test", name: "Test" }),
       );
 
       const result = loadTemplate("test");
@@ -295,7 +295,7 @@ describe("Template Loader", () => {
     it("should return template IDs from manifest", () => {
       mockExistsSync.mockReturnValue(true);
       mockReadFileSync.mockReturnValue(
-        JSON.stringify({ templates: ["node-api", "build-task"] })
+        JSON.stringify({ templates: ["node-api", "build-task"] }),
       );
 
       const result = getTemplateIds();

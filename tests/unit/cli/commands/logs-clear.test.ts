@@ -81,8 +81,14 @@ describe("Logs Clear Command", () => {
       // First call: logs.clear for processes
       // Second call: daemon.logs.clear for daemon
       mockClient.request
-        .mockResolvedValueOnce({ success: true, cleared: ["service-a", "service-b"] })
-        .mockResolvedValueOnce({ success: true, cleared: ["combined", "error"] });
+        .mockResolvedValueOnce({
+          success: true,
+          cleared: ["service-a", "service-b"],
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          cleared: ["combined", "error"],
+        });
 
       const exitCode = await logsClearCommand("", { all: true });
 
@@ -109,7 +115,7 @@ describe("Logs Clear Command", () => {
   describe("daemon not running", () => {
     it("should return 1 when daemon is not running", async () => {
       vi.mocked(daemonClient.getDaemonClient).mockRejectedValue(
-        new Error("Daemon is not running")
+        new Error("Daemon is not running"),
       );
 
       const exitCode = await logsClearCommand("my-service");

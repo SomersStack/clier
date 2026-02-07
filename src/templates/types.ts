@@ -56,7 +56,11 @@ export interface StageTemplate {
   /** Optional tags for filtering */
   tags?: string[];
   /** The pipeline stage configuration (with {{variable}} placeholders) */
-  stage: Partial<PipelineItem> & { name: string; command: string; type: "service" | "task" };
+  stage: Partial<PipelineItem> & {
+    name: string;
+    command: string;
+    type: "service" | "task";
+  };
   /** Customizable variables */
   variables?: VariableDefinition[];
   /** Scripts to create when applying the template */

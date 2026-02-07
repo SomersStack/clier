@@ -75,7 +75,11 @@ describe("Template Commands", () => {
             name: "Web Server",
             description: "A basic web server",
             category: "service",
-            stage: { name: "web-server", type: "service", command: "node server.js" },
+            stage: {
+              name: "web-server",
+              type: "service",
+              command: "node server.js",
+            },
           } as any,
         ],
         task: [],
@@ -110,7 +114,12 @@ describe("Template Commands", () => {
         category: "service",
         stage: { name: "{{name}}", type: "service", command: "node server.js" },
         variables: [
-          { name: "name", label: "Name", required: true, default: "web-server" },
+          {
+            name: "name",
+            label: "Name",
+            required: true,
+            default: "web-server",
+          },
         ],
       };
       const renderedStage = {
@@ -119,16 +128,24 @@ describe("Template Commands", () => {
         command: "node server.js",
       };
 
-      vi.mocked(templateLoader.loadTemplate).mockReturnValue(mockTemplate as any);
-      vi.mocked(templateRenderer.getDefaultVariables).mockReturnValue({ name: "web-server" });
+      vi.mocked(templateLoader.loadTemplate).mockReturnValue(
+        mockTemplate as any,
+      );
+      vi.mocked(templateRenderer.getDefaultVariables).mockReturnValue({
+        name: "web-server",
+      });
       vi.mocked(templateRenderer.validateRequiredVariables).mockReturnValue([]);
-      vi.mocked(templateRenderer.renderTemplate).mockReturnValue(renderedStage as any);
+      vi.mocked(templateRenderer.renderTemplate).mockReturnValue(
+        renderedStage as any,
+      );
 
-      const exitCode = await templateApplyCommand("web-server", { name: "my-server" });
+      const exitCode = await templateApplyCommand("web-server", {
+        name: "my-server",
+      });
 
       expect(exitCode).toBe(0);
       expect(console.log).toHaveBeenCalledWith(
-        JSON.stringify(renderedStage, null, 2)
+        JSON.stringify(renderedStage, null, 2),
       );
     });
 
@@ -148,17 +165,21 @@ describe("Template Commands", () => {
         command: "node server.js",
       };
 
-      vi.mocked(templateLoader.loadTemplate).mockReturnValue(mockTemplate as any);
+      vi.mocked(templateLoader.loadTemplate).mockReturnValue(
+        mockTemplate as any,
+      );
       vi.mocked(templateRenderer.getDefaultVariables).mockReturnValue({});
       vi.mocked(templateRenderer.validateRequiredVariables).mockReturnValue([]);
-      vi.mocked(templateRenderer.renderTemplate).mockReturnValue(renderedStage as any);
+      vi.mocked(templateRenderer.renderTemplate).mockReturnValue(
+        renderedStage as any,
+      );
 
       vi.mocked(fs.existsSync).mockImplementation((p: any) => {
         if (String(p).includes("clier-pipeline.json")) return true;
         return false;
       });
       vi.mocked(fs.readFileSync).mockReturnValue(
-        JSON.stringify({ project_name: "test", pipeline: [] })
+        JSON.stringify({ project_name: "test", pipeline: [] }),
       );
 
       const exitCode = await templateApplyCommand("web-server", { add: true });
@@ -167,13 +188,16 @@ describe("Template Commands", () => {
       expect(fs.writeFileSync).toHaveBeenCalledWith(
         expect.stringContaining("clier-pipeline.json"),
         expect.stringContaining("web-server"),
-        "utf-8"
+        "utf-8",
       );
     });
 
     it("should return 1 when template is not found", async () => {
       vi.mocked(templateLoader.loadTemplate).mockReturnValue(null);
-      vi.mocked(templateLoader.getTemplateIds).mockReturnValue(["web-server", "worker"]);
+      vi.mocked(templateLoader.getTemplateIds).mockReturnValue([
+        "web-server",
+        "worker",
+      ]);
 
       const exitCode = await templateApplyCommand("nonexistent");
 
@@ -188,13 +212,22 @@ describe("Template Commands", () => {
         category: "service",
         stage: { name: "{{name}}", type: "service", command: "node server.js" },
         variables: [
-          { name: "port", label: "Port", required: true, description: "Server port" },
+          {
+            name: "port",
+            label: "Port",
+            required: true,
+            description: "Server port",
+          },
         ],
       };
 
-      vi.mocked(templateLoader.loadTemplate).mockReturnValue(mockTemplate as any);
+      vi.mocked(templateLoader.loadTemplate).mockReturnValue(
+        mockTemplate as any,
+      );
       vi.mocked(templateRenderer.getDefaultVariables).mockReturnValue({});
-      vi.mocked(templateRenderer.validateRequiredVariables).mockReturnValue(["port"]);
+      vi.mocked(templateRenderer.validateRequiredVariables).mockReturnValue([
+        "port",
+      ]);
 
       const exitCode = await templateApplyCommand("web-server");
 
@@ -212,13 +245,27 @@ describe("Template Commands", () => {
         tags: ["node", "http"],
         stage: { name: "{{name}}", type: "service", command: "node server.js" },
         variables: [
-          { name: "name", label: "Name", required: true, default: "web-server", description: "Service name" },
+          {
+            name: "name",
+            label: "Name",
+            required: true,
+            default: "web-server",
+            description: "Service name",
+          },
         ],
       };
 
-      vi.mocked(templateLoader.loadTemplate).mockReturnValue(mockTemplate as any);
+      vi.mocked(templateLoader.loadTemplate).mockReturnValue(
+        mockTemplate as any,
+      );
       vi.mocked(templateRenderer.formatVariableInfo).mockReturnValue([
-        { name: "name", label: "Name", required: true, default: "web-server", description: "Service name" },
+        {
+          name: "name",
+          label: "Name",
+          required: true,
+          default: "web-server",
+          description: "Service name",
+        },
       ]);
 
       const exitCode = await templateShowCommand("web-server");

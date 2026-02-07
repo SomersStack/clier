@@ -52,7 +52,7 @@ describe("Template Schema Validation", () => {
       };
 
       expect(() => scriptDefinitionSchema.parse(script)).toThrow(
-        /must have either bundledScript or content/
+        /must have either bundledScript or content/,
       );
     });
 

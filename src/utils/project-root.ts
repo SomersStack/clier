@@ -22,7 +22,7 @@ import { homedir } from "os";
  */
 export function findProjectRoot(
   startDir: string = process.cwd(),
-  lookFor: "daemon" | "config" | "any" = "any"
+  lookFor: "daemon" | "config" | "any" = "any",
 ): string | null {
   // Resolve symlinks to get real path (e.g., /tmp -> /private/tmp on macOS)
   let currentDir = fs.realpathSync(path.resolve(startDir));
@@ -73,7 +73,7 @@ export function findProjectRoot(
  * @throws Error if no running daemon found
  */
 export function findProjectRootForDaemon(
-  startDir: string = process.cwd()
+  startDir: string = process.cwd(),
 ): string {
   const root = findProjectRoot(startDir, "daemon");
 
@@ -81,7 +81,7 @@ export function findProjectRootForDaemon(
     throw new Error(
       "No Clier project found. Make sure you're inside a project directory with a running daemon.\n" +
         "  • Run 'clier start' from the project root to start the daemon\n" +
-        "  • Or navigate to a directory containing a .clier/ folder"
+        "  • Or navigate to a directory containing a .clier/ folder",
     );
   }
 
@@ -96,7 +96,7 @@ export function findProjectRootForDaemon(
  * @throws Error if no config found
  */
 export function findProjectRootForConfig(
-  startDir: string = process.cwd()
+  startDir: string = process.cwd(),
 ): string {
   const root = findProjectRoot(startDir, "config");
 
@@ -104,7 +104,7 @@ export function findProjectRootForConfig(
     throw new Error(
       "No Clier project found. Make sure you're inside a project directory with a clier-pipeline.json file.\n" +
         "  • Create a clier-pipeline.json in your project root\n" +
-        "  • Or navigate to a directory containing clier-pipeline.json"
+        "  • Or navigate to a directory containing clier-pipeline.json",
     );
   }
 
@@ -124,7 +124,7 @@ export function findProjectRootForConfig(
  */
 export function resolveConfigPath(
   configPath?: string,
-  startDir: string = process.cwd()
+  startDir: string = process.cwd(),
 ): string {
   // If explicit path provided and it's absolute, use it
   if (configPath && path.isAbsolute(configPath)) {

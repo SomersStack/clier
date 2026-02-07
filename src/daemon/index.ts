@@ -100,7 +100,7 @@ export class Daemon {
     if (isAlive) {
       throw new Error(
         "A daemon appears to be running without a PID file. " +
-          'Run "clier stop" to shut it down first.'
+          'Run "clier stop" to shut it down first.',
       );
     }
 
@@ -130,7 +130,7 @@ export class Daemon {
     // We need to spawn the watcher-entry which will run in daemon mode
     const entryPoint = path.join(
       path.dirname(new URL(import.meta.url).pathname),
-      "../watcher-entry.js"
+      "../watcher-entry.js",
     );
 
     // Spawn detached child process
@@ -168,9 +168,13 @@ export class Daemon {
     try {
       // Start watcher (daemon handles signals, so disable watcher's own signal handlers)
       this.watcher = new Watcher();
-      await this.watcher.start(this.options.configPath, this.options.projectRoot, {
-        setupSignalHandlers: false,
-      });
+      await this.watcher.start(
+        this.options.configPath,
+        this.options.projectRoot,
+        {
+          setupSignalHandlers: false,
+        },
+      );
 
       // Start IPC server
       this.server = new DaemonServer(this.watcher);
@@ -245,8 +249,8 @@ export class Daemon {
         new Promise<void>((_, reject) =>
           setTimeout(
             () => reject(new Error("Shutdown timed out")),
-            SHUTDOWN_TIMEOUT_MS
-          )
+            SHUTDOWN_TIMEOUT_MS,
+          ),
         ),
       ]);
 
@@ -268,7 +272,8 @@ export class Daemon {
     try {
       const pm = this.watcher?.getProcessManager();
       const runningProcesses = pm
-        ? pm.listProcesses()
+        ? pm
+            .listProcesses()
             .filter((p) => p.status === "running")
             .map((p) => p.name)
         : [];

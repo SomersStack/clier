@@ -9,16 +9,17 @@ import { z } from "zod";
 /**
  * Schema for script definition
  */
-export const scriptDefinitionSchema = z.object({
-  path: z.string().min(1, "Script path must not be empty"),
-  bundledScript: z.string().optional(),
-  content: z.string().optional(),
-  executable: z.boolean().optional(),
-  description: z.string().optional(),
-}).refine(
-  (script) => script.bundledScript || script.content,
-  { message: "Script must have either bundledScript or content" }
-);
+export const scriptDefinitionSchema = z
+  .object({
+    path: z.string().min(1, "Script path must not be empty"),
+    bundledScript: z.string().optional(),
+    content: z.string().optional(),
+    executable: z.boolean().optional(),
+    description: z.string().optional(),
+  })
+  .refine((script) => script.bundledScript || script.content, {
+    message: "Script must have either bundledScript or content",
+  });
 
 /**
  * Schema for variable definition

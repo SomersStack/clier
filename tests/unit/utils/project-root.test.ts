@@ -80,7 +80,7 @@ describe("findProjectRoot", () => {
       // Create config file
       fs.writeFileSync(
         path.join(projectRoot, "clier-pipeline.json"),
-        JSON.stringify({ project_name: "test" })
+        JSON.stringify({ project_name: "test" }),
       );
     });
 
@@ -111,7 +111,7 @@ describe("findProjectRoot", () => {
       fs.mkdirSync(path.join(projectRoot, ".clier"));
       fs.writeFileSync(
         path.join(projectRoot, "clier-pipeline.json"),
-        JSON.stringify({ project_name: "test" })
+        JSON.stringify({ project_name: "test" }),
       );
     });
 
@@ -158,7 +158,7 @@ describe("findProjectRoot", () => {
   describe("findProjectRootForDaemon", () => {
     it("should throw error when no daemon found", () => {
       expect(() => findProjectRootForDaemon(subDir2)).toThrow(
-        "No Clier project found"
+        "No Clier project found",
       );
     });
 
@@ -172,14 +172,14 @@ describe("findProjectRoot", () => {
   describe("findProjectRootForConfig", () => {
     it("should throw error when no config found", () => {
       expect(() => findProjectRootForConfig(subDir2)).toThrow(
-        "No Clier project found"
+        "No Clier project found",
       );
     });
 
     it("should return project root when config found", () => {
       fs.writeFileSync(
         path.join(projectRoot, "clier-pipeline.json"),
-        JSON.stringify({ project_name: "test" })
+        JSON.stringify({ project_name: "test" }),
       );
       const result = findProjectRootForConfig(subDir2);
       expect(result).toBe(projectRoot);
@@ -191,7 +191,7 @@ describe("findProjectRoot", () => {
       // Create config file
       fs.writeFileSync(
         path.join(projectRoot, "clier-pipeline.json"),
-        JSON.stringify({ project_name: "test" })
+        JSON.stringify({ project_name: "test" }),
       );
     });
 
@@ -214,21 +214,21 @@ describe("findProjectRoot", () => {
     it("should throw error when absolute path not found", () => {
       const nonExistentPath = path.join(tempDir, "nonexistent.json");
       expect(() => resolveConfigPath(nonExistentPath)).toThrow(
-        "Config file not found"
+        "Config file not found",
       );
     });
 
     it("should throw error when relative path not found", () => {
-      expect(() =>
-        resolveConfigPath("nonexistent.json", projectRoot)
-      ).toThrow("Config file not found");
+      expect(() => resolveConfigPath("nonexistent.json", projectRoot)).toThrow(
+        "Config file not found",
+      );
     });
 
     it("should throw error when no config found upward", () => {
       // Remove the config file
       fs.unlinkSync(path.join(projectRoot, "clier-pipeline.json"));
       expect(() => resolveConfigPath(undefined, subDir2)).toThrow(
-        "No Clier project found"
+        "No Clier project found",
       );
     });
   });
@@ -256,7 +256,7 @@ describe("findProjectRoot", () => {
       fs.mkdirSync(path.join(outerProject, ".clier"));
       fs.writeFileSync(
         path.join(outerProject, "clier-pipeline.json"),
-        JSON.stringify({ project_name: "outer" })
+        JSON.stringify({ project_name: "outer" }),
       );
 
       fs.mkdirSync(path.join(outerProject, "packages"));
@@ -264,7 +264,7 @@ describe("findProjectRoot", () => {
       fs.mkdirSync(path.join(innerProject, ".clier"));
       fs.writeFileSync(
         path.join(innerProject, "clier-pipeline.json"),
-        JSON.stringify({ project_name: "inner" })
+        JSON.stringify({ project_name: "inner" }),
       );
       fs.mkdirSync(innerSrc);
 

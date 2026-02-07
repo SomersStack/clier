@@ -39,7 +39,10 @@ export class EventBus {
   private processManager: ProcessManager;
   private connected = false;
   private emitter = new EventEmitter();
-  private pmListeners: Array<{ event: string; handler: (...args: any[]) => void }> = [];
+  private pmListeners: Array<{
+    event: string;
+    handler: (...args: any[]) => void;
+  }> = [];
 
   constructor(processManager: ProcessManager) {
     this.processManager = processManager;
@@ -159,22 +162,16 @@ export class EventBus {
     };
 
     // Handle stdout
-    track(
-      "stdout",
-      (name: string, data: string, timestamp: number) => {
-        const event = this.normalizeLogEvent(name, "stdout", data, timestamp);
-        this.emit("stdout", event);
-      }
-    );
+    track("stdout", (name: string, data: string, timestamp: number) => {
+      const event = this.normalizeLogEvent(name, "stdout", data, timestamp);
+      this.emit("stdout", event);
+    });
 
     // Handle stderr
-    track(
-      "stderr",
-      (name: string, data: string, timestamp: number) => {
-        const event = this.normalizeLogEvent(name, "stderr", data, timestamp);
-        this.emit("stderr", event);
-      }
-    );
+    track("stderr", (name: string, data: string, timestamp: number) => {
+      const event = this.normalizeLogEvent(name, "stderr", data, timestamp);
+      this.emit("stderr", event);
+    });
 
     // Handle process exit - now guaranteed to have complete logs
     track(
@@ -183,7 +180,7 @@ export class EventBus {
         name: string,
         code: number | null,
         signal: string | null,
-        logs: ExitLogs
+        logs: ExitLogs,
       ) => {
         const event: ClierEvent = {
           name: "process:exit",
@@ -199,7 +196,7 @@ export class EventBus {
           timestamp: Date.now(),
         };
         this.emit("process:exit", event);
-      }
+      },
     );
 
     // Handle process start
@@ -248,7 +245,7 @@ export class EventBus {
     processName: string,
     type: "stdout" | "stderr",
     data: string,
-    timestamp: number
+    timestamp: number,
   ): ClierEvent {
     return {
       name: processName,

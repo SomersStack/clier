@@ -135,7 +135,11 @@ export class DaemonController {
     // Log the add command
     const logManager = this.watcher.getLogManager();
     if (logManager) {
-      logManager.add(params.config.name, "command", `ADD: ${params.config.command}`);
+      logManager.add(
+        params.config.name,
+        "command",
+        `ADD: ${params.config.command}`,
+      );
     }
 
     return { success: true };
@@ -144,9 +148,7 @@ export class DaemonController {
   /**
    * Delete a process from the pipeline
    */
-  async "process.delete"(params: {
-    name: string;
-  }): Promise<{ success: true }> {
+  async "process.delete"(params: { name: string }): Promise<{ success: true }> {
     const manager = this.watcher.getProcessManager();
     if (!manager) {
       throw new Error("ProcessManager not initialized");
@@ -181,7 +183,7 @@ export class DaemonController {
       if (!orchestrator.hasStageInputEnabled(params.name)) {
         throw new Error(
           `Input not enabled for process "${params.name}". ` +
-            `Enable it in clier-pipeline.json with: input: { enabled: true }`
+            `Enable it in clier-pipeline.json with: input: { enabled: true }`,
         );
       }
     }
@@ -230,7 +232,7 @@ export class DaemonController {
     if (!manager.hasInputEnabled(params.name)) {
       throw new Error(
         `Input not enabled for process "${params.name}". ` +
-          `Enable it in clier-pipeline.json with: input: { enabled: true }`
+          `Enable it in clier-pipeline.json with: input: { enabled: true }`,
       );
     }
 
@@ -280,7 +282,7 @@ export class DaemonController {
     if (orchestrator && !orchestrator.hasStage(params.name)) {
       throw new Error(
         `Service or task "${params.name}" not found in pipeline. ` +
-          `Use "clier status" to see available services and tasks.`
+          `Use "clier status" to see available services and tasks.`,
       );
     }
 
@@ -363,7 +365,10 @@ export class DaemonController {
           restartedServices.push(serviceName);
         } catch (error) {
           // Log but continue - service might not exist in new config
-          console.error(`Failed to restart manual service "${serviceName}":`, error);
+          console.error(
+            `Failed to restart manual service "${serviceName}":`,
+            error,
+          );
         }
       }
     }
@@ -447,8 +452,7 @@ export class DaemonController {
       throw new Error("Could not find project root");
     }
 
-    const logFile =
-      params.level === "error" ? "error.log" : "combined.log";
+    const logFile = params.level === "error" ? "error.log" : "combined.log";
     const logPath = path.join(projectRoot, ".clier", "logs", logFile);
 
     try {
@@ -532,7 +536,7 @@ export class DaemonController {
   }): Promise<{ success: true; triggeredStages: string[] }> {
     const triggeredStages = await this.watcher.emitEvent(
       params.eventName,
-      params.data
+      params.data,
     );
     return { success: true, triggeredStages };
   }
@@ -545,7 +549,13 @@ export class DaemonController {
    */
   async "events.query"(params: {
     processName?: string;
-    eventType?: "success" | "error" | "crashed" | "custom" | "stdout" | "stderr";
+    eventType?:
+      | "success"
+      | "error"
+      | "crashed"
+      | "custom"
+      | "stdout"
+      | "stderr";
     eventName?: string;
     lines?: number;
     since?: number;

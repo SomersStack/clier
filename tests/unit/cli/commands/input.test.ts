@@ -79,7 +79,7 @@ describe("Input Command", () => {
   describe("daemon not running", () => {
     it("should return 1 when daemon is not running", async () => {
       vi.mocked(daemonClient.getDaemonClient).mockRejectedValue(
-        new Error("Daemon is not running")
+        new Error("Daemon is not running"),
       );
 
       const exitCode = await inputCommand("my-service", "hello");
@@ -91,7 +91,7 @@ describe("Input Command", () => {
   describe("process not found", () => {
     it("should return 1 when process is not found", async () => {
       mockClient.request.mockRejectedValue(
-        new Error('Process "my-service" not found')
+        new Error('Process "my-service" not found'),
       );
 
       const exitCode = await inputCommand("my-service", "hello");

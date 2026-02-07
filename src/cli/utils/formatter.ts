@@ -135,8 +135,12 @@ export function formatValidationErrors(
   rawConfig?: unknown,
 ): string {
   // Group errors by pipeline item
-  const pipelineErrors = new Map<string, Array<{ path: string; message: string; code: string }>>();
-  const globalErrors: Array<{ path: string; message: string; code: string }> = [];
+  const pipelineErrors = new Map<
+    string,
+    Array<{ path: string; message: string; code: string }>
+  >();
+  const globalErrors: Array<{ path: string; message: string; code: string }> =
+    [];
 
   for (const err of error.errors) {
     const pathStr = err.path.join(".");
@@ -185,7 +189,7 @@ export function formatValidationErrors(
           err.message,
           err.code || "unknown",
           itemIndex,
-          rawConfig
+          rawConfig,
         );
         output.push(`  ${chalk.red("•")} ${formattedError}`);
       }
@@ -213,9 +217,10 @@ function getPipelineItemName(rawConfig: unknown, index: number): string {
           return `"${item.name}"`;
         }
         if ("command" in item && typeof item.command === "string") {
-          const shortCmd = item.command.length > 30
-            ? item.command.substring(0, 27) + "..."
-            : item.command;
+          const shortCmd =
+            item.command.length > 30
+              ? item.command.substring(0, 27) + "..."
+              : item.command;
           return `#${index + 1} (${shortCmd})`;
         }
       }
@@ -248,12 +253,16 @@ function formatSingleError(
     if (suggestion) {
       parts.push(`\n    ${chalk.dim("Expected:")} ${chalk.cyan(suggestion)}`);
     }
-  } else if (code === "invalid_enum_value" || message.includes("Invalid enum")) {
+  } else if (
+    code === "invalid_enum_value" ||
+    message.includes("Invalid enum")
+  ) {
     // Invalid enum - extract allowed values
     const actual = getActualValue(rawConfig, itemIndex, path);
     parts.push(
-      chalk.bold(path) + ": " +
-      chalk.red(`Invalid value${actual ? ` "${actual}"` : ""}`),
+      chalk.bold(path) +
+        ": " +
+        chalk.red(`Invalid value${actual ? ` "${actual}"` : ""}`),
     );
 
     // Try to extract expected values from the message
@@ -272,13 +281,18 @@ function formatSingleError(
     // Empty string
     const actual = getActualValue(rawConfig, itemIndex, path);
     parts.push(
-      chalk.bold(path) + ": " +
-      chalk.red(`Cannot be empty${actual === "" ? ' (empty string provided)' : ""}`),
+      chalk.bold(path) +
+        ": " +
+        chalk.red(
+          `Cannot be empty${actual === "" ? " (empty string provided)" : ""}`,
+        ),
     );
   } else if (message.includes("duplicate name")) {
     // Duplicate pipeline names
     parts.push(chalk.red("Duplicate pipeline names found"));
-    parts.push(`\n    ${chalk.dim("Each pipeline item must have a unique name")}`);
+    parts.push(
+      `\n    ${chalk.dim("Each pipeline item must have a unique name")}`,
+    );
   } else {
     // Generic error
     parts.push(chalk.bold(path) + ": " + message);

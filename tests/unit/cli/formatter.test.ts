@@ -192,7 +192,7 @@ describe("Formatter Utilities", () => {
 
       expect(console.log).toHaveBeenCalledWith(
         chalk.green("\u2713"),
-        "Operation completed"
+        "Operation completed",
       );
     });
 
@@ -209,7 +209,7 @@ describe("Formatter Utilities", () => {
 
       expect(console.error).toHaveBeenCalledWith(
         chalk.red("\u2717"),
-        "Something failed"
+        "Something failed",
       );
     });
 
@@ -226,7 +226,7 @@ describe("Formatter Utilities", () => {
 
       expect(console.warn).toHaveBeenCalledWith(
         chalk.yellow("\u26A0"),
-        "Be careful"
+        "Be careful",
       );
     });
 
@@ -243,7 +243,7 @@ describe("Formatter Utilities", () => {
 
       expect(console.log).toHaveBeenCalledWith(
         chalk.blue("\u2139"),
-        "Some information"
+        "Some information",
       );
     });
 
@@ -305,9 +305,7 @@ describe("Formatter Utilities", () => {
       ]);
 
       const rawConfig = {
-        pipeline: [
-          { name: "my-service" },
-        ],
+        pipeline: [{ name: "my-service" }],
       };
 
       const result = formatValidationErrors(zodError, rawConfig);
@@ -322,14 +320,13 @@ describe("Formatter Utilities", () => {
           options: ["service", "task"],
           received: "invalid",
           path: ["pipeline", 0, "type"],
-          message: "Invalid enum value. Expected 'service' | 'task', received 'invalid'",
+          message:
+            "Invalid enum value. Expected 'service' | 'task', received 'invalid'",
         },
       ]);
 
       const rawConfig = {
-        pipeline: [
-          { command: "npm start" },
-        ],
+        pipeline: [{ command: "npm start" }],
       };
 
       const result = formatValidationErrors(zodError, rawConfig);
@@ -350,7 +347,10 @@ describe("Formatter Utilities", () => {
 
       const rawConfig = {
         pipeline: [
-          { command: "this-is-a-very-long-command-that-exceeds-the-thirty-character-limit" },
+          {
+            command:
+              "this-is-a-very-long-command-that-exceeds-the-thirty-character-limit",
+          },
         ],
       };
 
@@ -416,7 +416,8 @@ describe("Formatter Utilities", () => {
           options: ["service", "task"],
           received: "worker",
           path: ["pipeline", 0, "type"],
-          message: "Invalid enum value. Expected 'service' | 'task', received 'worker'",
+          message:
+            "Invalid enum value. Expected 'service' | 'task', received 'worker'",
         },
       ]);
 
@@ -517,7 +518,8 @@ describe("Formatter Utilities", () => {
           options: ["service", "task"],
           received: "worker",
           path: ["pipeline", 0, "type"],
-          message: "Invalid enum value. Expected 'service' | 'task', received 'worker'",
+          message:
+            "Invalid enum value. Expected 'service' | 'task', received 'worker'",
         },
       ]);
 
@@ -533,16 +535,14 @@ describe("Formatter Utilities", () => {
       printHeader("my-project");
 
       expect(console.log).toHaveBeenCalledWith(
-        chalk.bold.cyan("Clier - my-project")
+        chalk.bold.cyan("Clier - my-project"),
       );
     });
 
     it("should print a separator line", () => {
       printHeader("test");
 
-      expect(console.log).toHaveBeenCalledWith(
-        chalk.gray("\u2500".repeat(50))
-      );
+      expect(console.log).toHaveBeenCalledWith(chalk.gray("\u2500".repeat(50)));
     });
 
     it("should call console.log 4 times (empty, header, separator, empty)", () => {

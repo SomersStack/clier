@@ -92,7 +92,7 @@ describe("DaemonController", () => {
       mockWatcher.getProcessManager.mockReturnValue(null);
 
       await expect(controller["process.list"]()).rejects.toThrow(
-        "ProcessManager not initialized"
+        "ProcessManager not initialized",
       );
     });
   });
@@ -104,24 +104,27 @@ describe("DaemonController", () => {
       const result = await controller["process.stop"]({ name: "backend" });
 
       expect(result).toEqual({ success: true });
-      expect(mockProcessManager.stopProcess).toHaveBeenCalledWith("backend", false);
+      expect(mockProcessManager.stopProcess).toHaveBeenCalledWith(
+        "backend",
+        false,
+      );
     });
 
     it("should throw error if ProcessManager not initialized", async () => {
       mockWatcher.getProcessManager.mockReturnValue(null);
 
       await expect(
-        controller["process.stop"]({ name: "backend" })
+        controller["process.stop"]({ name: "backend" }),
       ).rejects.toThrow("ProcessManager not initialized");
     });
 
     it("should propagate errors from ProcessManager", async () => {
       mockProcessManager.stopProcess.mockRejectedValue(
-        new Error('Process "backend" not found')
+        new Error('Process "backend" not found'),
       );
 
       await expect(
-        controller["process.stop"]({ name: "backend" })
+        controller["process.stop"]({ name: "backend" }),
       ).rejects.toThrow('Process "backend" not found');
     });
   });
@@ -133,24 +136,27 @@ describe("DaemonController", () => {
       const result = await controller["process.restart"]({ name: "backend" });
 
       expect(result).toEqual({ success: true });
-      expect(mockProcessManager.restartProcess).toHaveBeenCalledWith("backend", false);
+      expect(mockProcessManager.restartProcess).toHaveBeenCalledWith(
+        "backend",
+        false,
+      );
     });
 
     it("should throw error if ProcessManager not initialized", async () => {
       mockWatcher.getProcessManager.mockReturnValue(null);
 
       await expect(
-        controller["process.restart"]({ name: "backend" })
+        controller["process.restart"]({ name: "backend" }),
       ).rejects.toThrow("ProcessManager not initialized");
     });
 
     it("should propagate errors from ProcessManager", async () => {
       mockProcessManager.restartProcess.mockRejectedValue(
-        new Error('Process "backend" not found')
+        new Error('Process "backend" not found'),
       );
 
       await expect(
-        controller["process.restart"]({ name: "backend" })
+        controller["process.restart"]({ name: "backend" }),
       ).rejects.toThrow('Process "backend" not found');
     });
   });
@@ -210,19 +216,23 @@ describe("DaemonController", () => {
       await expect(
         controller["process.add"]({
           config: { name: "test", command: "echo", type: "task" },
-        })
+        }),
       ).rejects.toThrow("ProcessManager not initialized");
     });
 
     it("should propagate errors from ProcessManager", async () => {
       mockProcessManager.startProcess.mockRejectedValue(
-        new Error('Process "new-service" is already running')
+        new Error('Process "new-service" is already running'),
       );
 
       await expect(
         controller["process.add"]({
-          config: { name: "new-service", command: "npm start", type: "service" },
-        })
+          config: {
+            name: "new-service",
+            command: "npm start",
+            type: "service",
+          },
+        }),
       ).rejects.toThrow('Process "new-service" is already running');
     });
   });
@@ -241,7 +251,7 @@ describe("DaemonController", () => {
       mockWatcher.getProcessManager.mockReturnValue(null);
 
       await expect(
-        controller["process.delete"]({ name: "backend" })
+        controller["process.delete"]({ name: "backend" }),
       ).rejects.toThrow("ProcessManager not initialized");
     });
 
@@ -255,7 +265,7 @@ describe("DaemonController", () => {
 
       expect(result).toEqual({ success: true });
       expect(mockProcessManager.deleteProcess).toHaveBeenCalledWith(
-        "non-existent"
+        "non-existent",
       );
     });
   });
@@ -318,7 +328,7 @@ describe("DaemonController", () => {
       expect(result).toEqual(mockLogs);
       expect(mockLogManager.getSince).toHaveBeenCalledWith(
         "backend",
-        sinceTimestamp
+        sinceTimestamp,
       );
       expect(mockLogManager.getLastN).not.toHaveBeenCalled();
     });
@@ -340,7 +350,7 @@ describe("DaemonController", () => {
       mockWatcher.getLogManager.mockReturnValue(null);
 
       await expect(
-        controller["logs.query"]({ name: "backend" })
+        controller["logs.query"]({ name: "backend" }),
       ).rejects.toThrow("LogManager not initialized");
     });
 
@@ -354,9 +364,9 @@ describe("DaemonController", () => {
       mockOrchestrator.hasStage.mockReturnValue(false);
 
       await expect(
-        controller["logs.query"]({ name: "nonexistent-service" })
+        controller["logs.query"]({ name: "nonexistent-service" }),
       ).rejects.toThrow(
-        'Service or task "nonexistent-service" not found in pipeline'
+        'Service or task "nonexistent-service" not found in pipeline',
       );
       expect(mockLogManager.getLastN).not.toHaveBeenCalled();
     });
@@ -430,9 +440,9 @@ describe("DaemonController", () => {
     it("should throw error if LogManager not initialized", async () => {
       mockWatcher.getLogManager.mockReturnValue(null);
 
-      await expect(controller["logs.clear"]({ name: "backend" })).rejects.toThrow(
-        "LogManager not initialized"
-      );
+      await expect(
+        controller["logs.clear"]({ name: "backend" }),
+      ).rejects.toThrow("LogManager not initialized");
     });
   });
 

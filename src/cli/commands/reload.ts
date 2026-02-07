@@ -36,7 +36,7 @@ export interface ReloadOptions {
  */
 export async function reloadCommand(
   configPath?: string,
-  options?: ReloadOptions
+  options?: ReloadOptions,
 ): Promise<number> {
   const spinner = ora();
 
@@ -77,10 +77,10 @@ export async function reloadCommand(
     try {
       if (options?.restartManualServices) {
         // Use clearReload to also restart manually started services
-        const result = await client.request("config.clearReload", {
+        const result = (await client.request("config.clearReload", {
           configPath: configFile,
           restartManualServices: true,
-        }) as { success: boolean; restartedServices: string[] };
+        })) as { success: boolean; restartedServices: string[] };
         spinner.succeed("Daemon reloaded");
         client.disconnect();
 
@@ -112,10 +112,7 @@ export async function reloadCommand(
 
     return 0;
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("not running")
-    ) {
+    if (error instanceof Error && error.message.includes("not running")) {
       printWarning("Clier daemon is not running");
       console.log();
       console.log("  Start it with: clier start");
@@ -125,7 +122,7 @@ export async function reloadCommand(
 
     spinner.fail("Failed to reload configuration");
     printError(
-      `Error: ${error instanceof Error ? error.message : String(error)}`
+      `Error: ${error instanceof Error ? error.message : String(error)}`,
     );
     return 1;
   }

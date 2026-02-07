@@ -93,7 +93,8 @@ class RingBuffer<T> {
    */
   getSince(timestamp: number): T[] {
     return this.toArray().filter(
-      (item) => (item as unknown as { timestamp: number }).timestamp >= timestamp
+      (item) =>
+        (item as unknown as { timestamp: number }).timestamp >= timestamp,
     );
   }
 
@@ -161,7 +162,11 @@ export class LogManager {
    * @param stream - stdout, stderr, or command
    * @param data - Log line content
    */
-  add(processName: string, stream: "stdout" | "stderr" | "command", data: string): void {
+  add(
+    processName: string,
+    stream: "stdout" | "stderr" | "command",
+    data: string,
+  ): void {
     const entry: LogEntry = {
       timestamp: Date.now(),
       stream,
@@ -320,7 +325,7 @@ export class LogManager {
       (stream) =>
         new Promise<void>((resolve) => {
           stream.end(() => resolve());
-        })
+        }),
     );
 
     // Also await any streams closed during rotation
@@ -433,7 +438,7 @@ export class LogManager {
       this.pendingCloses.push(
         new Promise<void>((resolve) => {
           stream.end(() => resolve());
-        })
+        }),
       );
       this.fileStreams.delete(processName);
     }

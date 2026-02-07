@@ -23,7 +23,7 @@ function wireEventHandling(
   processManager: ProcessManager,
   eventHandler: EventHandler,
   orchestrator: Orchestrator,
-  config: ClierConfig
+  config: ClierConfig,
 ): void {
   // Register pipeline items with event handler for pattern matching
   for (const item of config.pipeline) {
@@ -31,15 +31,18 @@ function wireEventHandling(
   }
 
   // Wire ProcessManager stdout -> EventHandler
-  processManager.on("stdout", (name: string, data: string, timestamp: number) => {
-    eventHandler.handleEvent({
-      name: `${name}:stdout`,
-      processName: name,
-      type: "stdout",
-      data,
-      timestamp,
-    });
-  });
+  processManager.on(
+    "stdout",
+    (name: string, data: string, timestamp: number) => {
+      eventHandler.handleEvent({
+        name: `${name}:stdout`,
+        processName: name,
+        type: "stdout",
+        data,
+        timestamp,
+      });
+    },
+  );
 
   // Wire EventHandler emitted events -> Orchestrator
   // Listen for all events that pipeline items trigger on
@@ -103,7 +106,8 @@ describe("Event Template Integration Tests", () => {
         },
         {
           name: "consumer",
-          command: "echo 'Triggered by {{event.source}} with event {{event.name}}'",
+          command:
+            "echo 'Triggered by {{event.source}} with event {{event.name}}'",
           type: "task",
           trigger_on: ["producer:ready"],
           enable_event_templates: true,
@@ -119,7 +123,8 @@ describe("Event Template Integration Tests", () => {
     let consumerCommand = "";
 
     // Intercept process starts to verify template substitution
-    const originalStartProcess = processManager.startProcess.bind(processManager);
+    const originalStartProcess =
+      processManager.startProcess.bind(processManager);
     processManager.startProcess = async (processConfig) => {
       startedProcesses.push(processConfig.name);
       if (processConfig.name === "consumer") {
@@ -138,7 +143,7 @@ describe("Event Template Integration Tests", () => {
     expect(startedProcesses).toContain("producer");
     expect(startedProcesses).toContain("consumer");
     expect(consumerCommand).toBe(
-      "echo 'Triggered by producer with event producer:ready'"
+      "echo 'Triggered by producer with event producer:ready'",
     );
   });
 
@@ -189,7 +194,8 @@ describe("Event Template Integration Tests", () => {
     let frontendEnv: Record<string, string> | undefined;
 
     // Intercept process starts to verify env template substitution
-    const originalStartProcess = processManager.startProcess.bind(processManager);
+    const originalStartProcess =
+      processManager.startProcess.bind(processManager);
     processManager.startProcess = async (processConfig) => {
       if (processConfig.name === "frontend") {
         frontendEnv = processConfig.env;
@@ -251,7 +257,8 @@ describe("Event Template Integration Tests", () => {
 
     let consumerCommand = "";
 
-    const originalStartProcess = processManager.startProcess.bind(processManager);
+    const originalStartProcess =
+      processManager.startProcess.bind(processManager);
     processManager.startProcess = async (processConfig) => {
       if (processConfig.name === "consumer") {
         consumerCommand = processConfig.command;
@@ -307,7 +314,8 @@ describe("Event Template Integration Tests", () => {
 
     let loggerCommand = "";
 
-    const originalStartProcess = processManager.startProcess.bind(processManager);
+    const originalStartProcess =
+      processManager.startProcess.bind(processManager);
     processManager.startProcess = async (processConfig) => {
       if (processConfig.name === "logger") {
         loggerCommand = processConfig.command;
@@ -366,7 +374,8 @@ describe("Event Template Integration Tests", () => {
 
     let recorderCommand = "";
 
-    const originalStartProcess = processManager.startProcess.bind(processManager);
+    const originalStartProcess =
+      processManager.startProcess.bind(processManager);
     processManager.startProcess = async (processConfig) => {
       if (processConfig.name === "recorder") {
         recorderCommand = processConfig.command;

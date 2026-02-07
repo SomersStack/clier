@@ -26,7 +26,7 @@ export interface LogsClearOptions {
  */
 export async function logsClearCommand(
   processName: string,
-  options: LogsClearOptions = {}
+  options: LogsClearOptions = {},
 ): Promise<number> {
   try {
     const client = await getDaemonClient();
@@ -39,7 +39,7 @@ export async function logsClearCommand(
         "daemon.logs.clear",
         {
           level: options.level || "all",
-        }
+        },
       );
 
       client.disconnect();
@@ -59,8 +59,12 @@ export async function logsClearCommand(
       printError("Process name required. Use --all to clear all logs.");
       console.log();
       console.log("Usage:");
-      console.log("  clier logs clear <name>     Clear logs for a specific process");
-      console.log("  clier logs clear --all      Clear all logs (processes + daemon)");
+      console.log(
+        "  clier logs clear <name>     Clear logs for a specific process",
+      );
+      console.log(
+        "  clier logs clear --all      Clear all logs (processes + daemon)",
+      );
       console.log("  clier logs clear --daemon   Clear daemon logs only");
       console.log();
       client.disconnect();
@@ -68,16 +72,14 @@ export async function logsClearCommand(
     }
 
     console.log(
-      chalk.cyan(
-        `\nClearing logs for: ${processName || "all processes"}...`
-      )
+      chalk.cyan(`\nClearing logs for: ${processName || "all processes"}...`),
     );
 
     const result: { success: true; cleared: string[] } = await client.request(
       "logs.clear",
       {
         name: processName || undefined,
-      }
+      },
     );
 
     if (result.cleared.length === 0) {

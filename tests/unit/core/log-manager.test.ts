@@ -286,7 +286,9 @@ describe("LogManager", () => {
       await logManager.flush();
 
       // Read all log files and check if marker is preserved
-      const files = fs.readdirSync(tempDir).filter(f => f.startsWith("preserve"));
+      const files = fs
+        .readdirSync(tempDir)
+        .filter((f) => f.startsWith("preserve"));
       let foundMarker = false;
 
       for (const file of files) {

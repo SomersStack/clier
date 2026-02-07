@@ -135,9 +135,10 @@ export class ManagedProcess extends EventEmitter {
       pid: this.child?.pid,
       status: this._status,
       // Only count uptime while actually running
-      uptime: this._status === "running" && this.lastStartTime
-        ? Date.now() - this.lastStartTime
-        : 0,
+      uptime:
+        this._status === "running" && this.lastStartTime
+          ? Date.now() - this.lastStartTime
+          : 0,
       restarts: this.restartCount,
       exitCode: this.lastExitCode,
       signal: this.lastSignal,
@@ -287,10 +288,13 @@ export class ManagedProcess extends EventEmitter {
       const forceKillTimer = setTimeout(() => {
         if (this.child && this._status === "running" && this.child.pid) {
           const detached = this.config.detached !== false;
-          logger.warn(detached ? "Force killing process group" : "Force killing process", {
-            name: this.config.name,
-            pid: this.child.pid,
-          });
+          logger.warn(
+            detached ? "Force killing process group" : "Force killing process",
+            {
+              name: this.config.name,
+              pid: this.child.pid,
+            },
+          );
           // Kill process (or entire process group if detached) with SIGKILL
           try {
             if (detached) {
@@ -328,7 +332,7 @@ export class ManagedProcess extends EventEmitter {
                 {
                   name: this.config.name,
                   pid,
-                }
+                },
               );
               this.forceExitCleanup();
             }
@@ -532,7 +536,9 @@ export class ManagedProcess extends EventEmitter {
       });
       this.emit(
         "error",
-        new Error(`Max restarts (${maxRetries}) exceeded for ${this.config.name}`)
+        new Error(
+          `Max restarts (${maxRetries}) exceeded for ${this.config.name}`,
+        ),
       );
       return false;
     }
@@ -611,7 +617,7 @@ export class ManagedProcess extends EventEmitter {
     const code = this.exitInfo?.code ?? -1;
     const signal = this.exitInfo?.signal ?? null;
 
-    this._status = (this.stopRequested || code === 0) ? "stopped" : "crashed";
+    this._status = this.stopRequested || code === 0 ? "stopped" : "crashed";
 
     logger.warn("Force cleanup - emitting exit without waiting for streams", {
       name: this.config.name,

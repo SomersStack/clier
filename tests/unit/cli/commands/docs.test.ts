@@ -61,7 +61,7 @@ describe("Docs Command", () => {
       expect(exitCode).toBe(0);
       expect(mockReadFileSync).toHaveBeenCalled();
       expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("Documentation Content")
+        expect.stringContaining("Documentation Content"),
       );
     });
   });

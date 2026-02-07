@@ -338,12 +338,14 @@ describe("Daemon", () => {
       const { startDaemonMode } = await import("../../../src/daemon/index.js");
 
       await expect(startDaemonMode()).rejects.toThrow(
-        "Missing CLIER_CONFIG_PATH or CLIER_PROJECT_ROOT"
+        "Missing CLIER_CONFIG_PATH or CLIER_PROJECT_ROOT",
       );
 
       // Restore
-      if (originalConfig !== undefined) process.env.CLIER_CONFIG_PATH = originalConfig;
-      if (originalRoot !== undefined) process.env.CLIER_PROJECT_ROOT = originalRoot;
+      if (originalConfig !== undefined)
+        process.env.CLIER_CONFIG_PATH = originalConfig;
+      if (originalRoot !== undefined)
+        process.env.CLIER_PROJECT_ROOT = originalRoot;
       else delete process.env.CLIER_PROJECT_ROOT;
     });
 
@@ -357,13 +359,15 @@ describe("Daemon", () => {
       const { startDaemonMode } = await import("../../../src/daemon/index.js");
 
       await expect(startDaemonMode()).rejects.toThrow(
-        "Missing CLIER_CONFIG_PATH or CLIER_PROJECT_ROOT"
+        "Missing CLIER_CONFIG_PATH or CLIER_PROJECT_ROOT",
       );
 
       // Restore
-      if (originalConfig !== undefined) process.env.CLIER_CONFIG_PATH = originalConfig;
+      if (originalConfig !== undefined)
+        process.env.CLIER_CONFIG_PATH = originalConfig;
       else delete process.env.CLIER_CONFIG_PATH;
-      if (originalRoot !== undefined) process.env.CLIER_PROJECT_ROOT = originalRoot;
+      if (originalRoot !== undefined)
+        process.env.CLIER_PROJECT_ROOT = originalRoot;
     });
   });
 
@@ -481,7 +485,7 @@ describe("Daemon", () => {
       });
 
       await expect((daemon as any).cleanStaleFiles()).rejects.toThrow(
-        "A daemon appears to be running without a PID file"
+        "A daemon appears to be running without a PID file",
       );
     });
   });

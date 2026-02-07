@@ -95,9 +95,7 @@ export class DaemonClient {
       });
 
       socket.on("error", (err) => {
-        reject(
-          new Error(`Cannot connect to daemon: ${err.message}`)
-        );
+        reject(new Error(`Cannot connect to daemon: ${err.message}`));
       });
 
       // Connection timeout
@@ -178,8 +176,15 @@ export class DaemonClient {
     } catch (error) {
       // Auto-reconnect on connection errors
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Connection closed") || msg.includes("Cannot connect") || msg.includes("write after end")) {
-        logger.debug("Request failed with connection error, attempting reconnect", { method, error: msg });
+      if (
+        msg.includes("Connection closed") ||
+        msg.includes("Cannot connect") ||
+        msg.includes("write after end")
+      ) {
+        logger.debug(
+          "Request failed with connection error, attempting reconnect",
+          { method, error: msg },
+        );
         this.socket = undefined;
         await this.connectOnce();
         return this.sendRequest<T>(method, params);
@@ -261,7 +266,7 @@ export class DaemonClient {
  * @throws Error if daemon is not running or project not found
  */
 export async function getDaemonClient(
-  projectRootOrOptions?: string | GetDaemonClientOptions
+  projectRootOrOptions?: string | GetDaemonClientOptions,
 ): Promise<DaemonClient> {
   let projectRoot: string | undefined;
   let retries: number | undefined;
@@ -284,7 +289,7 @@ export async function getDaemonClient(
   if (!fs.existsSync(socketPath)) {
     throw new Error(
       `Daemon not running. Socket not found at: ${socketPath}\n` +
-        "  • Run 'clier start' to start the daemon"
+        "  • Run 'clier start' to start the daemon",
     );
   }
 

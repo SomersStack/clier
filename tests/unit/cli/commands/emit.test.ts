@@ -115,7 +115,7 @@ describe("Emit Command", () => {
   describe("daemon not running", () => {
     it("should return 1 when daemon is not running", async () => {
       vi.mocked(daemonClient.getDaemonClient).mockRejectedValue(
-        new Error("Daemon is not running")
+        new Error("Daemon is not running"),
       );
 
       const exitCode = await emitCommand("my-event", {});

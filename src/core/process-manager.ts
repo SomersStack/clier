@@ -38,7 +38,7 @@ export interface ProcessManagerEvents {
     name: string,
     code: number | null,
     signal: string | null,
-    logs: ExitLogs
+    logs: ExitLogs,
   ) => void;
   start: (name: string, pid: number) => void;
   restart: (name: string, attempt: number) => void;
@@ -134,7 +134,7 @@ export class ProcessManager extends EventEmitter {
   async stopProcess(
     name: string,
     force = false,
-    timeout = 5000
+    timeout = 5000,
   ): Promise<void> {
     const process = this.processes.get(name);
     if (!process) {
@@ -294,7 +294,10 @@ export class ProcessManager extends EventEmitter {
    * console.log('Failed:', result.failed);
    * ```
    */
-  async shutdown(timeout = 5000, reverseOrder?: string[]): Promise<ShutdownResult> {
+  async shutdown(
+    timeout = 5000,
+    reverseOrder?: string[],
+  ): Promise<ShutdownResult> {
     logger.info("Shutting down all processes", {
       count: this.processes.size,
       reverseOrder,
@@ -325,8 +328,9 @@ export class ProcessManager extends EventEmitter {
     }
 
     // Phase 2: Stop remaining running processes in parallel
-    const remaining = Array.from(this.processes.values())
-      .filter((p) => p.isRunning && !alreadyStopped.has(p.name));
+    const remaining = Array.from(this.processes.values()).filter(
+      (p) => p.isRunning && !alreadyStopped.has(p.name),
+    );
 
     const stopPromises = remaining.map(async (p) => {
       try {
@@ -377,7 +381,7 @@ export class ProcessManager extends EventEmitter {
       "exit",
       (code: number | null, signal: string | null, logs: ExitLogs) => {
         this.emit("exit", name, code, signal, logs);
-      }
+      },
     );
 
     process.on("start", (pid: number) => {

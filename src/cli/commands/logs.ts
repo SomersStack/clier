@@ -55,7 +55,7 @@ function parseDuration(duration: string): number | null {
  */
 export async function logsCommand(
   processName: string,
-  options: LogsOptions = {}
+  options: LogsOptions = {},
 ): Promise<number> {
   try {
     const client = await getDaemonClient();
@@ -70,7 +70,8 @@ export async function logsCommand(
       client.disconnect();
 
       // Display header
-      const logType = options.level === "error" ? "Error Logs" : "Combined Logs";
+      const logType =
+        options.level === "error" ? "Error Logs" : "Combined Logs";
       console.log(chalk.cyan(`\nDaemon ${logType}`));
       console.log(chalk.gray("─".repeat(50)));
 
@@ -85,9 +86,17 @@ export async function logsCommand(
       // Show count when we have logs
       const requested = options.lines || 100;
       if (logLines.length < requested) {
-        console.log(chalk.gray(`Showing ${logLines.length} line${logLines.length === 1 ? "" : "s"} (${requested} requested, only ${logLines.length} available)`));
+        console.log(
+          chalk.gray(
+            `Showing ${logLines.length} line${logLines.length === 1 ? "" : "s"} (${requested} requested, only ${logLines.length} available)`,
+          ),
+        );
       } else {
-        console.log(chalk.gray(`Showing last ${logLines.length} line${logLines.length === 1 ? "" : "s"}`));
+        console.log(
+          chalk.gray(
+            `Showing last ${logLines.length} line${logLines.length === 1 ? "" : "s"}`,
+          ),
+        );
       }
       console.log();
 
@@ -120,7 +129,7 @@ export async function logsCommand(
           }
 
           console.log(
-            `${chalk.gray(timestamp)} ${levelColor} ${context} ${message}`
+            `${chalk.gray(timestamp)} ${levelColor} ${context} ${message}`,
           );
 
           // Show stack trace if available
@@ -180,13 +189,25 @@ export async function logsCommand(
 
     // Show filter info when we have logs
     if (options.since) {
-      console.log(chalk.gray(`Showing ${logs.length} line${logs.length === 1 ? "" : "s"} from the last ${options.since}`));
+      console.log(
+        chalk.gray(
+          `Showing ${logs.length} line${logs.length === 1 ? "" : "s"} from the last ${options.since}`,
+        ),
+      );
     } else {
       const requested = options.lines || 100;
       if (logs.length < requested) {
-        console.log(chalk.gray(`Showing ${logs.length} line${logs.length === 1 ? "" : "s"} (${requested} requested, only ${logs.length} available)`));
+        console.log(
+          chalk.gray(
+            `Showing ${logs.length} line${logs.length === 1 ? "" : "s"} (${requested} requested, only ${logs.length} available)`,
+          ),
+        );
       } else {
-        console.log(chalk.gray(`Showing last ${logs.length} line${logs.length === 1 ? "" : "s"}`));
+        console.log(
+          chalk.gray(
+            `Showing last ${logs.length} line${logs.length === 1 ? "" : "s"}`,
+          ),
+        );
       }
     }
     console.log();

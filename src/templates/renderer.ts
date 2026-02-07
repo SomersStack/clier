@@ -16,7 +16,7 @@ import type { StageTemplate, VariableDefinition } from "./types.js";
  */
 export function substituteVariables(
   template: string,
-  variables: Record<string, string>
+  variables: Record<string, string>,
 ): string {
   return template.replace(/\{\{(\w+)\}\}/g, (match, varName: string) => {
     if (varName in variables) {
@@ -60,7 +60,7 @@ function substituteInObject<T>(obj: T, variables: Record<string, string>): T {
  * @returns Record of variable names to default values
  */
 export function getDefaultVariables(
-  template: StageTemplate
+  template: StageTemplate,
 ): Record<string, string> {
   const defaults: Record<string, string> = {};
 
@@ -84,7 +84,7 @@ export function getDefaultVariables(
  */
 export function validateRequiredVariables(
   template: StageTemplate,
-  variables: Record<string, string>
+  variables: Record<string, string>,
 ): string[] {
   const missing: string[] = [];
 
@@ -131,7 +131,7 @@ export function getUsedVariables(template: StageTemplate): string[] {
  */
 export function renderTemplate(
   template: StageTemplate,
-  providedVariables: Record<string, string> = {}
+  providedVariables: Record<string, string> = {},
 ): PipelineItem {
   // Merge defaults with provided variables (provided takes precedence)
   const defaults = getDefaultVariables(template);
@@ -149,9 +149,7 @@ export function renderTemplate(
  * @param variables - Variable definitions
  * @returns Formatted variable info
  */
-export function formatVariableInfo(
-  variables: VariableDefinition[]
-): Array<{
+export function formatVariableInfo(variables: VariableDefinition[]): Array<{
   name: string;
   label: string;
   required: boolean;

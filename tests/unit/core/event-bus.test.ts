@@ -136,7 +136,7 @@ describe("EventBus", () => {
           type: "stdout",
           data: "hello",
           timestamp: Date.now(),
-        })
+        }),
       ).not.toThrow();
     });
 

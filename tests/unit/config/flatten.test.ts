@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { flattenPipeline } from "../../../src/config/flatten.js";
-import type { ClierConfig, PipelineItem, StageItem } from "../../../src/config/types.js";
+import type {
+  ClierConfig,
+  PipelineItem,
+  StageItem,
+} from "../../../src/config/types.js";
 
 describe("Pipeline Flattening", () => {
   describe("Top-level steps (no stages)", () => {
@@ -67,10 +71,7 @@ describe("Pipeline Flattening", () => {
         name: "manual-stage",
         type: "stage",
         manual: true,
-        steps: [
-          createService("step1", "cmd1"),
-          createService("step2", "cmd2"),
-        ],
+        steps: [createService("step1", "cmd1"), createService("step2", "cmd2")],
       };
 
       const config = createConfig([stage]);
@@ -103,10 +104,7 @@ describe("Pipeline Flattening", () => {
         name: "triggered-stage",
         type: "stage",
         trigger_on: ["db:ready"],
-        steps: [
-          createService("step1", "cmd1"),
-          createService("step2", "cmd2"),
-        ],
+        steps: [createService("step1", "cmd1"), createService("step2", "cmd2")],
       };
 
       const config = createConfig([stage]);
@@ -134,7 +132,9 @@ describe("Pipeline Flattening", () => {
         "stage:trigger",
         "step:trigger",
       ]);
-      expect(flattenedConfig.pipeline[1]?.trigger_on).toEqual(["stage:trigger"]);
+      expect(flattenedConfig.pipeline[1]?.trigger_on).toEqual([
+        "stage:trigger",
+      ]);
     });
 
     it("should NOT propagate stage.trigger_on to manual steps", () => {
@@ -156,7 +156,9 @@ describe("Pipeline Flattening", () => {
       expect(flattenedConfig.pipeline[0]?.manual).toBe(true);
 
       // Non-manual step should inherit
-      expect(flattenedConfig.pipeline[1]?.trigger_on).toEqual(["stage:trigger"]);
+      expect(flattenedConfig.pipeline[1]?.trigger_on).toEqual([
+        "stage:trigger",
+      ]);
     });
 
     it("should not propagate trigger_on when stage is manual", () => {
@@ -165,10 +167,7 @@ describe("Pipeline Flattening", () => {
         type: "stage",
         manual: true,
         trigger_on: ["stage:trigger"],
-        steps: [
-          createService("step1", "cmd1"),
-          createService("step2", "cmd2"),
-        ],
+        steps: [createService("step1", "cmd1"), createService("step2", "cmd2")],
       };
 
       const config = createConfig([stage]);
@@ -219,7 +218,10 @@ describe("Pipeline Flattening", () => {
         {
           name: "stage1",
           type: "stage" as const,
-          steps: [createService("step1a", "cmd1a"), createService("step1b", "cmd1b")],
+          steps: [
+            createService("step1a", "cmd1a"),
+            createService("step1b", "cmd1b"),
+          ],
         },
         {
           name: "stage2",

@@ -30,7 +30,7 @@ vi.mock("../../../src/utils/project-root.js", () => ({
  */
 function createTestServer(
   socketPath: string,
-  handler?: (request: any) => any
+  handler?: (request: any) => any,
 ): Promise<{ server: net.Server; sockets: Set<net.Socket> }> {
   return new Promise((resolve, reject) => {
     const sockets = new Set<net.Socket>();
@@ -63,7 +63,7 @@ function createTestServer(
                 jsonrpc: "2.0",
                 error: { code: -32700, message: "Parse error" },
                 id: 0,
-              }) + "\n"
+              }) + "\n",
             );
           }
         }
@@ -79,7 +79,7 @@ function createTestServer(
  * Helper: create a server that returns JSON-RPC errors
  */
 function createErrorServer(
-  socketPath: string
+  socketPath: string,
 ): Promise<{ server: net.Server; sockets: Set<net.Socket> }> {
   return new Promise((resolve, reject) => {
     const sockets = new Set<net.Socket>();
@@ -120,7 +120,7 @@ function createErrorServer(
  */
 async function forceCloseServer(
   server: net.Server,
-  sockets: Set<net.Socket>
+  sockets: Set<net.Socket>,
 ): Promise<void> {
   for (const socket of sockets) {
     socket.destroy();
@@ -171,7 +171,9 @@ describe("DaemonClient", () => {
         socketPath: path.join(tmpDir, "nonexistent.sock"),
       });
 
-      await expect(client.connect()).rejects.toThrow("Cannot connect to daemon");
+      await expect(client.connect()).rejects.toThrow(
+        "Cannot connect to daemon",
+      );
     });
 
     it("should be a no-op if already connected", async () => {
@@ -275,7 +277,7 @@ describe("DaemonClient", () => {
       await client.connect();
 
       await expect(client.request("failing.method")).rejects.toThrow(
-        "Internal error"
+        "Internal error",
       );
 
       client.disconnect();
@@ -396,7 +398,9 @@ describe("DaemonClient", () => {
         retryDelay: 50,
       });
 
-      await expect(client.connect()).rejects.toThrow("Cannot connect to daemon");
+      await expect(client.connect()).rejects.toThrow(
+        "Cannot connect to daemon",
+      );
     });
 
     it("should use default values when retries not specified", async () => {
@@ -405,7 +409,9 @@ describe("DaemonClient", () => {
       });
 
       // With 0 retries (default), should fail immediately
-      await expect(client.connect()).rejects.toThrow("Cannot connect to daemon");
+      await expect(client.connect()).rejects.toThrow(
+        "Cannot connect to daemon",
+      );
     });
   });
 
@@ -469,7 +475,7 @@ describe("DaemonClient", () => {
       const { getDaemonClient } = await import("../../../src/daemon/client.js");
 
       await expect(getDaemonClient("/nonexistent/path")).rejects.toThrow(
-        "Daemon not running"
+        "Daemon not running",
       );
     });
 

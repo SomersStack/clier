@@ -4,7 +4,9 @@ import { CircuitBreaker } from "../../../src/safety/circuit-breaker.js";
 describe("CircuitBreaker", () => {
   const breakers: CircuitBreaker[] = [];
 
-  const createBreaker = (opts?: ConstructorParameters<typeof CircuitBreaker>[0]): CircuitBreaker => {
+  const createBreaker = (
+    opts?: ConstructorParameters<typeof CircuitBreaker>[0],
+  ): CircuitBreaker => {
     const b = new CircuitBreaker(opts);
     breakers.push(b);
     return b;

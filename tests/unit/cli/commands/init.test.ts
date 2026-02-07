@@ -80,7 +80,7 @@ describe("Init Command", () => {
       expect(mockWriteFile).toHaveBeenCalledWith(
         expect.stringContaining("CLAUDE.md"),
         expect.any(String),
-        "utf-8"
+        "utf-8",
       );
     });
   });
@@ -98,7 +98,7 @@ describe("Init Command", () => {
       expect(mockWriteFile).toHaveBeenCalledWith(
         expect.stringContaining("AGENTS.md"),
         expect.any(String),
-        "utf-8"
+        "utf-8",
       );
     });
   });
@@ -133,7 +133,7 @@ describe("Init Command", () => {
       expect(mockWriteFile).toHaveBeenCalledWith(
         expect.stringContaining("CLAUDE.md"),
         expect.any(String),
-        "utf-8"
+        "utf-8",
       );
     });
   });
@@ -158,7 +158,7 @@ describe("Init Command", () => {
       expect(mockWriteFile).toHaveBeenCalledWith(
         expect.stringContaining("CLAUDE.md"),
         expect.stringContaining(existingContent),
-        "utf-8"
+        "utf-8",
       );
       // Should contain the separator
       const writtenContent = mockWriteFile.mock.calls[0][1] as string;

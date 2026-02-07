@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { ProcessManager, ProcessConfig } from "../../../src/core/process-manager.js";
+import {
+  ProcessManager,
+  ProcessConfig,
+} from "../../../src/core/process-manager.js";
 
 describe("ProcessManager", () => {
   let manager: ProcessManager;
@@ -112,7 +115,7 @@ describe("ProcessManager", () => {
       await manager.startProcess(config);
 
       await expect(manager.startProcess(config)).rejects.toThrow(
-        'Process "test-duplicate" is already running'
+        'Process "test-duplicate" is already running',
       );
     });
 
@@ -160,7 +163,7 @@ describe("ProcessManager", () => {
 
     it("should throw error if process not found", async () => {
       await expect(manager.stopProcess("non-existent")).rejects.toThrow(
-        'Process "non-existent" not found'
+        'Process "non-existent" not found',
       );
     });
   });
@@ -190,7 +193,7 @@ describe("ProcessManager", () => {
 
     it("should throw error if process not found", async () => {
       await expect(manager.restartProcess("non-existent")).rejects.toThrow(
-        'Process "non-existent" not found'
+        'Process "non-existent" not found',
       );
     });
   });
@@ -213,7 +216,7 @@ describe("ProcessManager", () => {
 
     it("should handle deleting non-existent process gracefully", async () => {
       await expect(
-        manager.deleteProcess("non-existent")
+        manager.deleteProcess("non-existent"),
       ).resolves.toBeUndefined();
     });
   });
@@ -488,7 +491,7 @@ describe("ProcessManager", () => {
           process.kill(childPid, 0); // Check if process exists
           // If we reach here, the process still exists - FAIL
           expect.fail(
-            `Child process ${childPid} still running after parent stopped`
+            `Child process ${childPid} still running after parent stopped`,
           );
         } catch {
           // Process doesn't exist - GOOD
@@ -499,7 +502,7 @@ describe("ProcessManager", () => {
       try {
         process.kill(shellPid, 0);
         expect.fail(
-          `Shell process ${shellPid} still running after stop command`
+          `Shell process ${shellPid} still running after stop command`,
         );
       } catch {
         // Process doesn't exist - GOOD

@@ -70,7 +70,9 @@ describe("Reload Command", () => {
 
       expect(exitCode).toBe(0);
       expect(mockResolveConfigPath).toHaveBeenCalled();
-      expect(mockLoadConfig).toHaveBeenCalledWith("/project/clier-pipeline.json");
+      expect(mockLoadConfig).toHaveBeenCalledWith(
+        "/project/clier-pipeline.json",
+      );
       expect(mockClient.request).toHaveBeenCalledWith("config.reload", {
         configPath: "/project/clier-pipeline.json",
       });
@@ -123,7 +125,7 @@ describe("Reload Command", () => {
   describe("daemon not running", () => {
     it("should return 1 when daemon is not running", async () => {
       vi.mocked(daemonClient.getDaemonClient).mockRejectedValue(
-        new Error("Daemon is not running")
+        new Error("Daemon is not running"),
       );
 
       const exitCode = await reloadCommand();

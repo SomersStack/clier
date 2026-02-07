@@ -40,7 +40,10 @@ vi.mock("url", () => ({
 }));
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { checkForUpdates, shouldShowUpdatePrompt } from "../../../src/cli/utils/version-checker.js";
+import {
+  checkForUpdates,
+  shouldShowUpdatePrompt,
+} from "../../../src/cli/utils/version-checker.js";
 
 describe("Version Checker", () => {
   beforeEach(() => {
@@ -54,7 +57,7 @@ describe("Version Checker", () => {
   describe("checkForUpdates", () => {
     it("should return hasUpdate=true when latest is newer", async () => {
       vi.mocked(readFileSync).mockReturnValue(
-        JSON.stringify({ version: "0.2.0" })
+        JSON.stringify({ version: "0.2.0" }),
       );
       mockExecAsync.mockResolvedValue({ stdout: "0.3.0\n" });
 
@@ -70,7 +73,7 @@ describe("Version Checker", () => {
 
     it("should return hasUpdate=false when versions are equal", async () => {
       vi.mocked(readFileSync).mockReturnValue(
-        JSON.stringify({ version: "1.0.0" })
+        JSON.stringify({ version: "1.0.0" }),
       );
       mockExecAsync.mockResolvedValue({ stdout: "1.0.0\n" });
 
@@ -85,7 +88,7 @@ describe("Version Checker", () => {
 
     it("should return hasUpdate=false when current is newer", async () => {
       vi.mocked(readFileSync).mockReturnValue(
-        JSON.stringify({ version: "2.0.0" })
+        JSON.stringify({ version: "2.0.0" }),
       );
       mockExecAsync.mockResolvedValue({ stdout: "1.5.0\n" });
 
@@ -100,10 +103,13 @@ describe("Version Checker", () => {
 
     it("should handle npm 404 (package not on npm yet) by returning current version as latest", async () => {
       vi.mocked(readFileSync).mockReturnValue(
-        JSON.stringify({ version: "0.1.0" })
+        JSON.stringify({ version: "0.1.0" }),
       );
-      const npmError = new Error("npm ERR! code E404") as Error & { stderr?: string };
-      npmError.stderr = "npm ERR! 404 Not Found - GET https://registry.npmjs.org/clier-ai";
+      const npmError = new Error("npm ERR! code E404") as Error & {
+        stderr?: string;
+      };
+      npmError.stderr =
+        "npm ERR! 404 Not Found - GET https://registry.npmjs.org/clier-ai";
       mockExecAsync.mockRejectedValue(npmError);
 
       const result = await checkForUpdates();
@@ -117,14 +123,16 @@ describe("Version Checker", () => {
 
     it("should throw on npm network error", async () => {
       vi.mocked(readFileSync).mockReturnValue(
-        JSON.stringify({ version: "0.1.0" })
+        JSON.stringify({ version: "0.1.0" }),
       );
-      const networkError = new Error("network timeout") as Error & { stderr?: string };
+      const networkError = new Error("network timeout") as Error & {
+        stderr?: string;
+      };
       networkError.stderr = "npm ERR! network timeout";
       mockExecAsync.mockRejectedValue(networkError);
 
       await expect(checkForUpdates()).rejects.toThrow(
-        "Failed to fetch latest version"
+        "Failed to fetch latest version",
       );
     });
   });
@@ -144,7 +152,7 @@ describe("Version Checker", () => {
       expect(writeFileSync).toHaveBeenCalledWith(
         expect.stringContaining("last-update-check"),
         expect.any(String),
-        "utf-8"
+        "utf-8",
       );
     });
 
@@ -173,7 +181,7 @@ describe("Version Checker", () => {
       expect(writeFileSync).toHaveBeenCalledWith(
         expect.stringContaining("last-update-check"),
         expect.any(String),
-        "utf-8"
+        "utf-8",
       );
     });
 
@@ -188,7 +196,7 @@ describe("Version Checker", () => {
 
       expect(mkdirSync).toHaveBeenCalledWith(
         expect.stringContaining(".clier"),
-        { recursive: true }
+        { recursive: true },
       );
     });
 

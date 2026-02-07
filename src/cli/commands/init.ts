@@ -59,9 +59,10 @@ export async function initCommand(options: {
 
     // Default: .claude/CLAUDE.md
     // With --agents flag: AGENTS.md in root
-    const targetPath = format === "claude"
-      ? join(cwd, ".claude", "CLAUDE.md")
-      : join(cwd, "AGENTS.md");
+    const targetPath =
+      format === "claude"
+        ? join(cwd, ".claude", "CLAUDE.md")
+        : join(cwd, "AGENTS.md");
     const displayPath = format === "claude" ? ".claude/CLAUDE.md" : "AGENTS.md";
 
     // Check for existing AGENTS.md in any valid location
@@ -73,17 +74,17 @@ export async function initCommand(options: {
       if (existingPath === targetPath) {
         console.log(chalk.yellow("⚠") + ` ${displayPath} already exists`);
         console.log(
-          chalk.dim("  Use --force to overwrite, --append to add content, or manually edit the file")
+          chalk.dim(
+            "  Use --force to overwrite, --append to add content, or manually edit the file",
+          ),
         );
         return 0;
       } else if (existingLocation) {
         console.log(chalk.yellow("⚠") + ` Found existing ${existingLocation}`);
         console.log(
-          chalk.dim("  Use --force to create a new file at " + displayPath)
+          chalk.dim("  Use --force to create a new file at " + displayPath),
         );
-        console.log(
-          chalk.dim("  Or manually edit the existing file")
-        );
+        console.log(chalk.dim("  Or manually edit the existing file"));
         return 0;
       }
     }
@@ -103,12 +104,10 @@ export async function initCommand(options: {
 
     if (!existsSync(templatePath)) {
       console.error(
-        chalk.red("✗") + " Template file not found in package installation"
+        chalk.red("✗") + " Template file not found in package installation",
       );
       console.log(chalk.dim("  Expected: " + templatePath));
-      console.log(
-        "\nYou can view docs with: " + chalk.cyan("clier docs all")
-      );
+      console.log("\nYou can view docs with: " + chalk.cyan("clier docs all"));
       return 1;
     }
 
@@ -130,11 +129,11 @@ export async function initCommand(options: {
     }
     console.log(
       chalk.dim(
-        "\n  This file provides a quick reference for AI agents working with Clier."
-      )
+        "\n  This file provides a quick reference for AI agents working with Clier.",
+      ),
     );
     console.log(
-      chalk.dim("  Customize it as needed for your project's workflow.")
+      chalk.dim("  Customize it as needed for your project's workflow."),
     );
 
     // Check if clier-pipeline.json exists
@@ -143,16 +142,14 @@ export async function initCommand(options: {
       console.log(
         "\n" +
           chalk.yellow("ℹ") +
-          " No clier-pipeline.json found in current directory"
+          " No clier-pipeline.json found in current directory",
       );
       console.log(
         chalk.dim("  See the template in ") +
           chalk.cyan(displayPath) +
-          chalk.dim(" to get started")
+          chalk.dim(" to get started"),
       );
-      console.log(
-        chalk.dim("  Or run: ") + chalk.cyan("clier docs pipeline")
-      );
+      console.log(chalk.dim("  Or run: ") + chalk.cyan("clier docs pipeline"));
     }
 
     return 0;

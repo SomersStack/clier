@@ -23,7 +23,9 @@ vi.mock("../../../src/utils/logger.js", () => ({
 vi.mock("../../../src/daemon/controller.js", () => ({
   DaemonController: vi.fn().mockImplementation(() => ({
     ping: vi.fn().mockResolvedValue({ pong: true }),
-    "process.list": vi.fn().mockResolvedValue([{ name: "backend", status: "running" }]),
+    "process.list": vi
+      .fn()
+      .mockResolvedValue([{ name: "backend", status: "running" }]),
     "daemon.status": vi.fn().mockResolvedValue({ uptime: 100 }),
   })),
 }));
@@ -38,7 +40,7 @@ vi.mock("../../../src/daemon/utils.js", () => ({
  */
 function sendRequest(
   socketPath: string,
-  request: Record<string, unknown>
+  request: Record<string, unknown>,
 ): Promise<any> {
   return new Promise((resolve, reject) => {
     const client = net.createConnection(socketPath, () => {
@@ -78,7 +80,10 @@ function sendRequest(
  * Helper: create a raw socket connection that stays open for multi-message testing.
  * Callers must pass the openConnections array so sockets are tracked for cleanup.
  */
-function createRawConnection(socketPath: string, track?: net.Socket[]): Promise<net.Socket> {
+function createRawConnection(
+  socketPath: string,
+  track?: net.Socket[],
+): Promise<net.Socket> {
   return new Promise((resolve, reject) => {
     const socket = net.createConnection(socketPath, () => {
       track?.push(socket);
@@ -181,7 +186,7 @@ describe("DaemonServer", () => {
       vi.mocked(probeSocket).mockResolvedValueOnce(true);
 
       await expect(server.start(socketPath)).rejects.toThrow(
-        "Another daemon is already listening"
+        "Another daemon is already listening",
       );
     });
   });
@@ -196,7 +201,7 @@ describe("DaemonServer", () => {
           jsonrpc: "2.0",
           method: "ping",
           id: 1,
-        })
+        }),
       ).rejects.toThrow();
     });
 
@@ -300,18 +305,25 @@ describe("DaemonServer", () => {
 
       expect(response.error).toBeDefined();
       expect(response.error.code).toBe(-32601);
-      expect(response.error.message).toBe("Method not found: nonexistent.method");
+      expect(response.error.message).toBe(
+        "Method not found: nonexistent.method",
+      );
       expect(response.id).toBe(5);
     });
 
     it("should return internal error when controller method throws", async () => {
       // Get the mock controller and make a method throw
-      const { DaemonController } = await import("../../../src/daemon/controller.js");
+      const { DaemonController } =
+        await import("../../../src/daemon/controller.js");
       const MockController = vi.mocked(DaemonController);
-      const controllerInstance = MockController.mock.results[MockController.mock.results.length - 1]?.value;
+      const controllerInstance =
+        MockController.mock.results[MockController.mock.results.length - 1]
+          ?.value;
 
       if (controllerInstance) {
-        controllerInstance["daemon.status"].mockRejectedValueOnce(new Error("Something broke"));
+        controllerInstance["daemon.status"].mockRejectedValueOnce(
+          new Error("Something broke"),
+        );
 
         const response = await sendRequest(socketPath, {
           jsonrpc: "2.0",
@@ -365,7 +377,11 @@ describe("DaemonServer", () => {
       const conn = await createRawConnection(socketPath, openConnections);
       const responses = collectResponses(conn);
 
-      const fullMessage = JSON.stringify({ jsonrpc: "2.0", method: "ping", id: 3 });
+      const fullMessage = JSON.stringify({
+        jsonrpc: "2.0",
+        method: "ping",
+        id: 3,
+      });
       const mid = Math.floor(fullMessage.length / 2);
 
       // Send first half
@@ -388,7 +404,11 @@ describe("DaemonServer", () => {
       const conn = await createRawConnection(socketPath, openConnections);
       const responses = collectResponses(conn);
 
-      conn.write("\n\n" + JSON.stringify({ jsonrpc: "2.0", method: "ping", id: 1 }) + "\n\n");
+      conn.write(
+        "\n\n" +
+          JSON.stringify({ jsonrpc: "2.0", method: "ping", id: 1 }) +
+          "\n\n",
+      );
 
       await new Promise((r) => setTimeout(r, 200));
 
@@ -411,7 +431,7 @@ describe("DaemonServer", () => {
           jsonrpc: "2.0",
           method: "ping",
           id: i + 1,
-        })
+        }),
       );
 
       const responses = await Promise.all(requests);

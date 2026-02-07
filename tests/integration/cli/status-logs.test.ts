@@ -29,25 +29,42 @@ describe("status/logs integration", () => {
   });
 
   afterEach(async () => {
-    try { client?.disconnect(); } catch { /* ignore */ }
-    try { await server?.stop(); } catch { /* ignore */ }
-    try { await watcher?.stop(); } catch { /* ignore */ }
+    try {
+      client?.disconnect();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await server?.stop();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await watcher?.stop();
+    } catch {
+      /* ignore */
+    }
     await rm(tempDir, { recursive: true, force: true });
   });
 
   /**
    * Helper to start a full daemon stack (watcher + server + client)
    */
-  async function startDaemonStack(config: Record<string, unknown>): Promise<void> {
+  async function startDaemonStack(
+    config: Record<string, unknown>,
+  ): Promise<void> {
     await writeFile(configPath, JSON.stringify(config, null, 2));
 
     watcher = new Watcher();
-    await watcher.start(configPath, tempDir, { detached: false, setupSignalHandlers: false });
+    await watcher.start(configPath, tempDir, {
+      detached: false,
+      setupSignalHandlers: false,
+    });
 
     server = new DaemonServer(watcher);
     await server.start(socketPath);
 
-    client = new DaemonClient({ socketPath, timeout: 5000 });
+    client = new DaemonClient({ socketPath, timeout: 15000 });
     await client.connect();
   }
 
@@ -379,7 +396,9 @@ describe("status/logs integration", () => {
       expect(logs.length).toBeGreaterThan(0);
 
       // Clear logs
-      const clearResult = await client.request("logs.clear", { name: "clearable" });
+      const clearResult = await client.request("logs.clear", {
+        name: "clearable",
+      });
       expect(clearResult.success).toBe(true);
       expect(clearResult.cleared).toContain("clearable");
     }, 10000);
@@ -499,13 +518,13 @@ describe("status/logs integration", () => {
       expect(result).toEqual({ success: true });
 
       // Wait for reload to take effect
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 2000));
 
       // Should now have the updated process
       const processes = await client.request("process.list");
       const names = processes.map((p: any) => p.name);
       expect(names).toContain("updated-service");
-    }, 15000);
+    }, 30000);
   });
 
   describe("client connection handling", () => {

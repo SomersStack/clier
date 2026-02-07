@@ -164,7 +164,7 @@ export class DaemonServer extends EventEmitter {
    * Handle a JSON-RPC request
    */
   private async handleRequest(
-    request: JsonRpcRequest
+    request: JsonRpcRequest,
   ): Promise<JsonRpcResponse> {
     try {
       // Validate JSON-RPC version
@@ -194,10 +194,7 @@ export class DaemonServer extends EventEmitter {
       }
 
       // Call the method
-      const result = await method.call(
-        this.controller,
-        request.params || {}
-      );
+      const result = await method.call(this.controller, request.params || {});
 
       return {
         jsonrpc: "2.0",

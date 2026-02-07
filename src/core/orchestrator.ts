@@ -5,7 +5,11 @@
  * Tracks process dependencies, handles triggers, and starts dependent processes.
  */
 
-import type { ClierConfig, PipelineItem, FlattenedConfig } from "../config/types.js";
+import type {
+  ClierConfig,
+  PipelineItem,
+  FlattenedConfig,
+} from "../config/types.js";
 import type { ClierEvent } from "../types/events.js";
 import type { ProcessManager, ProcessConfig } from "./process-manager.js";
 import { flattenPipeline } from "../config/flatten.js";
@@ -74,7 +78,11 @@ export class Orchestrator {
    * const orchestrator = new Orchestrator(processManager, '/project/root', { detached: false });
    * ```
    */
-  constructor(processManager: ProcessManager, projectRoot?: string, options?: OrchestratorOptions) {
+  constructor(
+    processManager: ProcessManager,
+    projectRoot?: string,
+    options?: OrchestratorOptions,
+  ) {
     this.processManager = processManager;
     this.projectRoot = projectRoot;
     this.options = options || {};
@@ -177,7 +185,7 @@ export class Orchestrator {
         for (const trigger of item.trigger_on) {
           if (!allEventNames.has(trigger)) {
             warnings.push(
-              `Process "${item.name}" waits for event "${trigger}" which may never be emitted`
+              `Process "${item.name}" waits for event "${trigger}" which may never be emitted`,
             );
           }
         }
@@ -240,7 +248,7 @@ export class Orchestrator {
         const cycle = hasCycle(item.name);
         if (cycle) {
           throw new Error(
-            `Circular dependency detected in pipeline: ${cycle.join(" → ")}`
+            `Circular dependency detected in pipeline: ${cycle.join(" → ")}`,
           );
         }
       }
@@ -375,7 +383,7 @@ export class Orchestrator {
   getEntryPoints(): PipelineItem[] {
     return Array.from(this.pipelineItems.values()).filter(
       (item) =>
-        !item.manual && (!item.trigger_on || item.trigger_on.length === 0)
+        !item.manual && (!item.trigger_on || item.trigger_on.length === 0),
     );
   }
 
@@ -394,7 +402,7 @@ export class Orchestrator {
       (item) =>
         item.trigger_on &&
         item.trigger_on.length > 0 &&
-        !this.startedProcesses.has(item.name)
+        !this.startedProcesses.has(item.name),
     );
   }
 
@@ -430,7 +438,10 @@ export class Orchestrator {
     // If process was started before but is no longer running (e.g., task completed),
     // allow it to be re-started by removing from startedProcesses
     if (this.startedProcesses.has(stageName)) {
-      logger.debug("Removing completed stage from startedProcesses to allow restart", { stageName });
+      logger.debug(
+        "Removing completed stage from startedProcesses to allow restart",
+        { stageName },
+      );
       this.startedProcesses.delete(stageName);
     }
 
@@ -471,8 +482,8 @@ export class Orchestrator {
    * @returns Array of manually triggered process names that are currently running
    */
   getManuallyTriggeredProcesses(): string[] {
-    return Array.from(this.manuallyTriggeredProcesses).filter(name =>
-      this.processManager.isRunning(name)
+    return Array.from(this.manuallyTriggeredProcesses).filter((name) =>
+      this.processManager.isRunning(name),
     );
   }
 
@@ -586,7 +597,8 @@ export class Orchestrator {
       type: item.type,
       // Determine restart mode from config, defaulting based on type
       restart: (() => {
-        const restartMode = item.restart ?? (item.type === "service" ? "on-failure" : "never");
+        const restartMode =
+          item.restart ?? (item.type === "service" ? "on-failure" : "never");
         if (restartMode === "never") return undefined;
         return {
           enabled: true,
@@ -630,7 +642,7 @@ export class Orchestrator {
    */
   private findDependents(eventName: string): PipelineItem[] {
     return Array.from(this.pipelineItems.values()).filter(
-      (item) => !item.manual && item.trigger_on?.includes(eventName)
+      (item) => !item.manual && item.trigger_on?.includes(eventName),
     );
   }
 
@@ -650,7 +662,7 @@ export class Orchestrator {
    */
   private shouldSkipDueToFailure(
     event: ClierEvent,
-    _dependent: PipelineItem
+    _dependent: PipelineItem,
   ): boolean {
     // If event is an error or crash
     const isFailureEvent = event.type === "error" || event.type === "crashed";

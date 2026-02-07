@@ -86,7 +86,11 @@ export class Watcher {
    * await watcher.start('./clier-pipeline.json', '/project/root', { detached: false });
    * ```
    */
-  async start(configPath: string, projectRoot?: string, options?: { setupSignalHandlers?: boolean; detached?: boolean }): Promise<void> {
+  async start(
+    configPath: string,
+    projectRoot?: string,
+    options?: { setupSignalHandlers?: boolean; detached?: boolean },
+  ): Promise<void> {
     if (this.started) {
       logger.warn("Watcher already started");
       return;
@@ -98,14 +102,20 @@ export class Watcher {
       // Store detached option (default true, set false in tests to prevent orphan processes)
       this.detached = options?.detached;
 
-      logger.info("Starting Clier watcher", { configPath, projectRoot: this.projectRoot, detached: this.detached });
+      logger.info("Starting Clier watcher", {
+        configPath,
+        projectRoot: this.projectRoot,
+        detached: this.detached,
+      });
 
       // Load configuration
       try {
         this.config = await loadConfig(configPath);
 
         // Flatten stages into individual pipeline items
-        const { config: flattenedConfig, stageMap } = flattenPipeline(this.config);
+        const { config: flattenedConfig, stageMap } = flattenPipeline(
+          this.config,
+        );
         this.flattenedConfig = flattenedConfig;
         this.stageMap = stageMap;
 
@@ -259,7 +269,7 @@ export class Watcher {
    */
   async emitEvent(
     eventName: string,
-    data?: string | Record<string, unknown>
+    data?: string | Record<string, unknown>,
   ): Promise<string[]> {
     if (!this.eventHandler || !this.orchestrator) {
       throw new Error("Watcher not started");
@@ -398,9 +408,13 @@ export class Watcher {
     try {
       this.patternMatcher = new PatternMatcher();
       this.eventHandler = new EventHandler(this.patternMatcher);
-      this.orchestrator = new Orchestrator(this.processManager, this.projectRoot, {
-        detached: this.detached,
-      });
+      this.orchestrator = new Orchestrator(
+        this.processManager,
+        this.projectRoot,
+        {
+          detached: this.detached,
+        },
+      );
       logger.debug("Core components initialized");
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

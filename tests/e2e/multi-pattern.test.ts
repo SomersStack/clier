@@ -88,13 +88,21 @@ describe("E2E: Multi-Pattern Event Matching", () => {
 
     // Verify the multi-output process produced stdout
     const history = watcher.getEventHandler()?.getEventHistory() ?? [];
-    const sourceEvents = history.filter((e) => e.processName === "multi-output" && e.type === "stdout");
+    const sourceEvents = history.filter(
+      (e) => e.processName === "multi-output" && e.type === "stdout",
+    );
     expect(sourceEvents.length).toBeGreaterThan(0);
 
     // Verify all 3 handler tasks were triggered (proving all 3 patterns matched)
-    const infoHandlerEvents = history.filter((e) => e.processName === "info-handler" && e.type === "stdout");
-    const startupHandlerEvents = history.filter((e) => e.processName === "startup-handler" && e.type === "stdout");
-    const initHandlerEvents = history.filter((e) => e.processName === "init-handler" && e.type === "stdout");
+    const infoHandlerEvents = history.filter(
+      (e) => e.processName === "info-handler" && e.type === "stdout",
+    );
+    const startupHandlerEvents = history.filter(
+      (e) => e.processName === "startup-handler" && e.type === "stdout",
+    );
+    const initHandlerEvents = history.filter(
+      (e) => e.processName === "init-handler" && e.type === "stdout",
+    );
     expect(infoHandlerEvents.length).toBeGreaterThan(0);
     expect(startupHandlerEvents.length).toBeGreaterThan(0);
     expect(initHandlerEvents.length).toBeGreaterThan(0);
@@ -179,7 +187,9 @@ describe("E2E: Multi-Pattern Event Matching", () => {
 
     // Verify the logger process produced multiple stdout lines
     const history = watcher.getEventHandler()?.getEventHistory() ?? [];
-    const loggerEvents = history.filter((e) => e.processName === "logger" && e.type === "stdout");
+    const loggerEvents = history.filter(
+      (e) => e.processName === "logger" && e.type === "stdout",
+    );
     expect(loggerEvents.length).toBeGreaterThanOrEqual(4);
 
     // Verify all counter/handler tasks were triggered
@@ -260,7 +270,9 @@ describe("E2E: Multi-Pattern Event Matching", () => {
 
     // Verify the source process produced stdout with all 3 event markers
     const history = watcher.getEventHandler()?.getEventHistory() ?? [];
-    const sourceEvents = history.filter((e) => e.processName === "source" && e.type === "stdout");
+    const sourceEvents = history.filter(
+      (e) => e.processName === "source" && e.type === "stdout",
+    );
     expect(sourceEvents.length).toBeGreaterThan(0);
 
     // Verify all handlers were triggered
@@ -334,7 +346,9 @@ describe("E2E: Multi-Pattern Event Matching", () => {
 
     // Verify selective process produced stdout
     const history = watcher.getEventHandler()?.getEventHistory() ?? [];
-    const selectiveEvents = history.filter((e) => e.processName === "selective" && e.type === "stdout");
+    const selectiveEvents = history.filter(
+      (e) => e.processName === "selective" && e.type === "stdout",
+    );
     expect(selectiveEvents.length).toBeGreaterThan(0);
 
     // Verify info-only task ran (log:info pattern matched)

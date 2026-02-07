@@ -125,7 +125,7 @@ describe("Status Command", () => {
   describe("daemon not running", () => {
     it("should return 1 with warning in normal mode", async () => {
       vi.mocked(daemonClient.getDaemonClient).mockRejectedValue(
-        new Error("Daemon is not running")
+        new Error("Daemon is not running"),
       );
 
       const exitCode = await statusCommand();
@@ -135,7 +135,7 @@ describe("Status Command", () => {
 
     it("should return 0 with JSON output when daemon not running in json mode", async () => {
       vi.mocked(daemonClient.getDaemonClient).mockRejectedValue(
-        new Error("Daemon is not running")
+        new Error("Daemon is not running"),
       );
 
       const exitCode = await statusCommand({ json: true });

@@ -517,7 +517,7 @@ describe("Orchestrator", () => {
       ]);
 
       expect(() => orchestrator.loadPipeline(config)).toThrow(
-        /Circular dependency detected in pipeline/
+        /Circular dependency detected in pipeline/,
       );
     });
 
@@ -553,7 +553,7 @@ describe("Orchestrator", () => {
       ]);
 
       expect(() => orchestrator.loadPipeline(config)).toThrow(
-        /Circular dependency detected in pipeline/
+        /Circular dependency detected in pipeline/,
       );
     });
 
@@ -571,7 +571,7 @@ describe("Orchestrator", () => {
       ]);
 
       expect(() => orchestrator.loadPipeline(config)).toThrow(
-        /Circular dependency detected in pipeline.*loop → loop/
+        /Circular dependency detected in pipeline.*loop → loop/,
       );
     });
 
@@ -598,7 +598,7 @@ describe("Orchestrator", () => {
       ]);
 
       expect(() => orchestrator.loadPipeline(config)).toThrow(
-        /alpha → beta → alpha|beta → alpha → beta/
+        /alpha → beta → alpha|beta → alpha → beta/,
       );
     });
 
@@ -685,7 +685,7 @@ describe("Orchestrator", () => {
       ]);
 
       expect(() => orchestrator.loadPipeline(config)).toThrow(
-        /Circular dependency detected in pipeline/
+        /Circular dependency detected in pipeline/,
       );
     });
   });
@@ -696,7 +696,8 @@ describe("Orchestrator", () => {
         createPipelineItem({ name: "producer" }),
         createPipelineItem({
           name: "consumer",
-          command: "node app.js --source={{event.source}} --event={{event.name}}",
+          command:
+            "node app.js --source={{event.source}} --event={{event.name}}",
           trigger_on: ["producer:done"],
           enable_event_templates: true,
         }),
@@ -765,7 +766,8 @@ describe("Orchestrator", () => {
         createPipelineItem({ name: "producer" }),
         createPipelineItem({
           name: "consumer",
-          command: "node app.js --proc={{process.name}} --project={{clier.project}}",
+          command:
+            "node app.js --proc={{process.name}} --project={{clier.project}}",
           type: "task",
           trigger_on: ["producer:done"],
           enable_event_templates: true,

@@ -197,7 +197,9 @@ export async function updateCommand(options: {
         const socketPath = path.join(projectRoot, ".clier", "daemon.sock");
         if (fs.existsSync(socketPath)) {
           printWarning("A clier daemon is currently running.");
-          printInfo("Run 'clier restart' to update the daemon to the new version.");
+          printInfo(
+            "Run 'clier restart' to update the daemon to the new version.",
+          );
           console.log();
         }
       }

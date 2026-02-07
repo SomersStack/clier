@@ -7,7 +7,10 @@ import {
   renderTemplate,
   formatVariableInfo,
 } from "../../../src/templates/renderer.js";
-import type { StageTemplate, VariableDefinition } from "../../../src/templates/types.js";
+import type {
+  StageTemplate,
+  VariableDefinition,
+} from "../../../src/templates/types.js";
 
 function makeTemplate(overrides: Partial<StageTemplate> = {}): StageTemplate {
   return {
@@ -168,7 +171,10 @@ describe("Template Renderer", () => {
         ],
       });
 
-      const missing = validateRequiredVariables(template, { a: "val", c: "val" });
+      const missing = validateRequiredVariables(template, {
+        a: "val",
+        c: "val",
+      });
       expect(missing).toEqual(["b"]);
     });
   });
@@ -365,9 +371,7 @@ describe("Template Renderer", () => {
     });
 
     it("should default required to false when not specified", () => {
-      const variables: VariableDefinition[] = [
-        { name: "x", label: "X" },
-      ];
+      const variables: VariableDefinition[] = [{ name: "x", label: "X" }];
 
       const result = formatVariableInfo(variables);
       expect(result[0]!.required).toBe(false);

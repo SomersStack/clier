@@ -38,7 +38,11 @@ export function flattenPipeline(config: ClierConfig): FlattenResult {
         const effectiveManual = entry.manual || step.manual || false;
 
         let effectiveTriggerOn = step.trigger_on;
-        if (!effectiveManual && entry.trigger_on && entry.trigger_on.length > 0) {
+        if (
+          !effectiveManual &&
+          entry.trigger_on &&
+          entry.trigger_on.length > 0
+        ) {
           effectiveTriggerOn = [
             ...entry.trigger_on,
             ...(step.trigger_on ?? []),

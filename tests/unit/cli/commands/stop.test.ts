@@ -84,7 +84,7 @@ describe("Stop Command", () => {
 
     it("should return 1 when stopping a process fails", async () => {
       mockClient.request.mockRejectedValue(
-        new Error('Process "my-service" not found')
+        new Error('Process "my-service" not found'),
       );
 
       const exitCode = await stopCommand({ process: "my-service" });
@@ -97,7 +97,7 @@ describe("Stop Command", () => {
   describe("daemon not running", () => {
     it("should return 0 with warning when daemon is not running", async () => {
       vi.mocked(daemonClient.getDaemonClient).mockRejectedValue(
-        new Error("Daemon is not running")
+        new Error("Daemon is not running"),
       );
 
       const exitCode = await stopCommand();

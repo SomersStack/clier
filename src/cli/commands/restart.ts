@@ -53,7 +53,7 @@ export async function restartCommand(configPath?: string): Promise<number> {
   } catch (error) {
     spinner.fail("Failed to restart daemon");
     printError(
-      `Error: ${error instanceof Error ? error.message : String(error)}`
+      `Error: ${error instanceof Error ? error.message : String(error)}`,
     );
     return 1;
   }

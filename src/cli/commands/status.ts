@@ -81,7 +81,7 @@ function toJsonProcess(proc: ProcessStatus): JsonProcessStatus {
  */
 function groupByStage(
   processes: ProcessStatus[],
-  stageMap: Record<string, string>
+  stageMap: Record<string, string>,
 ): { stageGroups: Map<string, ProcessStatus[]>; ungrouped: ProcessStatus[] } {
   const stageGroups = new Map<string, ProcessStatus[]>();
   const ungrouped: ProcessStatus[] = [];
@@ -141,7 +141,7 @@ function buildStatusOutput(
   daemonStatus: DaemonStatus,
   processes: ProcessStatus[],
   stageMap: Record<string, string>,
-  isWatch: boolean
+  isWatch: boolean,
 ): { output: string; lineCount: number } {
   const lines: string[] = [];
 
@@ -201,9 +201,14 @@ function renderStatus(
   daemonStatus: DaemonStatus,
   processes: ProcessStatus[],
   stageMap: Record<string, string>,
-  isWatch: boolean
+  isWatch: boolean,
 ): number {
-  const { output, lineCount } = buildStatusOutput(daemonStatus, processes, stageMap, isWatch);
+  const { output, lineCount } = buildStatusOutput(
+    daemonStatus,
+    processes,
+    stageMap,
+    isWatch,
+  );
   console.log(output);
   return lineCount;
 }
@@ -254,7 +259,7 @@ function clearScreen(): void {
  * @returns Exit code (0 for success, 1 for failure)
  */
 export async function statusCommand(
-  options: StatusOptions = {}
+  options: StatusOptions = {},
 ): Promise<number> {
   const { watch = false, interval = 2, json = false } = options;
 
@@ -311,10 +316,7 @@ export async function statusCommand(
           renderStatus(daemonStatus, processes, stageMap, true);
         } catch (error) {
           clearScreen();
-          if (
-            error instanceof Error &&
-            error.message.includes("not running")
-          ) {
+          if (error instanceof Error && error.message.includes("not running")) {
             const errorLines = [
               "",
               chalk.yellow("⚠ Clier daemon is not running"),
@@ -326,15 +328,14 @@ export async function statusCommand(
             ];
             console.log(errorLines.join("\n"));
           } else {
-            const errorMsg = error instanceof Error ? error.message : String(error);
+            const errorMsg =
+              error instanceof Error ? error.message : String(error);
             console.log(chalk.red(`✖ ${errorMsg}`));
           }
         }
 
         // Wait for the interval
-        await new Promise((resolve) =>
-          setTimeout(resolve, interval * 1000)
-        );
+        await new Promise((resolve) => setTimeout(resolve, interval * 1000));
       }
 
       return 0;
@@ -345,10 +346,7 @@ export async function statusCommand(
       return 0;
     }
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("not running")
-    ) {
+    if (error instanceof Error && error.message.includes("not running")) {
       if (json) {
         // JSON output when daemon not running
         const output: JsonOutput = {
@@ -369,7 +367,9 @@ export async function statusCommand(
 
     if (json) {
       console.error(
-        JSON.stringify({ error: error instanceof Error ? error.message : String(error) })
+        JSON.stringify({
+          error: error instanceof Error ? error.message : String(error),
+        }),
       );
     } else {
       printError(error instanceof Error ? error.message : String(error));

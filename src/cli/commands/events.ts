@@ -107,7 +107,9 @@ function formatEventData(data: ClierEvent["data"]): string {
  * @param options - Events options
  * @returns Exit code (0 for success, 1 for failure)
  */
-export async function eventsCommand(options: EventsOptions = {}): Promise<number> {
+export async function eventsCommand(
+  options: EventsOptions = {},
+): Promise<number> {
   try {
     const client = await getDaemonClient();
 
@@ -151,14 +153,20 @@ export async function eventsCommand(options: EventsOptions = {}): Promise<number
     if (filters.length > 0) {
       console.log(chalk.gray(`Filters: ${filters.join(", ")}`));
     }
-    console.log(chalk.gray(`Showing ${events.length} events (max ${options.lines || 100})`));
+    console.log(
+      chalk.gray(
+        `Showing ${events.length} events (max ${options.lines || 100})`,
+      ),
+    );
     console.log();
 
     // Display events
     if (events.length === 0) {
       printWarning("No events found");
       console.log();
-      console.log("  Events are stored in-memory and cleared on daemon restart.");
+      console.log(
+        "  Events are stored in-memory and cleared on daemon restart.",
+      );
       console.log("  Up to 100 recent events are kept.");
       console.log();
       return 0;
@@ -167,20 +175,25 @@ export async function eventsCommand(options: EventsOptions = {}): Promise<number
     // Table header
     console.log(
       chalk.bold(
-        `${"TIMESTAMP".padEnd(24)} ${"PROCESS".padEnd(15)} ${"TYPE".padEnd(10)} ${"EVENT".padEnd(25)} DATA`
-      )
+        `${"TIMESTAMP".padEnd(24)} ${"PROCESS".padEnd(15)} ${"TYPE".padEnd(10)} ${"EVENT".padEnd(25)} DATA`,
+      ),
     );
     console.log(chalk.gray("─".repeat(80)));
 
     for (const event of events) {
-      const timestamp = new Date(event.timestamp).toISOString().replace("T", " ").substring(0, 23);
+      const timestamp = new Date(event.timestamp)
+        .toISOString()
+        .replace("T", " ")
+        .substring(0, 23);
       const process = event.processName.substring(0, 14).padEnd(15);
       const typeColor = getTypeColor(event.type);
       const type = typeColor(event.type.toUpperCase().padEnd(10));
       const name = event.name.substring(0, 24).padEnd(25);
       const data = formatEventData(event.data);
 
-      console.log(`${chalk.gray(timestamp)} ${chalk.blue(process)} ${type} ${chalk.white(name)} ${chalk.gray(data)}`);
+      console.log(
+        `${chalk.gray(timestamp)} ${chalk.blue(process)} ${type} ${chalk.white(name)} ${chalk.gray(data)}`,
+      );
     }
 
     console.log();

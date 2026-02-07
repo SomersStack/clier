@@ -18,7 +18,7 @@ import * as net from "net";
  */
 export function probeSocket(
   socketPath: string,
-  timeoutMs = 500
+  timeoutMs = 500,
 ): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = net.createConnection(socketPath);

@@ -20,7 +20,7 @@ import { printError, printSuccess, printWarning } from "../utils/formatter.js";
 export async function inputCommand(
   processName: string,
   input: string,
-  options: { newline?: boolean } = {}
+  options: { newline?: boolean } = {},
 ): Promise<number> {
   try {
     const client = await getDaemonClient();

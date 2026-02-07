@@ -79,7 +79,7 @@ describe("CLI Setup", () => {
   it("should parse 'run <name>' without errors", async () => {
     const program = createCLI();
     await expect(
-      program.parseAsync(["node", "clier", "run", "my-service"])
+      program.parseAsync(["node", "clier", "run", "my-service"]),
     ).resolves.not.toThrow();
   });
 
@@ -94,14 +94,14 @@ describe("CLI Setup", () => {
         "--",
         "arg1",
         "arg2",
-      ])
+      ]),
     ).resolves.not.toThrow();
   });
 
   it("should parse 'service start <name>' without errors", async () => {
     const program = createCLI();
     await expect(
-      program.parseAsync(["node", "clier", "service", "start", "my-service"])
+      program.parseAsync(["node", "clier", "service", "start", "my-service"]),
     ).resolves.not.toThrow();
   });
 
@@ -117,28 +117,27 @@ describe("CLI Setup", () => {
         "--",
         "arg1",
         "arg2",
-      ])
+      ]),
     ).resolves.not.toThrow();
   });
 
   it("should parse 'service stop <name>'", async () => {
     const program = createCLI();
     await expect(
-      program.parseAsync(["node", "clier", "service", "stop", "my-service"])
+      program.parseAsync(["node", "clier", "service", "stop", "my-service"]),
     ).resolves.not.toThrow();
   });
 
   it("should parse 'service restart <name>'", async () => {
     const program = createCLI();
     await expect(
-      program.parseAsync(["node", "clier", "service", "restart", "my-service"])
+      program.parseAsync(["node", "clier", "service", "restart", "my-service"]),
     ).resolves.not.toThrow();
   });
 
   it("should pass arguments through to the run command handler", async () => {
-    const { serviceStartCommand } = await import(
-      "../../../src/cli/commands/service.js"
-    );
+    const { serviceStartCommand } =
+      await import("../../../src/cli/commands/service.js");
     const program = createCLI();
     await program.parseAsync([
       "node",
@@ -158,9 +157,8 @@ describe("CLI Setup", () => {
   });
 
   it("should pass arguments through to the service start handler", async () => {
-    const { serviceStartCommand } = await import(
-      "../../../src/cli/commands/service.js"
-    );
+    const { serviceStartCommand } =
+      await import("../../../src/cli/commands/service.js");
     const program = createCLI();
     await program.parseAsync([
       "node",

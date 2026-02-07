@@ -56,15 +56,18 @@ export async function docsCommand(options: {
     // List available subjects
     if (options.list) {
       console.log(chalk.bold("Available documentation subjects:\n"));
-      console.log(chalk.cyan("  commands") + "     - CLI commands and workflows");
       console.log(
-        chalk.cyan("  pipeline") + "     - Pipeline configuration guide"
+        chalk.cyan("  commands") + "     - CLI commands and workflows",
       );
       console.log(
-        chalk.cyan("  agent-instructions") + " - Essential AI agent instructions for CLAUDE.md/AGENTS.md"
+        chalk.cyan("  pipeline") + "     - Pipeline configuration guide",
       );
       console.log(
-        chalk.cyan("  all") + "          - Complete agent documentation"
+        chalk.cyan("  agent-instructions") +
+          " - Essential AI agent instructions for CLAUDE.md/AGENTS.md",
+      );
+      console.log(
+        chalk.cyan("  all") + "          - Complete agent documentation",
       );
       console.log("\nUsage:");
       console.log(chalk.dim("  clier docs [subject]"));
@@ -98,10 +101,7 @@ export async function docsCommand(options: {
           }
           return readFileSync(join(docsDir, file), "utf-8");
         } catch (error) {
-          console.error(
-            chalk.yellow(`Warning: Could not read ${file}`),
-            error
-          );
+          console.error(chalk.yellow(`Warning: Could not read ${file}`), error);
           return "";
         }
       })
@@ -112,7 +112,7 @@ export async function docsCommand(options: {
       console.error(chalk.red("No documentation found"));
       console.log(
         "\nOnline docs: " +
-          chalk.blue("https://github.com/yourusername/clier/tree/main/docs")
+          chalk.blue("https://github.com/yourusername/clier/tree/main/docs"),
       );
       return 1;
     }

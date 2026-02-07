@@ -255,17 +255,26 @@ export class EventHandler {
     let exitCode: number;
     if (typeof event.data === "number") {
       exitCode = event.data;
-    } else if (typeof event.data === "object" && event.data !== null && "code" in event.data) {
+    } else if (
+      typeof event.data === "object" &&
+      event.data !== null &&
+      "code" in event.data
+    ) {
       const dataWithCode = event.data as { code: unknown };
-      exitCode = typeof dataWithCode.code === "number" ? dataWithCode.code : parseInt(String(dataWithCode.code));
+      exitCode =
+        typeof dataWithCode.code === "number"
+          ? dataWithCode.code
+          : parseInt(String(dataWithCode.code));
     } else {
       const parsed = parseInt(String(event.data));
       exitCode = isNaN(parsed) ? 1 : parsed; // Default to 1 (error) if unparseable
     }
 
     // For tasks or services with on-failure/never restart: exit code 0 = success
-    const restartMode = item.restart ?? (item.type === "service" ? "on-failure" : "never");
-    const willRestart = item.type === "service" && restartMode === "always" && exitCode === 0;
+    const restartMode =
+      item.restart ?? (item.type === "service" ? "on-failure" : "never");
+    const willRestart =
+      item.type === "service" && restartMode === "always" && exitCode === 0;
 
     if (exitCode === 0 && !willRestart) {
       const successEvent: ClierEvent = {
@@ -276,7 +285,9 @@ export class EventHandler {
         timestamp: event.timestamp,
       };
 
-      logger.info(`${item.type === "task" ? "Task" : "Service"} ${item.name} completed successfully`);
+      logger.info(
+        `${item.type === "task" ? "Task" : "Service"} ${item.name} completed successfully`,
+      );
       this.emit(`${item.name}:success`, successEvent);
       return;
     }

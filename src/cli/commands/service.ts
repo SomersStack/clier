@@ -40,7 +40,7 @@ export interface AddServiceOptions {
  */
 export async function serviceStartCommand(
   serviceName: string,
-  args?: string[]
+  args?: string[],
 ): Promise<number> {
   try {
     const client = await getDaemonClient();
@@ -60,10 +60,7 @@ export async function serviceStartCommand(
     client.disconnect();
     return 0;
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("not running")
-    ) {
+    if (error instanceof Error && error.message.includes("not running")) {
       printWarning("Clier daemon is not running");
       console.log();
       console.log("  Start it with: clier start");
@@ -85,15 +82,15 @@ export async function serviceStartCommand(
  */
 export async function serviceStopCommand(
   serviceName: string,
-  force = false
+  force = false,
 ): Promise<number> {
   try {
     const client = await getDaemonClient();
 
     console.log(
       chalk.cyan(
-        `\nStopping service: ${serviceName}${force ? " (force)" : ""}`
-      )
+        `\nStopping service: ${serviceName}${force ? " (force)" : ""}`,
+      ),
     );
 
     await client.request("process.stop", { name: serviceName, force });
@@ -126,15 +123,15 @@ export async function serviceStopCommand(
  */
 export async function serviceRestartCommand(
   serviceName: string,
-  force = false
+  force = false,
 ): Promise<number> {
   try {
     const client = await getDaemonClient();
 
     console.log(
       chalk.cyan(
-        `\nRestarting service: ${serviceName}${force ? " (force)" : ""}`
-      )
+        `\nRestarting service: ${serviceName}${force ? " (force)" : ""}`,
+      ),
     );
 
     await client.request("process.restart", { name: serviceName, force });
@@ -167,7 +164,7 @@ export async function serviceRestartCommand(
  */
 export async function serviceAddCommand(
   serviceName: string,
-  options: AddServiceOptions
+  options: AddServiceOptions,
 ): Promise<number> {
   try {
     const client = await getDaemonClient();
@@ -198,7 +195,8 @@ export async function serviceAddCommand(
       env: Object.keys(env).length > 0 ? env : undefined,
       restart: (() => {
         const type = options.type || "service";
-        const mode = options.restart ?? (type === "service" ? "on-failure" : "never");
+        const mode =
+          options.restart ?? (type === "service" ? "on-failure" : "never");
         if (mode === "never") return undefined;
         return { enabled: true, mode };
       })(),
@@ -220,10 +218,7 @@ export async function serviceAddCommand(
     client.disconnect();
     return 0;
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("not running")
-    ) {
+    if (error instanceof Error && error.message.includes("not running")) {
       printWarning("Clier daemon is not running");
       console.log();
       console.log("  Start it with: clier start");
@@ -243,7 +238,7 @@ export async function serviceAddCommand(
  * @returns Exit code (0 for success, 1 for failure)
  */
 export async function serviceRemoveCommand(
-  serviceName: string
+  serviceName: string,
 ): Promise<number> {
   try {
     const client = await getDaemonClient();
@@ -258,10 +253,7 @@ export async function serviceRemoveCommand(
     client.disconnect();
     return 0;
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("not running")
-    ) {
+    if (error instanceof Error && error.message.includes("not running")) {
       printWarning("Clier daemon is not running");
       console.log();
       console.log("  Start it with: clier start");

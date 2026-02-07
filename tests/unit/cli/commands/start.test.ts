@@ -58,7 +58,7 @@ describe("Start Command", () => {
 
     // Default: config resolves, loads, no daemon running
     vi.mocked(projectRoot.resolveConfigPath).mockReturnValue(
-      "/fake/project/clier-pipeline.json"
+      "/fake/project/clier-pipeline.json",
     );
     vi.mocked(configLoader.loadConfig).mockResolvedValue({
       project_name: "test-project",
@@ -66,7 +66,7 @@ describe("Start Command", () => {
     } as any);
     // No daemon running by default
     vi.mocked(daemonClient.getDaemonClient).mockRejectedValue(
-      new Error("Not running")
+      new Error("Not running"),
     );
 
     vi.spyOn(console, "log").mockImplementation(() => {});
@@ -100,7 +100,7 @@ describe("Start Command", () => {
       expect(exitCode).toBe(0);
       expect(projectRoot.resolveConfigPath).toHaveBeenCalled();
       expect(configLoader.loadConfig).toHaveBeenCalledWith(
-        "/fake/project/clier-pipeline.json"
+        "/fake/project/clier-pipeline.json",
       );
     });
   });
@@ -148,7 +148,7 @@ describe("Start Command", () => {
       };
 
       vi.mocked(daemonClient.getDaemonClient).mockResolvedValue(
-        mockRunningClient as any
+        mockRunningClient as any,
       );
 
       const exitCode = await startCommand();
@@ -167,7 +167,7 @@ describe("Start Command", () => {
         () =>
           ({
             start: vi.fn().mockRejectedValue(new Error("Port already in use")),
-          }) as any
+          }) as any,
       );
 
       const exitCode = await startCommand();

@@ -89,13 +89,19 @@ describe("E2E: Full Pipeline", () => {
 
     // Verify step1 and step2 ran by checking their stdout events in history
     const history = watcher.getEventHandler()?.getEventHistory() ?? [];
-    const step1Events = history.filter((e) => e.processName === "step1" && e.type === "stdout");
-    const step2Events = history.filter((e) => e.processName === "step2" && e.type === "stdout");
+    const step1Events = history.filter(
+      (e) => e.processName === "step1" && e.type === "stdout",
+    );
+    const step2Events = history.filter(
+      (e) => e.processName === "step2" && e.type === "stdout",
+    );
     expect(step1Events.length).toBeGreaterThan(0);
     expect(step2Events.length).toBeGreaterThan(0);
 
     // Verify step2 received its success output (proving it ran to completion)
-    expect(step2Events.some((e) => String(e.data).includes("STEP2_SUCCESS"))).toBe(true);
+    expect(
+      step2Events.some((e) => String(e.data).includes("STEP2_SUCCESS")),
+    ).toBe(true);
 
     // Verify the service started
     const serviceStatus = watcher.getProcessManager()?.getStatus("service");
@@ -116,9 +122,15 @@ describe("E2E: Full Pipeline", () => {
     const history = watcher.getEventHandler()?.getEventHistory() ?? [];
 
     // Find the first stdout event from each process
-    const step1First = history.find((e) => e.processName === "step1" && e.type === "stdout");
-    const step2First = history.find((e) => e.processName === "step2" && e.type === "stdout");
-    const serviceFirst = history.find((e) => e.processName === "service" && e.type === "stdout");
+    const step1First = history.find(
+      (e) => e.processName === "step1" && e.type === "stdout",
+    );
+    const step2First = history.find(
+      (e) => e.processName === "step2" && e.type === "stdout",
+    );
+    const serviceFirst = history.find(
+      (e) => e.processName === "service" && e.type === "stdout",
+    );
 
     expect(step1First).toBeDefined();
     expect(step2First).toBeDefined();
@@ -174,11 +186,15 @@ describe("E2E: Full Pipeline", () => {
 
       // Verify independent process ran (its stdout events appear in history)
       const history = watcher.getEventHandler()?.getEventHistory() ?? [];
-      const independentEvents = history.filter((e) => e.processName === "independent");
+      const independentEvents = history.filter(
+        (e) => e.processName === "independent",
+      );
       expect(independentEvents.length).toBeGreaterThan(0);
 
       // Verify dependent process did NOT run — no events from it in history
-      const dependentEvents = history.filter((e) => e.processName === "dependent");
+      const dependentEvents = history.filter(
+        (e) => e.processName === "dependent",
+      );
       expect(dependentEvents).toHaveLength(0);
 
       // Dependent should not be running

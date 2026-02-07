@@ -4,10 +4,21 @@
  * CLI commands for listing and applying pipeline stage templates.
  */
 
-import { existsSync, mkdirSync, writeFileSync, chmodSync, readFileSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+  chmodSync,
+  readFileSync,
+} from "fs";
 import { join, dirname } from "path";
 import chalk from "chalk";
-import { printError, printSuccess, printWarning, printInfo } from "../utils/formatter.js";
+import {
+  printError,
+  printSuccess,
+  printWarning,
+  printInfo,
+} from "../utils/formatter.js";
 import {
   loadTemplate,
   getTemplatesByCategory,
@@ -45,7 +56,9 @@ export interface ApplyOptions {
  * @param options - Filter options
  * @returns Exit code (0 for success, 1 for failure)
  */
-export async function templateListCommand(options: ListOptions = {}): Promise<number> {
+export async function templateListCommand(
+  options: ListOptions = {},
+): Promise<number> {
   try {
     const grouped = getTemplatesByCategory();
     const hasTemplates = Object.values(grouped).some((arr) => arr.length > 0);
@@ -80,7 +93,9 @@ export async function templateListCommand(options: ListOptions = {}): Promise<nu
       console.log();
     }
 
-    console.log(chalk.dim(`Use 'clier template apply <id>' to generate a stage`));
+    console.log(
+      chalk.dim(`Use 'clier template apply <id>' to generate a stage`),
+    );
     console.log();
 
     return 0;
@@ -99,7 +114,7 @@ export async function templateListCommand(options: ListOptions = {}): Promise<nu
  */
 export async function templateApplyCommand(
   templateId: string,
-  options: ApplyOptions = {}
+  options: ApplyOptions = {},
 ): Promise<number> {
   try {
     // Load the template
@@ -150,7 +165,11 @@ export async function templateApplyCommand(
       console.log(chalk.dim("  Required variables:"));
       for (const varName of missing) {
         const varDef = template.variables?.find((v) => v.name === varName);
-        console.log(chalk.dim(`    --var ${varName}=<value>${varDef?.description ? ` (${varDef.description})` : ""}`));
+        console.log(
+          chalk.dim(
+            `    --var ${varName}=<value>${varDef?.description ? ` (${varDef.description})` : ""}`,
+          ),
+        );
       }
       console.log();
       return 1;
@@ -215,7 +234,9 @@ export async function templateApplyCommand(
         printError("clier-pipeline.json not found in current directory");
         console.log();
         console.log(chalk.dim("  Initialize with: clier init"));
-        console.log(chalk.dim("  Or create a clier-pipeline.json file manually"));
+        console.log(
+          chalk.dim("  Or create a clier-pipeline.json file manually"),
+        );
         return 1;
       }
 
@@ -224,7 +245,11 @@ export async function templateApplyCommand(
       const config = JSON.parse(configContent);
 
       // Check for duplicate name
-      if (config.pipeline?.some((item: { name: string }) => item.name === stage.name)) {
+      if (
+        config.pipeline?.some(
+          (item: { name: string }) => item.name === stage.name,
+        )
+      ) {
         printError(`Stage "${stage.name}" already exists in pipeline`);
         console.log(chalk.dim("  Use a different name: --name <name>"));
         return 1;
@@ -235,7 +260,11 @@ export async function templateApplyCommand(
       config.pipeline.push(stage);
 
       // Write back
-      writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf-8");
+      writeFileSync(
+        configPath,
+        JSON.stringify(config, null, 2) + "\n",
+        "utf-8",
+      );
 
       console.log();
       printSuccess(`Stage "${stage.name}" added to clier-pipeline.json`);
@@ -260,7 +289,6 @@ export async function templateApplyCommand(
       console.log();
       printInfo("Run 'clier reload' to apply changes to the running daemon");
       console.log();
-
     } else if (options.output) {
       // Write to specified file
       const outputPath = join(process.cwd(), options.output);
@@ -275,7 +303,6 @@ export async function templateApplyCommand(
           console.log(chalk.dim(`    ${chalk.green("✓")} ${path}`));
         }
       }
-
     } else {
       // Output to stdout
       console.log(JSON.stringify(stage, null, 2));
@@ -348,8 +375,12 @@ export async function templateShowCommand(templateId: string): Promise<number> {
       const varInfo = formatVariableInfo(template.variables);
       for (const v of varInfo) {
         const required = v.required ? chalk.red("*") : " ";
-        const defaultVal = v.default ? chalk.dim(` (default: "${v.default}")`) : "";
-        console.log(`  ${required}${v.name.padEnd(16)} ${v.label}${defaultVal}`);
+        const defaultVal = v.default
+          ? chalk.dim(` (default: "${v.default}")`)
+          : "";
+        console.log(
+          `  ${required}${v.name.padEnd(16)} ${v.label}${defaultVal}`,
+        );
         if (v.description) {
           console.log(chalk.dim(`                    ${v.description}`));
         }
@@ -373,19 +404,30 @@ export async function templateShowCommand(templateId: string): Promise<number> {
     // Show stage preview
     console.log();
     console.log(chalk.yellow("STAGE CONFIGURATION"));
-    console.log(chalk.dim(JSON.stringify(template.stage, null, 2).split("\n").map(l => "  " + l).join("\n")));
+    console.log(
+      chalk.dim(
+        JSON.stringify(template.stage, null, 2)
+          .split("\n")
+          .map((l) => "  " + l)
+          .join("\n"),
+      ),
+    );
 
     // Usage example
     console.log();
     console.log(chalk.yellow("USAGE"));
-    const hasRequiredVars = template.variables?.some((v) => v.required && !v.default);
+    const hasRequiredVars = template.variables?.some(
+      (v) => v.required && !v.default,
+    );
     const exampleVars = hasRequiredVars
       ? template.variables
           ?.filter((v) => v.required && !v.default)
           .map((v) => `--var ${v.name}=<value>`)
           .join(" ") || ""
       : "";
-    console.log(`  clier template apply ${template.id}${exampleVars ? " " + exampleVars : ""}`);
+    console.log(
+      `  clier template apply ${template.id}${exampleVars ? " " + exampleVars : ""}`,
+    );
     console.log();
 
     return 0;

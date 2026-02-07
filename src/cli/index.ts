@@ -47,7 +47,7 @@ export function createCLI(): Command {
   program
     .name("clier")
     .description(
-      "Process orchestration framework with event-driven pipeline management"
+      "Process orchestration framework with event-driven pipeline management",
     )
     .version(packageJson.version)
     .enablePositionalOptions();
@@ -58,7 +58,7 @@ export function createCLI(): Command {
     .description("Start the pipeline (runs in foreground)")
     .argument(
       "[config]",
-      "Path to clier-pipeline.json (default: ./clier-pipeline.json)"
+      "Path to clier-pipeline.json (default: ./clier-pipeline.json)",
     )
     .action(async (configPath?: string) => {
       const exitCode = await startCommand(configPath);
@@ -78,11 +78,13 @@ export function createCLI(): Command {
   // Restart command
   program
     .command("restart")
-    .description("Restart a service by name, or restart daemon completely (new PID)")
+    .description(
+      "Restart a service by name, or restart daemon completely (new PID)",
+    )
     .argument("[name]", "Service name to restart (omit to restart daemon)")
     .option(
       "--config <path>",
-      "Path to clier-pipeline.json (default: ./clier-pipeline.json)"
+      "Path to clier-pipeline.json (default: ./clier-pipeline.json)",
     )
     .action(async (name?: string, options?: { config?: string }) => {
       if (name) {
@@ -98,21 +100,30 @@ export function createCLI(): Command {
   program
     .command("status")
     .description("Show process log status")
-    .option("-w, --watch", "Watch mode - continuously update the status display")
+    .option(
+      "-w, --watch",
+      "Watch mode - continuously update the status display",
+    )
     .option(
       "-n, --interval <seconds>",
       "Refresh interval in seconds (default: 2)",
-      "2"
+      "2",
     )
     .option("--json", "Output as JSON (cannot be used with --watch)")
-    .action(async (options: { watch?: boolean; interval: string; json?: boolean }) => {
-      const exitCode = await statusCommand({
-        watch: options.watch,
-        interval: parseFloat(options.interval),
-        json: options.json,
-      });
-      process.exit(exitCode);
-    });
+    .action(
+      async (options: {
+        watch?: boolean;
+        interval: string;
+        json?: boolean;
+      }) => {
+        const exitCode = await statusCommand({
+          watch: options.watch,
+          interval: parseFloat(options.interval),
+          json: options.json,
+        });
+        process.exit(exitCode);
+      },
+    );
 
   // Watch command (alias for status -w)
   program
@@ -121,7 +132,7 @@ export function createCLI(): Command {
     .option(
       "-n, --interval <seconds>",
       "Refresh interval in seconds (default: 2)",
-      "2"
+      "2",
     )
     .action(async (options: { interval: string }) => {
       const exitCode = await statusCommand({
@@ -140,12 +151,15 @@ export function createCLI(): Command {
   logs
     .argument("[name]", "Process name (not required with --daemon)")
     .option("-n, --lines <number>", "Number of lines to show", "100")
-    .option("--since <duration>", "Show logs since duration (e.g., 5m, 1h, 30s)")
+    .option(
+      "--since <duration>",
+      "Show logs since duration (e.g., 5m, 1h, 30s)",
+    )
     .option("-d, --daemon", "Show daemon logs instead of process logs")
     .option(
       "-l, --level <level>",
       "Log level for daemon logs (combined or error)",
-      "combined"
+      "combined",
     )
     .action(
       async (
@@ -155,11 +169,13 @@ export function createCLI(): Command {
           since?: string;
           daemon?: boolean;
           level?: "combined" | "error";
-        }
+        },
       ) => {
         // Validate that name is provided if not using --daemon
         if (!options.daemon && !name) {
-          console.error("Error: Process name is required unless using --daemon");
+          console.error(
+            "Error: Process name is required unless using --daemon",
+          );
           console.log();
           console.log("Usage:");
           console.log("  clier logs <name>         Show process logs");
@@ -176,7 +192,7 @@ export function createCLI(): Command {
           level: options.level,
         });
         process.exit(exitCode);
-      }
+      },
     );
 
   // Logs clear subcommand
@@ -189,7 +205,7 @@ export function createCLI(): Command {
     .option(
       "-l, --level <level>",
       "Daemon log level to clear (combined, error, or all)",
-      "all"
+      "all",
     )
     .action(
       async (
@@ -198,7 +214,7 @@ export function createCLI(): Command {
           all?: boolean;
           daemon?: boolean;
           level?: "combined" | "error" | "all";
-        }
+        },
       ) => {
         const exitCode = await logsClearCommand(name || "", {
           all: options.all,
@@ -206,28 +222,28 @@ export function createCLI(): Command {
           level: options.level,
         });
         process.exit(exitCode);
-      }
+      },
     );
 
   // Reload command
   program
     .command("reload")
     .description(
-      "Reload config (same PID, restarts all processes), or restart a service by name"
+      "Reload config (same PID, restarts all processes), or restart a service by name",
     )
     .argument("[name]", "Service name to restart (omit to reload config)")
     .option(
       "--config <path>",
-      "Path to clier-pipeline.json (default: ./clier-pipeline.json)"
+      "Path to clier-pipeline.json (default: ./clier-pipeline.json)",
     )
     .option(
       "--restart-manual",
-      "Re-start any services that were manually started (via 'clier service start')"
+      "Re-start any services that were manually started (via 'clier service start')",
     )
     .action(
       async (
         name?: string,
-        options?: { config?: string; restartManual?: boolean }
+        options?: { config?: string; restartManual?: boolean },
       ) => {
         if (name) {
           const exitCode = await serviceRestartCommand(name, false);
@@ -238,18 +254,18 @@ export function createCLI(): Command {
           });
           process.exit(exitCode);
         }
-      }
+      },
     );
 
   // Refresh command (alias for reload --restart-manual)
   program
     .command("refresh")
     .description(
-      "Reload config and restart manual services (alias for reload --restart-manual)"
+      "Reload config and restart manual services (alias for reload --restart-manual)",
     )
     .option(
       "--config <path>",
-      "Path to clier-pipeline.json (default: ./clier-pipeline.json)"
+      "Path to clier-pipeline.json (default: ./clier-pipeline.json)",
     )
     .action(async (options?: { config?: string }) => {
       const exitCode = await reloadCommand(options?.config, {
@@ -264,7 +280,7 @@ export function createCLI(): Command {
     .description("Validate config file")
     .argument(
       "[config]",
-      "Path to clier-pipeline.json (default: ./clier-pipeline.json)"
+      "Path to clier-pipeline.json (default: ./clier-pipeline.json)",
     )
     .action(async (configPath?: string) => {
       const exitCode = await validateCommand(configPath);
@@ -287,7 +303,11 @@ export function createCLI(): Command {
   program
     .command("docs")
     .description("Show documentation")
-    .argument("[subject]", "Documentation subject (commands, pipeline, all)", "all")
+    .argument(
+      "[subject]",
+      "Documentation subject (commands, pipeline, all)",
+      "all",
+    )
     .option("-l, --list", "List available documentation subjects")
     .action(async (subject: string, options: { list?: boolean }) => {
       const exitCode = await docsCommand({ subject, list: options.list });
@@ -298,13 +318,22 @@ export function createCLI(): Command {
   program
     .command("init")
     .description("Initialize agent documentation in current project")
-    .option("-a, --agents", "Create AGENTS.md in project root instead of .claude/CLAUDE.md")
+    .option(
+      "-a, --agents",
+      "Create AGENTS.md in project root instead of .claude/CLAUDE.md",
+    )
     .option("-f, --force", "Overwrite existing file if present")
     .option("--append", "Append template to existing file")
-    .action(async (options: { agents?: boolean; force?: boolean; append?: boolean }) => {
-      const exitCode = await initCommand(options);
-      process.exit(exitCode);
-    });
+    .action(
+      async (options: {
+        agents?: boolean;
+        force?: boolean;
+        append?: boolean;
+      }) => {
+        const exitCode = await initCommand(options);
+        process.exit(exitCode);
+      },
+    );
 
   // Template commands (for generating pipeline stages from templates)
   const template = program
@@ -314,7 +343,10 @@ export function createCLI(): Command {
   template
     .command("list")
     .description("List available stage templates")
-    .option("-c, --category <category>", "Filter by category (service, task, utility)")
+    .option(
+      "-c, --category <category>",
+      "Filter by category (service, task, utility)",
+    )
     .action(async (options: { category?: "service" | "task" | "utility" }) => {
       const exitCode = await templateListCommand(options);
       process.exit(exitCode);
@@ -347,11 +379,11 @@ export function createCLI(): Command {
           add?: boolean;
           output?: string;
           force?: boolean;
-        }
+        },
       ) => {
         const exitCode = await templateApplyCommand(templateId, options);
         process.exit(exitCode);
-      }
+      },
     );
 
   // Run command (alias for service start)
@@ -409,7 +441,10 @@ export function createCLI(): Command {
     .argument("<name>", "Service name")
     .option("-f, --force", "Force kill with SIGKILL (immediate termination)")
     .action(async (name: string, options: { force?: boolean }) => {
-      const exitCode = await serviceRestartCommand(name, options.force ?? false);
+      const exitCode = await serviceRestartCommand(
+        name,
+        options.force ?? false,
+      );
       process.exit(exitCode);
     });
 
@@ -421,7 +456,11 @@ export function createCLI(): Command {
     .option("--cwd <directory>", "Working directory")
     .option("--type <type>", "Process type (service or task)", "service")
     .option("-e, --env <KEY=VALUE...>", "Environment variables", [])
-    .option("--restart <policy>", "Restart policy: always, on-failure, never", "on-failure")
+    .option(
+      "--restart <policy>",
+      "Restart policy: always, on-failure, never",
+      "on-failure",
+    )
     .action(
       async (
         name: string,
@@ -431,11 +470,11 @@ export function createCLI(): Command {
           type: "service" | "task";
           env: string[];
           restart: "always" | "on-failure" | "never";
-        }
+        },
       ) => {
         const exitCode = await serviceAddCommand(name, options);
         process.exit(exitCode);
-      }
+      },
     );
 
   service
@@ -454,12 +493,18 @@ export function createCLI(): Command {
     .argument("<process>", "Process name to send input to")
     .argument("<data>", "Data to send to the process")
     .option("--no-newline", "Do not append newline to the input")
-    .action(async (processName: string, data: string, options: { newline: boolean }) => {
-      const exitCode = await inputCommand(processName, data, {
-        newline: options.newline,
-      });
-      process.exit(exitCode);
-    });
+    .action(
+      async (
+        processName: string,
+        data: string,
+        options: { newline: boolean },
+      ) => {
+        const exitCode = await inputCommand(processName, data, {
+          newline: options.newline,
+        });
+        process.exit(exitCode);
+      },
+    );
 
   // Send command (alias for input)
   program
@@ -472,13 +517,13 @@ export function createCLI(): Command {
       async (
         processName: string,
         data: string,
-        options: { newline: boolean }
+        options: { newline: boolean },
       ) => {
         const exitCode = await inputCommand(processName, data, {
           newline: options.newline,
         });
         process.exit(exitCode);
-      }
+      },
     );
 
   // Emit command - emit custom events to trigger waiting stages
@@ -499,11 +544,14 @@ export function createCLI(): Command {
     .option("-p, --process <name>", "Filter by process/service name")
     .option(
       "-t, --type <type>",
-      "Filter by event type (success, error, crashed, custom, stdout, stderr)"
+      "Filter by event type (success, error, crashed, custom, stdout, stderr)",
     )
     .option("-e, --event <name>", "Filter by event name (partial match)")
     .option("-n, --lines <number>", "Number of events to show", "100")
-    .option("--since <duration>", "Show events since duration (e.g., 5m, 1h, 30s)")
+    .option(
+      "--since <duration>",
+      "Show events since duration (e.g., 5m, 1h, 30s)",
+    )
     .action(
       async (options: {
         process?: string;
@@ -520,7 +568,7 @@ export function createCLI(): Command {
           since: options.since,
         });
         process.exit(exitCode);
-      }
+      },
     );
 
   return program;
@@ -547,9 +595,8 @@ export async function runCLI(argv: string[] = process.argv): Promise<void> {
  */
 async function checkForUpdatesOnStartup(): Promise<void> {
   try {
-    const { checkForUpdates, shouldShowUpdatePrompt } = await import(
-      "./utils/version-checker.js"
-    );
+    const { checkForUpdates, shouldShowUpdatePrompt } =
+      await import("./utils/version-checker.js");
     const { printWarning, printInfo } = await import("./utils/formatter.js");
 
     // Only check once per day

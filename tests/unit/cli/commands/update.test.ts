@@ -119,7 +119,7 @@ describe("Update Command", () => {
           } else {
             callback(new Error("command not found"), null);
           }
-        }
+        },
       );
 
       const exitCode = await updateCommand({ global: true });
@@ -147,12 +147,12 @@ describe("Update Command", () => {
                 stderr: "Permission denied",
                 stdout: "",
               }),
-              null
+              null,
             );
           } else {
             callback(new Error("command not found"), null);
           }
-        }
+        },
       );
 
       const exitCode = await updateCommand({ global: true });

@@ -55,7 +55,7 @@ describe("Service Commands", () => {
 
     it("should return error when daemon is not running", async () => {
       vi.mocked(daemonClient.getDaemonClient).mockRejectedValue(
-        new Error("Daemon not running")
+        new Error("Daemon not running"),
       );
 
       const exitCode = await serviceStartCommand("my-service");
@@ -65,7 +65,7 @@ describe("Service Commands", () => {
 
     it("should handle service not found error", async () => {
       mockClient.request.mockRejectedValue(
-        new Error('Process "my-service" not found')
+        new Error('Process "my-service" not found'),
       );
 
       const exitCode = await serviceStartCommand("my-service");
@@ -91,7 +91,7 @@ describe("Service Commands", () => {
 
     it("should return error when daemon is not running", async () => {
       vi.mocked(daemonClient.getDaemonClient).mockRejectedValue(
-        new Error("Daemon not running")
+        new Error("Daemon not running"),
       );
 
       const exitCode = await serviceStopCommand("my-service");
@@ -101,7 +101,7 @@ describe("Service Commands", () => {
 
     it("should handle service not found error", async () => {
       mockClient.request.mockRejectedValue(
-        new Error('Process "my-service" not found')
+        new Error('Process "my-service" not found'),
       );
 
       const exitCode = await serviceStopCommand("my-service");
@@ -126,7 +126,7 @@ describe("Service Commands", () => {
 
     it("should return error when daemon is not running", async () => {
       vi.mocked(daemonClient.getDaemonClient).mockRejectedValue(
-        new Error("Daemon not running")
+        new Error("Daemon not running"),
       );
 
       const exitCode = await serviceRestartCommand("my-service");
@@ -136,7 +136,7 @@ describe("Service Commands", () => {
 
     it("should handle service not found error", async () => {
       mockClient.request.mockRejectedValue(
-        new Error('Process "my-service" not found')
+        new Error('Process "my-service" not found'),
       );
 
       const exitCode = await serviceRestartCommand("my-service");
@@ -246,7 +246,7 @@ describe("Service Commands", () => {
 
     it("should return error when daemon is not running", async () => {
       vi.mocked(daemonClient.getDaemonClient).mockRejectedValue(
-        new Error("Daemon not running")
+        new Error("Daemon not running"),
       );
 
       const exitCode = await serviceAddCommand("my-service", {
@@ -258,7 +258,7 @@ describe("Service Commands", () => {
 
     it("should handle duplicate service name error", async () => {
       mockClient.request.mockRejectedValue(
-        new Error('Process "my-service" is already running')
+        new Error('Process "my-service" is already running'),
       );
 
       const exitCode = await serviceAddCommand("my-service", {
@@ -284,7 +284,7 @@ describe("Service Commands", () => {
 
     it("should return error when daemon is not running", async () => {
       vi.mocked(daemonClient.getDaemonClient).mockRejectedValue(
-        new Error("Daemon not running")
+        new Error("Daemon not running"),
       );
 
       const exitCode = await serviceRemoveCommand("my-service");
@@ -294,7 +294,7 @@ describe("Service Commands", () => {
 
     it("should handle service not found error gracefully", async () => {
       mockClient.request.mockRejectedValue(
-        new Error('Process "my-service" not found')
+        new Error('Process "my-service" not found'),
       );
 
       const exitCode = await serviceRemoveCommand("my-service");

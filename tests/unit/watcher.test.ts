@@ -371,11 +371,7 @@ describe("Watcher", () => {
       await watcher.start("/path/to/config.json");
 
       // Simulate race condition with multiple stop() calls
-      const stopPromises = [
-        watcher.stop(),
-        watcher.stop(),
-        watcher.stop(),
-      ];
+      const stopPromises = [watcher.stop(), watcher.stop(), watcher.stop()];
 
       // All should complete without errors
       await expect(Promise.all(stopPromises)).resolves.toBeDefined();

@@ -23,9 +23,7 @@ export interface StopOptions {
  * @param options - Stop options
  * @returns Exit code (0 for success, 1 for failure)
  */
-export async function stopCommand(
-  options: StopOptions = {}
-): Promise<number> {
+export async function stopCommand(options: StopOptions = {}): Promise<number> {
   try {
     const client = await getDaemonClient();
 
@@ -65,10 +63,7 @@ export async function stopCommand(
       }
     }
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("not running")
-    ) {
+    if (error instanceof Error && error.message.includes("not running")) {
       printWarning("Clier daemon is not running");
       console.log();
       return 0; // Not an error if already stopped

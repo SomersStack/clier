@@ -168,7 +168,9 @@ describe("E2E: Circuit Breaker", () => {
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Verify problem-service is no longer running
-    expect(watcher.getProcessManager()?.isRunning("problem-service")).toBe(false);
+    expect(watcher.getProcessManager()?.isRunning("problem-service")).toBe(
+      false,
+    );
 
     // Verify its status reflects it was stopped or crashed
     const status = watcher.getProcessManager()?.getStatus("problem-service");

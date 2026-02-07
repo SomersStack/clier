@@ -216,9 +216,7 @@ describe("Circuit Breaker Performance", () => {
     const startTime = Date.now();
 
     // Execute operations concurrently
-    const promises = Array.from({ length: concurrentOps }, () =>
-      protectedOp(),
-    );
+    const promises = Array.from({ length: concurrentOps }, () => protectedOp());
 
     await Promise.all(promises);
 

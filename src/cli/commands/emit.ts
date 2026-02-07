@@ -23,7 +23,7 @@ import {
  */
 export async function emitCommand(
   eventName: string,
-  options: { data?: string }
+  options: { data?: string },
 ): Promise<number> {
   try {
     const client = await getDaemonClient();
@@ -49,15 +49,17 @@ export async function emitCommand(
     if (result.triggeredStages.length > 0) {
       printSuccess(`Event "${eventName}" emitted`);
       console.log();
-      printInfo(`Stages waiting for this event: ${result.triggeredStages.join(", ")}`);
+      printInfo(
+        `Stages waiting for this event: ${result.triggeredStages.join(", ")}`,
+      );
     } else {
       printSuccess(`Event "${eventName}" emitted`);
       console.log();
       printWarning("No stages are waiting for this event");
       console.log(
         chalk.gray(
-          "  (Either no stages have this event in trigger_on, or their other dependencies are not satisfied)"
-        )
+          "  (Either no stages have this event in trigger_on, or their other dependencies are not satisfied)",
+        ),
       );
     }
     console.log();
