@@ -1,0 +1,61 @@
+{
+  "project_name": "multi-pattern-demo",
+  "global_env": true,
+  "safety": {
+    "max_ops_per_minute": 60,
+    "debounce_ms": 100
+  },
+  "pipeline": [
+    {
+      "name": "analyzer",
+      "command": "node analyzer.js",
+      "type": "task",
+      "events": {
+        "on_stdout": [
+          { "pattern": "\\[INFO\\]", "emit": "log:info" },
+          { "pattern": "\\[WARN\\]", "emit": "log:warn" },
+          { "pattern": "\\[ERROR\\]", "emit": "log:error" },
+          { "pattern": "Analysis complete", "emit": "analysis:done" }
+        ],
+        "on_stderr": true,
+        "on_crash": true
+      }
+    },
+    {
+      "name": "info-logger",
+      "command": "node logger.js info",
+      "type": "task",
+      "trigger_on": ["log:info"],
+      "events": {
+        "on_stdout": true
+      }
+    },
+    {
+      "name": "warn-logger",
+      "command": "node logger.js warn",
+      "type": "task",
+      "trigger_on": ["log:warn"],
+      "events": {
+        "on_stdout": true
+      }
+    },
+    {
+      "name": "error-logger",
+      "command": "node logger.js error",
+      "type": "task",
+      "trigger_on": ["log:error"],
+      "events": {
+        "on_stdout": true
+      }
+    },
+    {
+      "name": "report",
+      "command": "node report.js",
+      "type": "task",
+      "trigger_on": ["analysis:done"],
+      "events": {
+        "on_stdout": true
+      }
+    }
+  ]
+}

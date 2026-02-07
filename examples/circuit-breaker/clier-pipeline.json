@@ -1,0 +1,46 @@
+{
+  "project_name": "circuit-breaker-demo",
+  "global_env": true,
+  "safety": {
+    "max_ops_per_minute": 60,
+    "debounce_ms": 100,
+    "circuit_breaker": {
+      "enabled": true,
+      "error_threshold": 3,
+      "timeout_ms": 5000,
+      "reset_timeout_ms": 10000
+    }
+  },
+  "pipeline": [
+    {
+      "name": "crasher",
+      "command": "node crasher.js",
+      "type": "service",
+      "events": {
+        "on_stdout": true,
+        "on_stderr": true,
+        "on_crash": true
+      }
+    },
+    {
+      "name": "monitor",
+      "command": "node monitor.js",
+      "type": "service",
+      "trigger_on": ["circuit-breaker:triggered"],
+      "events": {
+        "on_stdout": true,
+        "on_stderr": true
+      }
+    },
+    {
+      "name": "notify",
+      "command": "node notify.js",
+      "type": "task",
+      "trigger_on": ["circuit-breaker:triggered"],
+      "events": {
+        "on_stdout": true,
+        "on_stderr": true
+      }
+    }
+  ]
+}

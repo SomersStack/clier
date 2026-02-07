@@ -1,0 +1,64 @@
+/**
+ * Validate Command
+ *
+ * Validates the clier-pipeline.json configuration file.
+ */
+
+import { ZodError } from "zod";
+import { loadConfig, EnhancedZodError } from "../../config/loader.js";
+import { resolveConfigPath } from "../../utils/project-root.js";
+import {
+  printSuccess,
+  printError,
+  formatValidationErrors,
+} from "../utils/formatter.js";
+
+/**
+ * Validate configuration file
+ *
+ * Automatically searches upward for clier-pipeline.json if not explicitly provided.
+ *
+ * @param configPath - Path to configuration file (optional, auto-detected if not provided)
+ * @returns Exit code (0 for success, 1 for failure)
+ */
+export async function validateCommand(configPath?: string): Promise<number> {
+  try {
+    // Resolve config path (searches upward if needed)
+    const configFile = resolveConfigPath(configPath);
+
+    // Try to load and validate config
+    const config = await loadConfig(configFile);
+
+    printSuccess(`Configuration is valid!`);
+    console.log();
+    console.log(`  Project: ${config.project_name}`);
+    console.log(`  Pipeline items: ${config.pipeline.length}`);
+    console.log(`  Global env: ${config.global_env ? "enabled" : "disabled"}`);
+    console.log(`  Safety:`);
+    console.log(`    - Max ops/min: ${config.safety.max_ops_per_minute}`);
+    console.log(`    - Debounce: ${config.safety.debounce_ms}ms`);
+    console.log();
+
+    return 0;
+  } catch (error) {
+    if (error instanceof EnhancedZodError) {
+      // Validation error with raw config - format nicely with context
+      printError("Configuration validation failed");
+      console.error(formatValidationErrors(error, error.rawConfig));
+      return 1;
+    }
+
+    if (error instanceof ZodError) {
+      // Validation error without raw config - format nicely without context
+      printError("Configuration validation failed");
+      console.error(formatValidationErrors(error));
+      return 1;
+    }
+
+    // Other errors (file not found, JSON parse error, etc.)
+    printError(
+      `Failed to validate configuration: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return 1;
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "project_name": "continue-on-failure-demo",
+  "global_env": true,
+  "safety": {
+    "max_ops_per_minute": 60,
+    "debounce_ms": 100
+  },
+  "pipeline": [
+    {
+      "name": "step1-strict",
+      "command": "node step1.js fail",
+      "type": "task",
+      "continue_on_failure": false,
+      "events": {
+        "on_stdout": [
+          { "pattern": "SUCCESS", "emit": "step1:success" },
+          { "pattern": "FAILURE", "emit": "step1:failure" }
+        ],
+        "on_stderr": true,
+        "on_crash": true
+      }
+    },
+    {
+      "name": "step2-blocked",
+      "command": "node step2.js",
+      "type": "task",
+      "trigger_on": ["step1:success"],
+      "events": {
+        "on_stdout": true,
+        "on_stderr": true
+      }
+    },
+    {
+      "name": "step3-lenient",
+      "command": "node step3.js fail",
+      "type": "task",
+      "continue_on_failure": true,
+      "events": {
+        "on_stdout": [
+          { "pattern": "SUCCESS", "emit": "step3:success" },
+          { "pattern": "FAILURE", "emit": "step3:failure" }
+        ],
+        "on_stderr": true,
+        "on_crash": true
+      }
+    },
+    {
+      "name": "step4-continues",
+      "command": "node step4.js",
+      "type": "task",
+      "trigger_on": ["step3:failure"],
+      "events": {
+        "on_stdout": true,
+        "on_stderr": true
+      }
+    },
+    {
+      "name": "cleanup",
+      "command": "node cleanup.js",
+      "type": "task",
+      "trigger_on": ["step1:failure", "step3:failure"],
+      "events": {
+        "on_stdout": true,
+        "on_stderr": true
+      }
+    }
+  ]
+}

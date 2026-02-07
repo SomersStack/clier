@@ -1,0 +1,27 @@
+{
+  "project_name": "clier",
+  "global_env": true,
+  "safety": {
+    "max_ops_per_minute": 60,
+    "debounce_ms": 100
+  },
+  "pipeline": [
+    {
+      "name": "test",
+      "command": "npm test",
+      "type": "task"
+    },
+    {
+      "name": "build",
+      "command": "npm run build",
+      "type": "task",
+      "trigger_on": ["test:success"]
+    },
+    {
+      "name": "redeploy-local",
+      "command": "npm run build && npm uninstall -g clier-ai && npm link",
+      "type": "task",
+      "manual": true
+    }
+  ]
+}

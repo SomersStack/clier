@@ -1,0 +1,40 @@
+{
+  "id": "build-task",
+  "name": "Build Task",
+  "description": "One-off build task that emits success/failure events",
+  "category": "task",
+  "tags": ["build", "compile", "typescript", "webpack"],
+  "stage": {
+    "name": "{{name}}",
+    "command": "{{command}}",
+    "type": "task",
+    "events": {
+      "on_stdout": [
+        { "pattern": "{{successPattern}}", "emit": "{{name}}:success" }
+      ],
+      "on_stderr": true,
+      "on_crash": true
+    }
+  },
+  "variables": [
+    {
+      "name": "name",
+      "label": "Stage Name",
+      "default": "build",
+      "description": "Unique name for this pipeline stage",
+      "required": true
+    },
+    {
+      "name": "command",
+      "label": "Build Command",
+      "default": "npm run build",
+      "description": "The build command to execute"
+    },
+    {
+      "name": "successPattern",
+      "label": "Success Pattern",
+      "default": "successfully|completed|done",
+      "description": "Regex pattern to detect successful build"
+    }
+  ]
+}

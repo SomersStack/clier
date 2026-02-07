@@ -1,0 +1,50 @@
+# Source files
+src/
+*.ts
+!*.d.ts
+
+# Tests
+tests/
+*.test.ts
+*.spec.ts
+vitest.config.ts
+
+# Examples
+examples/
+
+# Documentation (keep README.md)
+docs/
+*.md
+!README.md
+
+# Development files
+.git/
+.github/
+.beads/
+.claude/
+.claude.md
+.gitignore
+.eslintrc.*
+.prettierrc.*
+tsconfig.json
+
+# Build artifacts
+node_modules/
+.clier/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Scripts
+scripts/
+
+# Package files
+package-lock.json

@@ -1,0 +1,9 @@
+{
+  "templates": [
+    "node-api",
+    "build-task",
+    "lint-task",
+    "dev-server",
+    "browser-console"
+  ]
+}

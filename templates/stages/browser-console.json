@@ -1,0 +1,49 @@
+{
+  "id": "browser-console",
+  "name": "Browser Console Streaming",
+  "description": "Stream Chrome DevTools console output to terminal for AI agent debugging",
+  "category": "utility",
+  "tags": ["browser", "chrome", "devtools", "console", "debugging", "agent"],
+  "stage": {
+    "name": "{{name}}",
+    "command": "./scripts/chrome-console.sh {{url}}",
+    "type": "service",
+    "manual": true,
+    "events": {
+      "on_stdout": [
+        { "pattern": "Connected to:", "emit": "{{name}}:ready" }
+      ],
+      "on_stderr": true,
+      "on_crash": true
+    }
+  },
+  "variables": [
+    {
+      "name": "name",
+      "label": "Stage Name",
+      "default": "browser",
+      "description": "Unique name for this pipeline stage",
+      "required": true
+    },
+    {
+      "name": "url",
+      "label": "Target URL",
+      "default": "http://localhost:3000",
+      "description": "URL to open in Chrome for console streaming"
+    }
+  ],
+  "scripts": [
+    {
+      "path": "scripts/chrome-console.sh",
+      "bundledScript": "chrome-console.sh",
+      "executable": true,
+      "description": "Launches Chrome with remote debugging and streams console logs"
+    },
+    {
+      "path": "scripts/cdp-console.py",
+      "bundledScript": "cdp-console.py",
+      "executable": true,
+      "description": "Python CDP client for full object serialization"
+    }
+  ]
+}

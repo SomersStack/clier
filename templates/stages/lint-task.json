@@ -1,0 +1,41 @@
+{
+  "id": "lint-task",
+  "name": "Lint Task",
+  "description": "Linting task that runs before build steps",
+  "category": "task",
+  "tags": ["lint", "eslint", "prettier", "quality"],
+  "stage": {
+    "name": "{{name}}",
+    "command": "{{command}}",
+    "type": "task",
+    "continue_on_failure": false,
+    "events": {
+      "on_stdout": [
+        { "pattern": "{{successPattern}}", "emit": "{{name}}:success" }
+      ],
+      "on_stderr": true,
+      "on_crash": true
+    }
+  },
+  "variables": [
+    {
+      "name": "name",
+      "label": "Stage Name",
+      "default": "lint",
+      "description": "Unique name for this pipeline stage",
+      "required": true
+    },
+    {
+      "name": "command",
+      "label": "Lint Command",
+      "default": "npm run lint",
+      "description": "The lint command to execute"
+    },
+    {
+      "name": "successPattern",
+      "label": "Success Pattern",
+      "default": "no problems|0 errors|passed",
+      "description": "Regex pattern to detect successful lint"
+    }
+  ]
+}

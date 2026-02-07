@@ -1,0 +1,15 @@
+{
+  "name": "clier-event-templates-example",
+  "version": "1.0.0",
+  "description": "Example demonstrating event template variable substitution in Clier",
+  "type": "module",
+  "scripts": {
+    "start": "clier start"
+  },
+  "keywords": [
+    "clier",
+    "event-templates",
+    "process-orchestration"
+  ],
+  "license": "MIT"
+}

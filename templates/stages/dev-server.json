@@ -1,0 +1,40 @@
+{
+  "id": "dev-server",
+  "name": "Development Server",
+  "description": "Dev server (Vite, webpack-dev-server, etc.) with HMR",
+  "category": "service",
+  "tags": ["dev", "vite", "webpack", "hmr", "frontend"],
+  "stage": {
+    "name": "{{name}}",
+    "command": "{{command}}",
+    "type": "service",
+    "events": {
+      "on_stdout": [
+        { "pattern": "{{readyPattern}}", "emit": "{{name}}:ready" }
+      ],
+      "on_stderr": true,
+      "on_crash": true
+    }
+  },
+  "variables": [
+    {
+      "name": "name",
+      "label": "Stage Name",
+      "default": "dev",
+      "description": "Unique name for this pipeline stage",
+      "required": true
+    },
+    {
+      "name": "command",
+      "label": "Dev Server Command",
+      "default": "npm run dev",
+      "description": "The dev server command to execute"
+    },
+    {
+      "name": "readyPattern",
+      "label": "Ready Pattern",
+      "default": "ready in|Local:",
+      "description": "Regex pattern to detect when dev server is ready"
+    }
+  ]
+}

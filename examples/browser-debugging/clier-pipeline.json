@@ -1,0 +1,35 @@
+{
+  "project_name": "browser-debugging-demo",
+  "global_env": true,
+  "safety": {
+    "max_ops_per_minute": 60,
+    "debounce_ms": 1000
+  },
+  "pipeline": [
+    {
+      "name": "server",
+      "command": "node server.js",
+      "type": "service",
+      "events": {
+        "on_stdout": [
+          { "pattern": "Server listening on", "emit": "server:ready" }
+        ],
+        "on_stderr": true,
+        "on_crash": true
+      }
+    },
+    {
+      "name": "browser",
+      "command": "./scripts/chrome-console.sh http://localhost:3000",
+      "type": "service",
+      "manual": true,
+      "events": {
+        "on_stdout": [
+          { "pattern": "Connected to:", "emit": "browser:ready" }
+        ],
+        "on_stderr": true,
+        "on_crash": true
+      }
+    }
+  ]
+}

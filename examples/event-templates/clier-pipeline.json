@@ -1,0 +1,53 @@
+{
+  "project_name": "event-templates-demo",
+  "global_env": true,
+  "safety": {
+    "max_ops_per_minute": 60,
+    "debounce_ms": 100
+  },
+  "pipeline": [
+    {
+      "name": "data-generator",
+      "command": "node generator.js",
+      "type": "service",
+      "events": {
+        "on_stdout": [
+          {
+            "pattern": "Generated data: (.+)",
+            "emit": "data:generated"
+          }
+        ]
+      }
+    },
+    {
+      "name": "processor",
+      "command": "node processor.js --source={{event.source}} --event={{event.name}} --timestamp={{event.timestamp}}",
+      "type": "task",
+      "trigger_on": ["data:generated"],
+      "enable_event_templates": true,
+      "env": {
+        "TRIGGER_SOURCE": "{{event.source}}",
+        "TRIGGER_EVENT": "{{event.name}}",
+        "PROCESSOR_NAME": "{{process.name}}",
+        "PROJECT_NAME": "{{clier.project}}"
+      }
+    },
+    {
+      "name": "logger",
+      "command": "node logger.js",
+      "type": "task",
+      "trigger_on": ["data:generated"],
+      "enable_event_templates": true,
+      "env": {
+        "EVENT_SOURCE": "{{event.source}}",
+        "EVENT_NAME": "{{event.name}}",
+        "EVENT_TYPE": "{{event.type}}",
+        "EVENT_TIMESTAMP": "{{event.timestamp}}",
+        "PROCESS_NAME": "{{process.name}}",
+        "PROCESS_TYPE": "{{process.type}}",
+        "PROJECT_NAME": "{{clier.project}}",
+        "CURRENT_TIMESTAMP": "{{clier.timestamp}}"
+      }
+    }
+  ]
+}
