@@ -245,6 +245,18 @@ export class ManagedProcess extends EventEmitter {
   }
 
   /**
+   * Prevent automatic restarts for this process.
+   * Clears any pending restart timer and marks the process as stop-requested.
+   */
+  preventRestart(): void {
+    this.stopRequested = true;
+    if (this.restartTimer) {
+      clearTimeout(this.restartTimer);
+      this.restartTimer = undefined;
+    }
+  }
+
+  /**
    * Stop the process
    *
    * @param force - If true, immediately use SIGKILL instead of graceful shutdown

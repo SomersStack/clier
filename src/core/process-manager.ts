@@ -169,6 +169,17 @@ export class ProcessManager extends EventEmitter {
   }
 
   /**
+   * Prevent a process from restarting (used by circuit breaker).
+   * Works even if the process is in "crashed" or "restarting" state.
+   */
+  preventRestart(name: string): void {
+    const process = this.processes.get(name);
+    if (process) {
+      process.preventRestart();
+    }
+  }
+
+  /**
    * Delete a process (stop and remove from tracking)
    *
    * @param name - Process name

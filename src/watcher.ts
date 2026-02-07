@@ -53,6 +53,8 @@ export class Watcher {
   private debouncer?: Debouncer;
   private rateLimiter?: RateLimiter;
   private circuitBreaker?: CircuitBreaker;
+  private crashCounts: Map<string, number> = new Map();
+  private circuitBreakerTripped: Set<string> = new Set();
   private started = false;
   private shuttingDown = false;
   private cleanupPromise?: Promise<void>;
@@ -500,9 +502,16 @@ export class Watcher {
       }
     });
 
-    // EventBus process:exit → EventHandler
+    // EventBus process:exit → EventHandler + Circuit Breaker tracking
     this.eventBus.on("process:exit", (event: ClierEvent) => {
       this.eventHandler!.handleEvent(event);
+
+      // Track crashes for circuit breaker
+      const exitData = event.data as { code?: number | null } | undefined;
+      const exitCode = exitData?.code ?? null;
+      if (exitCode !== null && exitCode !== 0) {
+        this.recordProcessCrash(event.processName);
+      }
     });
 
     // EventHandler events → Orchestrator (with debouncing and rate limiting)
@@ -566,6 +575,50 @@ export class Watcher {
     });
 
     logger.debug("Circuit breaker configured");
+  }
+
+  /**
+   * Record a process crash for circuit breaker tracking.
+   * When crash count exceeds the error threshold, stops the process.
+   */
+  private recordProcessCrash(processName: string): void {
+    const cbConfig = this.config?.safety?.circuit_breaker;
+    if (!cbConfig?.enabled) {
+      return;
+    }
+
+    // Don't track already-tripped processes
+    if (this.circuitBreakerTripped.has(processName)) {
+      return;
+    }
+
+    const count = (this.crashCounts.get(processName) ?? 0) + 1;
+    this.crashCounts.set(processName, count);
+
+    const threshold = cbConfig.error_threshold ?? 10;
+    logger.debug("Process crash recorded", { processName, count, threshold });
+
+    if (count >= threshold) {
+      this.circuitBreakerTripped.add(processName);
+      logger.error("Circuit breaker tripped for process", {
+        processName,
+        crashCount: count,
+        threshold,
+      });
+
+      // Prevent the crashing process from restarting
+      this.processManager?.preventRestart(processName);
+
+      // Emit circuit-breaker:triggered event
+      const event: ClierEvent = {
+        name: "circuit-breaker:triggered",
+        processName,
+        type: "custom",
+        data: { crashCount: count, threshold },
+        timestamp: Date.now(),
+      };
+      this.eventHandler?.emit("circuit-breaker:triggered", event);
+    }
   }
 
   /**

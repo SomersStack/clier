@@ -83,8 +83,8 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     watcher = new Watcher();
     await watcher.start(configPath, undefined, { detached: false });
 
-    // Wait for all handlers to run
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Wait for all handlers to run (needs enough time for debounce + process spawn under load)
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Verify the multi-output process produced stdout
     const history = watcher.getEventHandler()?.getEventHistory() ?? [];
@@ -106,7 +106,7 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     expect(infoHandlerEvents.length).toBeGreaterThan(0);
     expect(startupHandlerEvents.length).toBeGreaterThan(0);
     expect(initHandlerEvents.length).toBeGreaterThan(0);
-  }, 3000);
+  }, 10000);
 
   it("should handle multiple patterns across multiple output lines", async () => {
     const script = `
@@ -182,8 +182,8 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     watcher = new Watcher();
     await watcher.start(configPath, undefined, { detached: false });
 
-    // Wait for all handlers
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Wait for all handlers (needs enough time for debounce + process spawn under load)
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Verify the logger process produced multiple stdout lines
     const history = watcher.getEventHandler()?.getEventHistory() ?? [];
@@ -198,7 +198,7 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     expect(processNames).toContain("warn-counter");
     expect(processNames).toContain("error-counter");
     expect(processNames).toContain("completion");
-  }, 3000);
+  }, 10000);
 
   it("should trigger multiple handlers from different patterns", async () => {
     const config = {
@@ -265,8 +265,8 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     watcher = new Watcher();
     await watcher.start(configPath, undefined, { detached: false });
 
-    // Wait for fanout
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Wait for fanout (needs enough time for debounce + process spawn under load)
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Verify the source process produced stdout with all 3 event markers
     const history = watcher.getEventHandler()?.getEventHistory() ?? [];
@@ -283,7 +283,7 @@ describe("E2E: Multi-Pattern Event Matching", () => {
 
     // Verify aggregator ran (triggered by all 3 events)
     expect(processNames).toContain("aggregator");
-  }, 3000);
+  }, 10000);
 
   it("should only emit events for patterns that match", async () => {
     const config = {
@@ -341,8 +341,8 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     watcher = new Watcher();
     await watcher.start(configPath, undefined, { detached: false });
 
-    // Wait for execution
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Wait for execution (needs enough time for debounce + process spawn under load)
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Verify selective process produced stdout
     const history = watcher.getEventHandler()?.getEventHistory() ?? [];
@@ -358,5 +358,5 @@ describe("E2E: Multi-Pattern Event Matching", () => {
     // Verify warn-only and error-only tasks did NOT run (patterns didn't match)
     expect(processNames).not.toContain("warn-only");
     expect(processNames).not.toContain("error-only");
-  }, 3000);
+  }, 10000);
 });
