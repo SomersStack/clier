@@ -35,6 +35,8 @@ export interface DaemonOptions {
   configPath: string;
   projectRoot: string;
   detached: boolean;
+  /** Start daemon without auto-starting any entry points */
+  paused?: boolean;
 }
 
 /**
@@ -142,6 +144,7 @@ export class Daemon {
         CLIER_DAEMON_MODE: "1",
         CLIER_CONFIG_PATH: this.options.configPath,
         CLIER_PROJECT_ROOT: this.options.projectRoot,
+        ...(this.options.paused ? { CLIER_START_PAUSED: "1" } : {}),
       },
     });
 
@@ -168,11 +171,14 @@ export class Daemon {
     try {
       // Start watcher (daemon handles signals, so disable watcher's own signal handlers)
       this.watcher = new Watcher();
+      const paused =
+        this.options.paused || process.env.CLIER_START_PAUSED === "1";
       await this.watcher.start(
         this.options.configPath,
         this.options.projectRoot,
         {
           setupSignalHandlers: false,
+          paused,
         },
       );
 

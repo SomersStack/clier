@@ -60,8 +60,14 @@ export function createCLI(): Command {
       "[config]",
       "Path to clier-pipeline.json (default: ./clier-pipeline.json)",
     )
-    .action(async (configPath?: string) => {
-      const exitCode = await startCommand(configPath);
+    .option(
+      "--paused",
+      "Start daemon without auto-starting any entry points",
+    )
+    .action(async (configPath?: string, options?: { paused?: boolean }) => {
+      const exitCode = await startCommand(configPath, {
+        paused: options?.paused,
+      });
       process.exit(exitCode);
     });
 

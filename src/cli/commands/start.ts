@@ -24,14 +24,25 @@ import {
 } from "../utils/formatter.js";
 
 /**
+ * Start command options
+ */
+export interface StartOptions {
+  paused?: boolean;
+}
+
+/**
  * Start the Clier pipeline
  *
  * Automatically searches upward for clier-pipeline.json if not explicitly provided.
  *
  * @param configPath - Path to configuration file (optional, auto-detected if not provided)
+ * @param options - Start options
  * @returns Exit code (0 for success, 1 for failure)
  */
-export async function startCommand(configPath?: string): Promise<number> {
+export async function startCommand(
+  configPath?: string,
+  options: StartOptions = {},
+): Promise<number> {
   const spinner = ora();
 
   try {
@@ -94,11 +105,16 @@ export async function startCommand(configPath?: string): Promise<number> {
     await mkdir(daemonDir, { recursive: true });
 
     // Step 5: Start daemon
-    spinner.start("Starting daemon...");
+    spinner.start(
+      options.paused
+        ? "Starting daemon (paused - no auto-start)..."
+        : "Starting daemon...",
+    );
     const daemon = new Daemon({
       configPath: configFile,
       projectRoot: projectRoot,
       detached: true,
+      paused: options.paused,
     });
 
     try {
@@ -118,12 +134,23 @@ export async function startCommand(configPath?: string): Promise<number> {
     await checkRecoveryState(projectRoot);
 
     console.log();
-    printSuccess("Clier pipeline running in background");
-    console.log();
-    console.log("  Commands:");
-    console.log("    clier status    - View process status");
-    console.log("    clier logs      - View process logs");
-    console.log("    clier stop      - Stop the daemon");
+    if (options.paused) {
+      printSuccess("Clier daemon running in background (paused)");
+      console.log();
+      console.log("  No processes were auto-started.");
+      console.log();
+      console.log("  Commands:");
+      console.log("    clier run <name> - Start an individual process");
+      console.log("    clier status     - View process status");
+      console.log("    clier stop       - Stop the daemon");
+    } else {
+      printSuccess("Clier pipeline running in background");
+      console.log();
+      console.log("  Commands:");
+      console.log("    clier status    - View process status");
+      console.log("    clier logs      - View process logs");
+      console.log("    clier stop      - Stop the daemon");
+    }
     console.log();
 
     return 0;
