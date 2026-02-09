@@ -60,6 +60,13 @@ export type PipelineItem = {
   };
   /** Restart policy: "always", "on-failure" (default for services), or "never" */
   restart?: "always" | "on-failure" | "never";
+  /** Success filter: determine success by log pattern instead of exit code */
+  success_filter?: {
+    /** Regex pattern to match in stdout to determine success */
+    stdout_pattern?: string;
+    /** Regex pattern to match in stderr to determine success */
+    stderr_pattern?: string;
+  };
 };
 
 /**

@@ -248,6 +248,38 @@ export class EventHandler {
   }
 
   /**
+   * Evaluate success_filter against exit logs
+   *
+   * When a success_filter is configured, log pattern matching overrides exit code
+   * to determine success/failure.
+   */
+  private evaluateSuccessFilter(
+    item: PipelineItem,
+    exitData: { stdout?: string[]; stderr?: string[] },
+  ): boolean {
+    const filter = item.success_filter;
+    if (!filter) return false; // No filter configured, shouldn't be called
+
+    if (filter.stdout_pattern) {
+      const regex = new RegExp(filter.stdout_pattern);
+      const stdout = exitData.stdout || [];
+      if (stdout.some((line) => regex.test(line))) {
+        return true;
+      }
+    }
+
+    if (filter.stderr_pattern) {
+      const regex = new RegExp(filter.stderr_pattern);
+      const stderr = exitData.stderr || [];
+      if (stderr.some((line) => regex.test(line))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Handle process exit event
    */
   private handleProcessExit(event: ClierEvent, item: PipelineItem): void {
@@ -270,6 +302,47 @@ export class EventHandler {
       exitCode = isNaN(parsed) ? 1 : parsed; // Default to 1 (error) if unparseable
     }
 
+    // Check if success_filter is configured — if so, it overrides exit code
+    if (item.success_filter) {
+      const exitData = (event.data as {
+        stdout?: string[];
+        stderr?: string[];
+      }) || {};
+      const isSuccess = this.evaluateSuccessFilter(item, exitData);
+
+      if (isSuccess) {
+        const successEvent: ClierEvent = {
+          name: `${item.name}:success`,
+          processName: item.name,
+          type: "success",
+          data: exitCode,
+          timestamp: event.timestamp,
+        };
+
+        logger.info(
+          `${item.type === "task" ? "Task" : "Service"} ${item.name} matched success_filter pattern`,
+        );
+        this.emit(`${item.name}:success`, successEvent);
+      } else {
+        if (item.events?.on_crash ?? true) {
+          const crashEvent: ClierEvent = {
+            name: `${item.name}:crashed`,
+            processName: item.name,
+            type: "crashed",
+            data: exitCode,
+            timestamp: event.timestamp,
+          };
+
+          logger.warn(
+            `Process ${item.name} did not match success_filter pattern (exit code ${exitCode})`,
+          );
+          this.emit(`${item.name}:crashed`, crashEvent);
+        }
+      }
+      return;
+    }
+
+    // Default behavior: exit code determines success/failure
     // For tasks or services with on-failure/never restart: exit code 0 = success
     const restartMode =
       item.restart ?? (item.type === "service" ? "on-failure" : "never");

@@ -91,7 +91,11 @@ export class Watcher {
   async start(
     configPath: string,
     projectRoot?: string,
-    options?: { setupSignalHandlers?: boolean; detached?: boolean },
+    options?: {
+      setupSignalHandlers?: boolean;
+      detached?: boolean;
+      paused?: boolean;
+    },
   ): Promise<void> {
     if (this.started) {
       logger.warn("Watcher already started");
@@ -150,14 +154,19 @@ export class Watcher {
         this.setupSignalHandlers();
       }
 
-      // Start pipeline
-      try {
-        await this.orchestrator!.start();
-        logger.info("Pipeline started successfully");
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        logger.error("Failed to start pipeline", { error: errorMsg });
-        throw new Error(`Pipeline start failed: ${errorMsg}`);
+      // Start pipeline (unless paused)
+      if (options?.paused) {
+        logger.info("Daemon started in paused mode — no processes auto-started");
+      } else {
+        try {
+          await this.orchestrator!.start();
+          logger.info("Pipeline started successfully");
+        } catch (error) {
+          const errorMsg =
+            error instanceof Error ? error.message : String(error);
+          logger.error("Failed to start pipeline", { error: errorMsg });
+          throw new Error(`Pipeline start failed: ${errorMsg}`);
+        }
       }
 
       this.started = true;
@@ -502,7 +511,7 @@ export class Watcher {
       }
     });
 
-    // EventBus process:exit → EventHandler + Circuit Breaker tracking
+    // EventBus process:exit → EventHandler + Circuit Breaker tracking + success_filter completion status
     this.eventBus.on("process:exit", (event: ClierEvent) => {
       this.eventHandler!.handleEvent(event);
 
@@ -511,6 +520,37 @@ export class Watcher {
       const exitCode = exitData?.code ?? null;
       if (exitCode !== null && exitCode !== 0) {
         this.recordProcessCrash(event.processName);
+      }
+
+      // Check if this process has a success_filter - if so, evaluate and update completion status
+      const pipelineItem = this.flattenedConfig?.pipeline.find(
+        (p) => p.name === event.processName,
+      );
+      if (pipelineItem?.success_filter) {
+        const logs = event.data as {
+          stdout?: string[];
+          stderr?: string[];
+        } | undefined;
+        const filter = pipelineItem.success_filter;
+        let isSuccess = false;
+
+        if (filter.stdout_pattern && logs?.stdout) {
+          const regex = new RegExp(filter.stdout_pattern);
+          if (logs.stdout.some((line) => regex.test(line))) {
+            isSuccess = true;
+          }
+        }
+        if (!isSuccess && filter.stderr_pattern && logs?.stderr) {
+          const regex = new RegExp(filter.stderr_pattern);
+          if (logs.stderr.some((line) => regex.test(line))) {
+            isSuccess = true;
+          }
+        }
+
+        this.processManager!.setCompletionStatus(
+          event.processName,
+          isSuccess ? "success" : "failed",
+        );
       }
     });
 

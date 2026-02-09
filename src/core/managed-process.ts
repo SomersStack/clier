@@ -73,6 +73,10 @@ export interface ProcessStatus {
   restarts: number;
   exitCode?: number;
   signal?: string;
+  /** Unix timestamp when process last exited */
+  completedAt?: number;
+  /** Result of last run */
+  completionStatus?: "success" | "failed";
 }
 
 /**
@@ -112,6 +116,8 @@ export class ManagedProcess extends EventEmitter {
   private lastSignal?: string;
   private restartTimer?: NodeJS.Timeout;
   private stopRequested = false;
+  private lastCompletedAt?: number;
+  private _completionStatus?: "success" | "failed";
 
   // Buffering for guaranteed stdout capture
   private pendingStdout: string[] = [];
@@ -142,6 +148,8 @@ export class ManagedProcess extends EventEmitter {
       restarts: this.restartCount,
       exitCode: this.lastExitCode,
       signal: this.lastSignal,
+      completedAt: this.lastCompletedAt,
+      completionStatus: this._completionStatus,
     };
   }
 
@@ -164,6 +172,13 @@ export class ManagedProcess extends EventEmitter {
    */
   get inputEnabled(): boolean {
     return this.config.input?.enabled ?? false;
+  }
+
+  /**
+   * Set the completion status (used by success_filter to override exit-code-based status)
+   */
+  set completionStatus(value: "success" | "failed" | undefined) {
+    this._completionStatus = value;
   }
 
   /**
@@ -486,6 +501,10 @@ export class ManagedProcess extends EventEmitter {
     } else {
       this._status = "crashed";
     }
+
+    // Track completion
+    this.lastCompletedAt = Date.now();
+    this._completionStatus = code === 0 ? "success" : "failed";
 
     logger.info("Process exited", {
       name: this.config.name,

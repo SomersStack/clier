@@ -37,6 +37,24 @@ const inputConfigSchema = z
   .optional();
 
 /**
+ * Schema for success_filter configuration
+ *
+ * When configured on a pipeline item, log pattern matching overrides exit code
+ * to determine success/failure. At least one pattern must be provided.
+ */
+const successFilterSchema = z
+  .object({
+    /** Regex pattern to match in stdout to determine success */
+    stdout_pattern: z.string().optional(),
+    /** Regex pattern to match in stderr to determine success */
+    stderr_pattern: z.string().optional(),
+  })
+  .refine((data) => data.stdout_pattern || data.stderr_pattern, {
+    message:
+      "At least one of stdout_pattern or stderr_pattern must be provided",
+  });
+
+/**
  * Schema for pipeline item configuration
  */
 const pipelineItemSchema = z.object({
@@ -61,6 +79,8 @@ const pipelineItemSchema = z.object({
   input: inputConfigSchema,
   /** Restart policy: "always", "on-failure" (default for services), or "never" */
   restart: z.enum(["always", "on-failure", "never"]).optional(),
+  /** Success filter: determine success by log pattern instead of exit code */
+  success_filter: successFilterSchema.optional(),
 });
 
 /**

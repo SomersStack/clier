@@ -291,6 +291,19 @@ export class ProcessManager extends EventEmitter {
   }
 
   /**
+   * Set the completion status of a process (used by success_filter to override exit-code-based status)
+   *
+   * @param name - Process name
+   * @param status - Completion status to set
+   */
+  setCompletionStatus(name: string, status: "success" | "failed"): void {
+    const process = this.processes.get(name);
+    if (process) {
+      process.completionStatus = status;
+    }
+  }
+
+  /**
    * Graceful shutdown of all processes
    *
    * @param timeout - Timeout for graceful shutdown per process (default: 5000ms)
