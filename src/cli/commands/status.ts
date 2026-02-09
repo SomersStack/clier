@@ -43,6 +43,8 @@ interface JsonProcessStatus {
   pid: number | null;
   uptime: string;
   restarts: number;
+  completedAt?: number;
+  completionStatus?: "success" | "failed";
 }
 
 /**
@@ -73,6 +75,10 @@ function toJsonProcess(proc: ProcessStatus): JsonProcessStatus {
     pid: proc.pid ?? null,
     uptime: formatUptime(proc.uptime),
     restarts: proc.restarts,
+    ...(proc.completedAt ? { completedAt: proc.completedAt } : {}),
+    ...(proc.completionStatus
+      ? { completionStatus: proc.completionStatus }
+      : {}),
   };
 }
 
