@@ -35,6 +35,12 @@ import {
   templateApplyCommand,
   templateShowCommand,
 } from "./commands/template.js";
+import {
+  workflowRunCommand,
+  workflowCancelCommand,
+  workflowStatusCommand,
+  workflowListCommand,
+} from "./commands/workflow.js";
 
 /**
  * Create and configure the CLI program
@@ -576,6 +582,56 @@ export function createCLI(): Command {
         process.exit(exitCode);
       },
     );
+
+  // Workflow commands
+  const workflow = program
+    .command("workflow")
+    .description("Manage workflows");
+
+  workflow
+    .command("run")
+    .description("Trigger a workflow")
+    .argument("<name>", "Workflow name")
+    .action(async (name: string) => {
+      const exitCode = await workflowRunCommand(name);
+      process.exit(exitCode);
+    });
+
+  workflow
+    .command("cancel")
+    .description("Cancel a running workflow")
+    .argument("<name>", "Workflow name")
+    .action(async (name: string) => {
+      const exitCode = await workflowCancelCommand(name);
+      process.exit(exitCode);
+    });
+
+  workflow
+    .command("status")
+    .description("Show workflow status")
+    .argument("[name]", "Workflow name (omit to list all)")
+    .action(async (name?: string) => {
+      const exitCode = await workflowStatusCommand(name);
+      process.exit(exitCode);
+    });
+
+  workflow
+    .command("list")
+    .description("List all defined workflows")
+    .action(async () => {
+      const exitCode = await workflowListCommand();
+      process.exit(exitCode);
+    });
+
+  // Flow command (alias for workflow run)
+  program
+    .command("flow")
+    .description("Trigger a workflow (alias for workflow run)")
+    .argument("<name>", "Workflow name")
+    .action(async (name: string) => {
+      const exitCode = await workflowRunCommand(name);
+      process.exit(exitCode);
+    });
 
   return program;
 }

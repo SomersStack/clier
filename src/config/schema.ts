@@ -105,12 +105,66 @@ const stageSchema = z.object({
 });
 
 /**
- * Schema for a pipeline entry (either a step or a stage)
+ * Schema for workflow conditions (recursive)
+ */
+const workflowConditionSchema: z.ZodType<import("./types.js").WorkflowCondition> = z.lazy(() =>
+  z.union([
+    z.object({
+      process: z.string().min(1),
+      is: z.enum(["running", "stopped", "crashed"]),
+    }),
+    z.object({ not: workflowConditionSchema }),
+    z.object({ all: z.array(workflowConditionSchema).min(1) }),
+    z.object({ any: z.array(workflowConditionSchema).min(1) }),
+  ]),
+);
+
+/**
+ * Schema for workflow step
+ */
+const workflowStepSchema = z.object({
+  action: z.enum(["run", "stop", "start", "restart", "await", "emit"]),
+  process: z.string().min(1).optional(),
+  event: z.string().min(1).optional(),
+  data: z.record(z.unknown()).optional(),
+  await: z.string().min(1).optional(),
+  timeout_ms: z.number().int().positive().optional(),
+  if: workflowConditionSchema.optional(),
+  on_failure: z.enum(["abort", "continue", "skip_rest"]).optional(),
+}).refine(
+  (step) => {
+    if (step.action === "await" || step.action === "emit") {
+      return !!step.event;
+    }
+    return !!step.process;
+  },
+  {
+    message:
+      "Steps with action 'await' or 'emit' require 'event'; other actions require 'process'",
+  },
+);
+
+/**
+ * Schema for workflow configuration
+ */
+const workflowSchema = z.object({
+  name: z.string().min(1, "Workflow name must not be empty"),
+  type: z.literal("workflow"),
+  manual: z.boolean().optional(),
+  trigger_on: z.array(z.string()).optional(),
+  on_failure: z.enum(["abort", "continue", "skip_rest"]).optional(),
+  timeout_ms: z.number().int().positive().optional(),
+  steps: z.array(workflowStepSchema).min(1, "Workflow must have at least one step"),
+});
+
+/**
+ * Schema for a pipeline entry (either a step, a stage, or a workflow)
  * Uses discriminatedUnion on "type" field for better error messages
  */
 const pipelineEntrySchema = z.discriminatedUnion("type", [
   pipelineItemSchema,
   stageSchema,
+  workflowSchema,
 ]);
 
 /**
@@ -219,6 +273,36 @@ export const configSchema = z
     {
       message: "Pipeline items must have unique names - found duplicate names",
     },
+  )
+  .refine(
+    (config) => {
+      // Validate that workflow steps reference existing pipeline items
+      const allNames = new Set<string>();
+      for (const entry of config.pipeline) {
+        if (entry.type !== "workflow") {
+          allNames.add(entry.name);
+        }
+        if (entry.type === "stage") {
+          for (const step of entry.steps) {
+            allNames.add(step.name);
+          }
+        }
+      }
+      for (const entry of config.pipeline) {
+        if (entry.type === "workflow") {
+          for (const step of entry.steps) {
+            if (step.process && !allNames.has(step.process)) {
+              return false;
+            }
+          }
+        }
+      }
+      return true;
+    },
+    {
+      message:
+        "Workflow steps reference processes not found in the pipeline",
+    },
   );
 
 /**
@@ -255,6 +339,16 @@ export type StageSchema = typeof stageSchema;
  * Type alias for the Zod pipeline entry schema
  */
 export type PipelineEntrySchema = typeof pipelineEntrySchema;
+
+/**
+ * Type alias for the Zod workflow step schema
+ */
+export type WorkflowStepSchema = typeof workflowStepSchema;
+
+/**
+ * Type alias for the Zod workflow schema
+ */
+export type WorkflowSchema = typeof workflowSchema;
 
 /**
  * Type alias for the main config schema

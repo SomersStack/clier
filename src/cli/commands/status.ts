@@ -10,6 +10,7 @@ import Table from "cli-table3";
 import { getDaemonClient } from "../../daemon/client.js";
 import type { ProcessStatus } from "../../core/process-manager.js";
 import type { DaemonStatus } from "../../daemon/controller.js";
+import type { WorkflowStatus } from "../../core/workflow-engine.js";
 import {
   printWarning,
   printError,
@@ -62,6 +63,7 @@ interface JsonOutput {
   daemon: JsonDaemonStatus;
   stages: JsonStage[];
   processes: JsonProcessStatus[];
+  workflows?: WorkflowStatus[];
 }
 
 /**
@@ -148,6 +150,7 @@ function buildStatusOutput(
   processes: ProcessStatus[],
   stageMap: Record<string, string>,
   isWatch: boolean,
+  workflows: WorkflowStatus[] = [],
 ): { output: string; lineCount: number } {
   const lines: string[] = [];
 
@@ -193,6 +196,59 @@ function buildStatusOutput(
     lines.push("");
   }
 
+  // Display workflows if any are defined
+  if (workflows.length > 0) {
+    lines.push(chalk.bold("Workflows"));
+    lines.push(chalk.gray("─────────────────"));
+
+    const workflowTable = new Table({
+      head: [
+        chalk.white("Name"),
+        chalk.white("Steps"),
+        chalk.white("Trigger"),
+        chalk.white("Status"),
+      ],
+      style: { head: [], border: [] },
+    });
+
+    for (const wf of workflows) {
+      const trigger = wf.manual
+        ? chalk.yellow("manual")
+        : wf.trigger_on.length > 0
+          ? wf.trigger_on.join(", ")
+          : chalk.gray("none");
+
+      let status: string;
+      if (wf.active) {
+        const step = wf.active.currentStep + 1;
+        const total = wf.active.steps.length;
+        switch (wf.active.status) {
+          case "running":
+            status = chalk.cyan(`running (${step}/${total})`);
+            break;
+          case "completed":
+            status = chalk.green("completed");
+            break;
+          case "failed":
+            status = chalk.red("failed");
+            break;
+          case "cancelled":
+            status = chalk.yellow("cancelled");
+            break;
+          default:
+            status = chalk.gray(wf.active.status);
+        }
+      } else {
+        status = chalk.gray("idle");
+      }
+
+      workflowTable.push([wf.name, wf.stepCount.toString(), trigger, status]);
+    }
+
+    lines.push(...workflowTable.toString().split("\n"));
+    lines.push("");
+  }
+
   if (isWatch) {
     lines.push(chalk.gray("Press Ctrl+C to exit watch mode"));
   }
@@ -208,12 +264,14 @@ function renderStatus(
   processes: ProcessStatus[],
   stageMap: Record<string, string>,
   isWatch: boolean,
+  workflows: WorkflowStatus[] = [],
 ): number {
   const { output, lineCount } = buildStatusOutput(
     daemonStatus,
     processes,
     stageMap,
     isWatch,
+    workflows,
   );
   console.log(output);
   return lineCount;
@@ -226,13 +284,20 @@ async function fetchStatus(): Promise<{
   daemonStatus: DaemonStatus;
   processes: ProcessStatus[];
   stageMap: Record<string, string>;
+  workflows: WorkflowStatus[];
 }> {
   const client = await getDaemonClient();
   const daemonStatus: DaemonStatus = await client.request("daemon.status");
   const processes: ProcessStatus[] = await client.request("process.list");
   const stageMap: Record<string, string> = await client.request("stages.map");
+  let workflows: WorkflowStatus[] = [];
+  try {
+    workflows = await client.request("workflow.list");
+  } catch {
+    // WorkflowEngine may not be initialized if no workflows defined
+  }
   client.disconnect();
-  return { daemonStatus, processes, stageMap };
+  return { daemonStatus, processes, stageMap, workflows };
 }
 
 /**
@@ -278,7 +343,7 @@ export async function statusCommand(
   try {
     if (json) {
       // JSON output mode
-      const { daemonStatus, processes, stageMap } = await fetchStatus();
+      const { daemonStatus, processes, stageMap, workflows } = await fetchStatus();
       const { stageGroups, ungrouped } = groupByStage(processes, stageMap);
 
       const output: JsonOutput = {
@@ -293,6 +358,7 @@ export async function statusCommand(
           processes: procs.map(toJsonProcess),
         })),
         processes: ungrouped.map(toJsonProcess),
+        ...(workflows.length > 0 ? { workflows } : {}),
       };
 
       console.log(JSON.stringify(output, null, 2));
@@ -318,8 +384,8 @@ export async function statusCommand(
       while (running) {
         try {
           clearScreen();
-          const { daemonStatus, processes, stageMap } = await fetchStatus();
-          renderStatus(daemonStatus, processes, stageMap, true);
+          const { daemonStatus, processes, stageMap, workflows } = await fetchStatus();
+          renderStatus(daemonStatus, processes, stageMap, true, workflows);
         } catch (error) {
           clearScreen();
           if (error instanceof Error && error.message.includes("not running")) {
@@ -347,8 +413,8 @@ export async function statusCommand(
       return 0;
     } else {
       // Single status check
-      const { daemonStatus, processes, stageMap } = await fetchStatus();
-      renderStatus(daemonStatus, processes, stageMap, false);
+      const { daemonStatus, processes, stageMap, workflows } = await fetchStatus();
+      renderStatus(daemonStatus, processes, stageMap, false, workflows);
       return 0;
     }
   } catch (error) {

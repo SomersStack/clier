@@ -875,4 +875,255 @@ describe("Config Schema Validation", () => {
       expect(() => configSchema.parse(config)).toThrow();
     });
   });
+
+  describe("Workflow Schema Validation", () => {
+    const baseConfig = (pipeline: unknown[]) => ({
+      project_name: "workflow-test",
+      safety: {
+        max_ops_per_minute: 60,
+        debounce_ms: 100,
+      },
+      pipeline,
+    });
+
+    it("should parse a valid workflow config", () => {
+      const config = baseConfig([
+        {
+          name: "backend",
+          command: "npm start",
+          type: "service",
+        },
+        {
+          name: "deploy-workflow",
+          type: "workflow",
+          trigger_on: ["backend:ready"],
+          on_failure: "abort",
+          timeout_ms: 30000,
+          steps: [
+            { action: "run", process: "backend" },
+            { action: "await", event: "backend:ready" },
+            { action: "emit", event: "deploy:done", data: { version: "1.0" } },
+          ],
+        },
+      ]);
+
+      const result = configSchema.parse(config);
+      expect(result).toBeDefined();
+      expect(result.pipeline).toHaveLength(2);
+      expect(result.pipeline[1]?.type).toBe("workflow");
+      if (result.pipeline[1]?.type === "workflow") {
+        expect(result.pipeline[1]?.steps).toHaveLength(3);
+        expect(result.pipeline[1]?.on_failure).toBe("abort");
+        expect(result.pipeline[1]?.timeout_ms).toBe(30000);
+      }
+    });
+
+    it("should require 'process' for run/stop/start/restart actions", () => {
+      for (const action of ["run", "stop", "start", "restart"]) {
+        const config = baseConfig([
+          {
+            name: `${action}-wf`,
+            type: "workflow",
+            steps: [{ action, event: "some:event" }], // missing process
+          },
+        ]);
+
+        expect(() => configSchema.parse(config)).toThrow();
+      }
+    });
+
+    it("should require 'event' for await/emit actions", () => {
+      for (const action of ["await", "emit"]) {
+        const config = baseConfig([
+          {
+            name: `${action}-wf`,
+            type: "workflow",
+            steps: [{ action, process: "backend" }], // missing event
+          },
+        ]);
+
+        expect(() => configSchema.parse(config)).toThrow();
+      }
+    });
+
+    it("should validate workflow condition - process is", () => {
+      const config = baseConfig([
+        {
+          name: "backend",
+          command: "npm start",
+          type: "service",
+        },
+        {
+          name: "cond-wf",
+          type: "workflow",
+          steps: [
+            {
+              action: "stop",
+              process: "backend",
+              if: { process: "backend", is: "running" },
+            },
+          ],
+        },
+      ]);
+
+      const result = configSchema.parse(config);
+      expect(result).toBeDefined();
+    });
+
+    it("should validate workflow condition - not", () => {
+      const config = baseConfig([
+        {
+          name: "backend",
+          command: "npm start",
+          type: "service",
+        },
+        {
+          name: "not-cond-wf",
+          type: "workflow",
+          steps: [
+            {
+              action: "stop",
+              process: "backend",
+              if: { not: { process: "backend", is: "stopped" } },
+            },
+          ],
+        },
+      ]);
+
+      const result = configSchema.parse(config);
+      expect(result).toBeDefined();
+    });
+
+    it("should validate workflow condition - all", () => {
+      const config = baseConfig([
+        {
+          name: "backend",
+          command: "npm start",
+          type: "service",
+        },
+        {
+          name: "frontend",
+          command: "npm run dev",
+          type: "service",
+        },
+        {
+          name: "all-cond-wf",
+          type: "workflow",
+          steps: [
+            {
+              action: "emit",
+              event: "all:ready",
+              if: {
+                all: [
+                  { process: "backend", is: "running" },
+                  { process: "frontend", is: "running" },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+
+      const result = configSchema.parse(config);
+      expect(result).toBeDefined();
+    });
+
+    it("should validate workflow condition - any", () => {
+      const config = baseConfig([
+        {
+          name: "backend",
+          command: "npm start",
+          type: "service",
+        },
+        {
+          name: "any-cond-wf",
+          type: "workflow",
+          steps: [
+            {
+              action: "emit",
+              event: "any:ready",
+              if: {
+                any: [
+                  { process: "backend", is: "running" },
+                  { process: "backend", is: "crashed" },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+
+      const result = configSchema.parse(config);
+      expect(result).toBeDefined();
+    });
+
+    it("should reject workflow step referencing non-existent process", () => {
+      const config = baseConfig([
+        {
+          name: "ghost-wf",
+          type: "workflow",
+          steps: [{ action: "run", process: "nonexistent" }],
+        },
+      ]);
+
+      expect(() => configSchema.parse(config)).toThrow(
+        /workflow.*steps.*reference.*processes.*not found/i,
+      );
+    });
+
+    it("should reject workflow with empty steps array", () => {
+      const config = baseConfig([
+        {
+          name: "empty-wf",
+          type: "workflow",
+          steps: [],
+        },
+      ]);
+
+      expect(() => configSchema.parse(config)).toThrow();
+    });
+
+    it("should parse manual workflow without trigger_on", () => {
+      const config = baseConfig([
+        {
+          name: "backend",
+          command: "npm start",
+          type: "service",
+        },
+        {
+          name: "manual-wf",
+          type: "workflow",
+          manual: true,
+          steps: [{ action: "stop", process: "backend" }],
+        },
+      ]);
+
+      const result = configSchema.parse(config);
+      expect(result).toBeDefined();
+      if (result.pipeline[1]?.type === "workflow") {
+        expect(result.pipeline[1]?.manual).toBe(true);
+      }
+    });
+
+    it("should accept step-level on_failure override", () => {
+      const config = baseConfig([
+        {
+          name: "backend",
+          command: "npm start",
+          type: "service",
+        },
+        {
+          name: "step-fail-wf",
+          type: "workflow",
+          on_failure: "abort",
+          steps: [
+            { action: "run", process: "backend", on_failure: "continue" },
+          ],
+        },
+      ]);
+
+      const result = configSchema.parse(config);
+      expect(result).toBeDefined();
+    });
+  });
 });

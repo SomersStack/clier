@@ -44,7 +44,7 @@ describe("Status Command", () => {
 
   describe("show status successfully", () => {
     it("should display daemon and process status", async () => {
-      // getDaemonClient is called via fetchStatus, which makes 3 sequential requests
+      // getDaemonClient is called via fetchStatus, which makes 4 sequential requests
       mockClient.request
         .mockResolvedValueOnce({
           pid: 12345,
@@ -61,7 +61,8 @@ describe("Status Command", () => {
             restarts: 0,
           },
         ])
-        .mockResolvedValueOnce({});
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce([]);
 
       const exitCode = await statusCommand();
 
@@ -91,7 +92,8 @@ describe("Status Command", () => {
             restarts: 0,
           },
         ])
-        .mockResolvedValueOnce({});
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce([]);
 
       const exitCode = await statusCommand({ json: true });
 

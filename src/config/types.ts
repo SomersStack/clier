@@ -89,9 +89,45 @@ export type StageItem = {
 };
 
 /**
- * Union type for pipeline entries (either a step or a stage)
+ * Workflow condition for conditional step execution
  */
-export type PipelineEntry = PipelineItem | StageItem;
+export type WorkflowCondition =
+  | { process: string; is: "running" | "stopped" | "crashed" }
+  | { not: WorkflowCondition }
+  | { all: WorkflowCondition[] }
+  | { any: WorkflowCondition[] };
+
+/**
+ * A single step in a workflow
+ */
+export type WorkflowStep = {
+  action: "run" | "stop" | "start" | "restart" | "await" | "emit";
+  process?: string;
+  event?: string;
+  data?: Record<string, unknown>;
+  await?: string;
+  timeout_ms?: number;
+  if?: WorkflowCondition;
+  on_failure?: "abort" | "continue" | "skip_rest";
+};
+
+/**
+ * Workflow pipeline entry — a sequential chain of operations
+ */
+export type WorkflowItem = {
+  name: string;
+  type: "workflow";
+  manual?: boolean;
+  trigger_on?: string[];
+  on_failure?: "abort" | "continue" | "skip_rest";
+  timeout_ms?: number;
+  steps: WorkflowStep[];
+};
+
+/**
+ * Union type for pipeline entries (either a step, a stage, or a workflow)
+ */
+export type PipelineEntry = PipelineItem | StageItem | WorkflowItem;
 
 /**
  * Configuration type after stage flattening

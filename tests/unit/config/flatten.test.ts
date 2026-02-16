@@ -4,6 +4,7 @@ import type {
   ClierConfig,
   PipelineItem,
   StageItem,
+  WorkflowItem,
 } from "../../../src/config/types.js";
 
 describe("Pipeline Flattening", () => {
@@ -289,3 +290,127 @@ function createTask(name: string, command: string): PipelineItem {
     type: "task",
   };
 }
+
+function createWorkflow(
+  name: string,
+  overrides?: Partial<WorkflowItem>,
+): WorkflowItem {
+  return {
+    name,
+    type: "workflow",
+    steps: [{ action: "run", process: "backend" }],
+    ...overrides,
+  };
+}
+
+function createConfigWithWorkflows(
+  pipeline: (PipelineItem | StageItem | WorkflowItem)[],
+): ClierConfig {
+  return {
+    project_name: "test",
+    global_env: true,
+    safety: {
+      max_ops_per_minute: 60,
+      debounce_ms: 100,
+    },
+    pipeline,
+  };
+}
+
+describe("Workflow extraction", () => {
+  it("should extract workflows and not include them in flatItems", () => {
+    const wf = createWorkflow("deploy-wf");
+    const config = createConfigWithWorkflows([
+      createService("backend", "npm start"),
+      wf,
+    ]);
+
+    const { config: flattenedConfig, workflows } = flattenPipeline(config);
+
+    // Workflow should NOT be in the flattened pipeline
+    expect(flattenedConfig.pipeline).toHaveLength(1);
+    expect(flattenedConfig.pipeline[0]?.name).toBe("backend");
+
+    // Workflow should be in the workflows array
+    expect(workflows).toHaveLength(1);
+    expect(workflows[0]?.name).toBe("deploy-wf");
+    expect(workflows[0]?.type).toBe("workflow");
+  });
+
+  it("should return workflows in the result", () => {
+    const wf1 = createWorkflow("wf1");
+    const wf2 = createWorkflow("wf2", {
+      trigger_on: ["build:done"],
+      on_failure: "continue",
+    });
+
+    const config = createConfigWithWorkflows([
+      createService("backend", "npm start"),
+      wf1,
+      wf2,
+    ]);
+
+    const { workflows } = flattenPipeline(config);
+
+    expect(workflows).toHaveLength(2);
+    expect(workflows[0]?.name).toBe("wf1");
+    expect(workflows[1]?.name).toBe("wf2");
+    expect(workflows[1]?.trigger_on).toEqual(["build:done"]);
+    expect(workflows[1]?.on_failure).toBe("continue");
+  });
+
+  it("should handle mixed pipeline with stages, items, and workflows", () => {
+    const stage: StageItem = {
+      name: "build-stage",
+      type: "stage",
+      steps: [
+        createService("frontend", "npm run build:frontend"),
+        createService("api", "npm run build:api"),
+      ],
+    };
+
+    const config = createConfigWithWorkflows([
+      createService("db", "docker-compose up db"),
+      stage,
+      createWorkflow("deploy-wf", {
+        steps: [
+          { action: "run", process: "frontend" },
+          { action: "emit", event: "deploy:done" },
+        ],
+      }),
+      createTask("tests", "npm test"),
+    ]);
+
+    const { config: flattenedConfig, stageMap, workflows } =
+      flattenPipeline(config);
+
+    // Flat items: db + frontend + api (from stage) + tests = 4
+    expect(flattenedConfig.pipeline).toHaveLength(4);
+    expect(flattenedConfig.pipeline.map((p) => p.name)).toEqual([
+      "db",
+      "frontend",
+      "api",
+      "tests",
+    ]);
+
+    // Stage map should track stage steps
+    expect(stageMap.get("frontend")).toBe("build-stage");
+    expect(stageMap.get("api")).toBe("build-stage");
+
+    // Workflows should be extracted separately
+    expect(workflows).toHaveLength(1);
+    expect(workflows[0]?.name).toBe("deploy-wf");
+    expect(workflows[0]?.steps).toHaveLength(2);
+  });
+
+  it("should return empty workflows array when no workflows exist", () => {
+    const config = createConfig([
+      createService("backend", "npm start"),
+      createTask("migrate", "npm run migrate"),
+    ]);
+
+    const { workflows } = flattenPipeline(config);
+
+    expect(workflows).toHaveLength(0);
+  });
+});

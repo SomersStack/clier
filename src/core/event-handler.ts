@@ -169,6 +169,16 @@ export class EventHandler {
   }
 
   /**
+   * Unsubscribe from events
+   *
+   * @param event - Event name to unsubscribe from
+   * @param handler - Event handler function to remove
+   */
+  off(event: string, handler: EventHandlerFn): void {
+    this.emitter.off(event, handler);
+  }
+
+  /**
    * Emit an event
    *
    * @param event - Event name

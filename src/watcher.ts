@@ -14,10 +14,11 @@ import { LogManager } from "./core/log-manager.js";
 import { PatternMatcher } from "./core/pattern-matcher.js";
 import { EventHandler } from "./core/event-handler.js";
 import { Orchestrator } from "./core/orchestrator.js";
+import { WorkflowEngine } from "./core/workflow-engine.js";
 import { Debouncer } from "./safety/debouncer.js";
 import { RateLimiter } from "./safety/rate-limiter.js";
 import { CircuitBreaker } from "./safety/circuit-breaker.js";
-import type { ClierConfig, FlattenedConfig } from "./config/types.js";
+import type { ClierConfig, FlattenedConfig, WorkflowItem } from "./config/types.js";
 import type { ClierEvent } from "./types/events.js";
 import { createContextLogger } from "./utils/logger.js";
 
@@ -50,6 +51,8 @@ export class Watcher {
   private patternMatcher?: PatternMatcher;
   private eventHandler?: EventHandler;
   private orchestrator?: Orchestrator;
+  private workflowEngine?: WorkflowEngine;
+  private workflows?: WorkflowItem[];
   private debouncer?: Debouncer;
   private rateLimiter?: RateLimiter;
   private circuitBreaker?: CircuitBreaker;
@@ -119,16 +122,18 @@ export class Watcher {
         this.config = await loadConfig(configPath);
 
         // Flatten stages into individual pipeline items
-        const { config: flattenedConfig, stageMap } = flattenPipeline(
+        const { config: flattenedConfig, stageMap, workflows } = flattenPipeline(
           this.config,
         );
         this.flattenedConfig = flattenedConfig;
         this.stageMap = stageMap;
+        this.workflows = workflows;
 
         logger.info("Configuration loaded successfully", {
           projectName: this.config.project_name,
           pipelineItems: flattenedConfig.pipeline.length,
           stageCount: stageMap.size,
+          workflowCount: workflows.length,
         });
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
@@ -246,6 +251,13 @@ export class Watcher {
    */
   getEventHandler(): EventHandler | undefined {
     return this.eventHandler;
+  }
+
+  /**
+   * Get the workflow engine (for workflow operations)
+   */
+  getWorkflowEngine(): WorkflowEngine | undefined {
+    return this.workflowEngine;
   }
 
   /**
@@ -457,6 +469,23 @@ export class Watcher {
       throw new Error(`Pipeline load failed: ${errorMsg}`);
     }
 
+    // Initialize WorkflowEngine (after orchestrator)
+    try {
+      this.workflowEngine = new WorkflowEngine(
+        this.processManager,
+        this.eventHandler,
+        this.orchestrator,
+      );
+      if (this.workflows && this.workflows.length > 0) {
+        this.workflowEngine.loadWorkflows(this.workflows);
+        logger.debug("Workflows loaded", { count: this.workflows.length });
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      logger.error("Failed to initialize workflow engine", { error: errorMsg });
+      throw new Error(`Workflow engine initialization failed: ${errorMsg}`);
+    }
+
     // Connect event flows
     try {
       this.setupEventFlows();
@@ -578,6 +607,7 @@ export class Watcher {
     this.eventHandler.emit = (eventName: string, event: ClierEvent) => {
       originalEmit(eventName, event);
       handleOrchestratorEvent(event);
+      this.workflowEngine?.handleEvent(event);
     };
 
     logger.debug("Event flows configured");

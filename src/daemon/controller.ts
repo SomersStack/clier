@@ -9,6 +9,7 @@ import type { Watcher } from "../watcher.js";
 import type { ProcessStatus } from "../core/process-manager.js";
 import type { LogEntry } from "../core/log-manager.js";
 import type { ClierEvent } from "../types/events.js";
+import type { WorkflowStatus } from "../core/workflow-engine.js";
 
 /**
  * Daemon status information
@@ -606,5 +607,51 @@ export class DaemonController {
   async "stages.map"(): Promise<Record<string, string>> {
     const stageMap = this.watcher.getStageMap();
     return stageMap ? Object.fromEntries(stageMap) : {};
+  }
+
+  /**
+   * Trigger a workflow by name
+   */
+  async "workflow.run"(params: { name: string }): Promise<{ success: true }> {
+    const engine = this.watcher.getWorkflowEngine();
+    if (!engine) {
+      throw new Error("WorkflowEngine not initialized");
+    }
+    await engine.triggerWorkflow(params.name, "manual");
+    return { success: true };
+  }
+
+  /**
+   * Cancel a running workflow
+   */
+  async "workflow.cancel"(params: { name: string }): Promise<{ success: true }> {
+    const engine = this.watcher.getWorkflowEngine();
+    if (!engine) {
+      throw new Error("WorkflowEngine not initialized");
+    }
+    await engine.cancelWorkflow(params.name);
+    return { success: true };
+  }
+
+  /**
+   * Get status of a specific workflow
+   */
+  async "workflow.status"(params: { name: string }): Promise<WorkflowStatus> {
+    const engine = this.watcher.getWorkflowEngine();
+    if (!engine) {
+      throw new Error("WorkflowEngine not initialized");
+    }
+    return engine.getStatus(params.name) as WorkflowStatus;
+  }
+
+  /**
+   * List all workflows and their status
+   */
+  async "workflow.list"(): Promise<WorkflowStatus[]> {
+    const engine = this.watcher.getWorkflowEngine();
+    if (!engine) {
+      throw new Error("WorkflowEngine not initialized");
+    }
+    return engine.getStatus() as WorkflowStatus[];
   }
 }

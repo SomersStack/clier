@@ -10,11 +10,13 @@ import type {
   PipelineItem,
   FlattenedConfig,
   PipelineEntry,
+  WorkflowItem,
 } from "./types.js";
 
 export type FlattenResult = {
   config: FlattenedConfig;
   stageMap: Map<string, string>;
+  workflows: WorkflowItem[];
 };
 
 /**
@@ -31,8 +33,13 @@ export type FlattenResult = {
 export function flattenPipeline(config: ClierConfig): FlattenResult {
   const flatItems: PipelineItem[] = [];
   const stageMap = new Map<string, string>();
+  const workflows: WorkflowItem[] = [];
 
   for (const entry of config.pipeline as PipelineEntry[]) {
+    if (entry.type === "workflow") {
+      workflows.push(entry);
+      continue;
+    }
     if (entry.type === "stage") {
       for (const step of entry.steps) {
         const effectiveManual = entry.manual || step.manual || false;
@@ -67,5 +74,5 @@ export function flattenPipeline(config: ClierConfig): FlattenResult {
     pipeline: flatItems,
   };
 
-  return { config: flattenedConfig, stageMap };
+  return { config: flattenedConfig, stageMap, workflows };
 }
