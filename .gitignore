@@ -38,3 +38,6 @@ coverage/
 
 # Vitest
 .vitest/
+
+# Clier runtime
+.clier/
