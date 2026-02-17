@@ -7,6 +7,7 @@
 
 import chalk from "chalk";
 import { getDaemonClient } from "../../daemon/client.js";
+import { startCommand } from "./start.js";
 import { printError, printSuccess, printWarning } from "../utils/formatter.js";
 import type { ProcessConfig } from "../../core/managed-process.js";
 
@@ -61,11 +62,36 @@ export async function serviceStartCommand(
     return 0;
   } catch (error) {
     if (error instanceof Error && error.message.includes("not running")) {
-      printWarning("Clier daemon is not running");
+      // Auto-start daemon in paused mode
+      printWarning("Daemon not running, starting in paused mode...");
       console.log();
-      console.log("  Start it with: clier start");
-      console.log();
-      return 1;
+
+      const startResult = await startCommand(undefined, { paused: true });
+      if (startResult !== 0) {
+        printError("Failed to auto-start daemon");
+        return 1;
+      }
+
+      // Re-acquire client now that daemon is running
+      try {
+        const client = await getDaemonClient();
+        const initialInput = args?.length ? args.join(" ") : undefined;
+
+        console.log(chalk.cyan(`\nStarting service: ${serviceName}`));
+        await client.request("process.start", { name: serviceName, initialInput });
+
+        printSuccess(`Service "${serviceName}" started successfully`);
+        if (initialInput) {
+          printSuccess(`Sent initial input: ${initialInput}`);
+        }
+        console.log();
+
+        client.disconnect();
+        return 0;
+      } catch (retryError) {
+        printError(retryError instanceof Error ? retryError.message : String(retryError));
+        return 1;
+      }
     }
 
     printError(error instanceof Error ? error.message : String(error));
