@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Workflow orchestration** (`type: "workflow"`) -- Sequential, triggerable chains of operations that coordinate multiple pipeline processes
+  - 6 step actions: `run`, `stop`, `start`, `restart`, `await`, `emit`
+  - Conditional step execution with `if` (process state checks, `not`/`all`/`any` logical operators)
+  - Failure handling per-step or workflow-level: `abort`, `continue`, `skip_rest`
+  - Workflow lifecycle events: `<name>:started`, `<name>:completed`, `<name>:failed`, `<name>:cancelled`
+  - Auto-triggering via `trigger_on` events, with concurrency control (rejects if already running)
+  - Configurable timeouts at workflow and step level
+- `clier workflow run <name>` / `clier flow <name>` -- Trigger a workflow
+- `clier workflow status [name]` -- View workflow status
+- `clier workflow cancel <name>` -- Cancel a running workflow
+- `clier workflow list` -- List all defined workflows
+- `clier status` now includes a Workflows section when workflows are defined
 - `restart` field on pipeline items with values `"always"`, `"on-failure"`, or `"never"` to control auto-restart behavior
   - Services default to `"on-failure"` (only restart on non-zero exit), matching Docker/systemd conventions
   - Services that exit cleanly (exit 0) with `"on-failure"` or `"never"` now emit `${name}:success` events

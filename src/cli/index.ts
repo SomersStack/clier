@@ -317,7 +317,7 @@ export function createCLI(): Command {
     .description("Show documentation")
     .argument(
       "[subject]",
-      "Documentation subject (commands, pipeline, all)",
+      "Documentation subject (commands, pipeline, workflows, all)",
       "all",
     )
     .option("-l, --list", "List available documentation subjects")

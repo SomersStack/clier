@@ -20,7 +20,7 @@ interface ClierConfig {
   project_name: string;
   global_env: boolean;
   safety: Safety;
-  pipeline: PipelineEntry[];  // Can contain PipelineItem or StageItem
+  pipeline: PipelineEntry[];  // Can contain PipelineItem, StageItem, or WorkflowItem
 }
 ```
 
@@ -151,15 +151,105 @@ const stage: StageItem = {
 
 ---
 
-### PipelineEntry
+### WorkflowItem
 
-Union type for pipeline entries (either a step or a stage).
+Configuration for a workflow that orchestrates multiple pipeline processes.
 
 ```typescript
-type PipelineEntry = PipelineItem | StageItem;
+interface WorkflowItem {
+  name: string;
+  type: 'workflow';
+  manual?: boolean;
+  trigger_on?: string[];
+  on_failure?: 'abort' | 'continue' | 'skip_rest';
+  timeout_ms?: number;
+  steps: WorkflowStep[];
+}
 ```
 
-Used in `ClierConfig.pipeline` to allow mixing individual items with stages.
+**Fields**:
+- `name`: Unique workflow name
+- `type`: Must be `'workflow'`
+- `manual`: Optional flag to only trigger via CLI (default: false)
+- `trigger_on`: Optional array of events that auto-trigger this workflow
+- `on_failure`: Default failure handling for all steps (default: `'abort'`)
+- `timeout_ms`: Whole-workflow timeout in milliseconds (default: 600000)
+- `steps`: Array of sequential steps to execute
+
+**Example**:
+```typescript
+const workflow: WorkflowItem = {
+  name: 'rebuild-web',
+  type: 'workflow',
+  manual: true,
+  steps: [
+    { action: 'stop', process: 'web', if: { process: 'web', is: 'running' } },
+    { action: 'run', process: 'build-web' },
+    { action: 'start', process: 'web', await: 'web:ready' }
+  ]
+};
+```
+
+---
+
+### WorkflowStep
+
+Configuration for a single step within a workflow.
+
+```typescript
+interface WorkflowStep {
+  action: 'run' | 'stop' | 'start' | 'restart' | 'await' | 'emit';
+  process?: string;
+  event?: string;
+  await?: string;
+  timeout_ms?: number;
+  if?: WorkflowCondition;
+  on_failure?: 'abort' | 'continue' | 'skip_rest';
+  data?: Record<string, unknown>;
+}
+```
+
+**Fields**:
+- `action`: Step action type
+- `process`: Target pipeline process (required for `run`, `stop`, `start`, `restart`)
+- `event`: Event name (required for `await`, `emit`)
+- `await`: Event to wait for after executing the action
+- `timeout_ms`: Per-step timeout override
+- `if`: Condition that must be true for the step to execute
+- `on_failure`: Per-step failure handling override
+- `data`: Data payload for `emit` action
+
+---
+
+### WorkflowCondition
+
+Condition type for conditional step execution.
+
+```typescript
+type WorkflowCondition =
+  | { process: string; is: 'running' | 'stopped' | 'crashed' }
+  | { not: WorkflowCondition }
+  | { all: WorkflowCondition[] }
+  | { any: WorkflowCondition[] };
+```
+
+**Variants**:
+- Process state check: `{ process: 'web', is: 'running' }`
+- Logical NOT: `{ not: { process: 'web', is: 'running' } }`
+- Logical AND: `{ all: [condition1, condition2] }`
+- Logical OR: `{ any: [condition1, condition2] }`
+
+---
+
+### PipelineEntry
+
+Union type for pipeline entries.
+
+```typescript
+type PipelineEntry = PipelineItem | StageItem | WorkflowItem;
+```
+
+Used in `ClierConfig.pipeline` to allow mixing individual items, stages, and workflows.
 
 ---
 
@@ -434,6 +524,10 @@ console.log(`Loaded config for ${config.project_name}`);
 import type {
   ClierConfig,
   PipelineItem,
+  StageItem,
+  WorkflowItem,
+  WorkflowStep,
+  WorkflowCondition,
   Events,
   StdoutEvent,
   Safety

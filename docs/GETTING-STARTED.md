@@ -28,6 +28,7 @@ Clier is a powerful orchestration tool that manages complex multi-process pipeli
 ### Process Types
 - **Services**: Long-running processes (web servers, APIs, workers) - auto-restarted on failure (non-zero exit) by default
 - **Tasks**: One-off operations (builds, tests, migrations) - exit when complete, never restarted
+- **Workflows**: Sequential orchestration chains that coordinate multiple processes (stop, start, restart, await events)
 - **Restart Policy**: Control restart behavior per process with `restart: "always" | "on-failure" | "never"`
 
 ### Flexible Configuration
@@ -380,6 +381,26 @@ clier template apply node-api --name my-api --add
 
 Templates are bundled with clier and loaded from the package's `templates/stages/` directory.
 
+### Workflow Commands
+
+Trigger and manage multi-step orchestration workflows:
+
+```bash
+# Trigger a workflow
+clier workflow run <name>            # Run a named workflow
+clier flow <name>                    # Shorthand alias
+
+# Monitor workflows
+clier workflow status [name]         # Status of one or all workflows
+clier workflow list                  # List all defined workflows
+clier status                         # Includes workflow section
+
+# Cancel a running workflow
+clier workflow cancel <name>
+```
+
+For full workflow configuration details, see the [Workflows Guide](workflows.md).
+
 ### Reload vs Restart
 
 Understanding the difference between `reload` and `restart`:
@@ -559,6 +580,7 @@ Each example includes:
 - **[Agent CLI Guide](AGENTS.md)** - CLI commands quick reference for AI agents
 - **[Agent Pipeline Guide](AGENTS-PIPELINE.md)** - Pipeline configuration for AI agents
 - **[Configuration Reference](configuration.md)** - Complete schema documentation
+- **[Workflows Guide](workflows.md)** - Workflow orchestration with sequential steps, conditions, and failure handling
 - **[API Reference](api-reference.md)** - TypeScript types and programmatic usage
 
 ## Contributing

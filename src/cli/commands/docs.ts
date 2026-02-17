@@ -12,7 +12,7 @@ import chalk from "chalk";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-type DocSubject = "commands" | "pipeline" | "agent-instructions" | "all";
+type DocSubject = "commands" | "pipeline" | "workflows" | "agent-instructions" | "all";
 
 /**
  * Available documentation subjects with their corresponding files
@@ -21,8 +21,9 @@ type DocSubject = "commands" | "pipeline" | "agent-instructions" | "all";
 const DOC_SUBJECTS: Record<DocSubject, string[]> = {
   commands: ["AGENTS.md"],
   pipeline: ["AGENTS-PIPELINE.md"],
+  workflows: ["workflows.md"],
   "agent-instructions": ["templates:agent-quick-start.md"],
-  all: ["AGENTS.md", "AGENTS-PIPELINE.md"],
+  all: ["AGENTS.md", "AGENTS-PIPELINE.md", "workflows.md"],
 };
 
 /**
@@ -63,6 +64,9 @@ export async function docsCommand(options: {
         chalk.cyan("  pipeline") + "     - Pipeline configuration guide",
       );
       console.log(
+        chalk.cyan("  workflows") + "    - Workflow orchestration guide",
+      );
+      console.log(
         chalk.cyan("  agent-instructions") +
           " - Essential AI agent instructions for CLAUDE.md/AGENTS.md",
       );
@@ -73,6 +77,7 @@ export async function docsCommand(options: {
       console.log(chalk.dim("  clier docs [subject]"));
       console.log(chalk.dim("  clier docs commands"));
       console.log(chalk.dim("  clier docs pipeline"));
+      console.log(chalk.dim("  clier docs workflows"));
       console.log(chalk.dim("  clier docs agent-instructions"));
       console.log(chalk.dim("  clier docs all"));
       return 0;
@@ -83,7 +88,7 @@ export async function docsCommand(options: {
 
     if (!DOC_SUBJECTS[subject]) {
       console.error(chalk.red(`Unknown subject: ${subject}`));
-      console.log("\nAvailable subjects: commands, pipeline, all");
+      console.log("\nAvailable subjects: commands, pipeline, workflows, all");
       console.log(chalk.dim("Run 'clier docs --list' for more info"));
       return 1;
     }

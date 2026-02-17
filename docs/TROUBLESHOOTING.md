@@ -209,11 +209,49 @@ Common issues, debugging steps, and platform-specific notes for Clier.
    { "pattern": "\\[INFO\\]" }
    ```
 
-4. **Invalid type values** -- `type` must be `"service"`, `"task"`, or `"stage"`. `restart` must be `"always"`, `"on-failure"`, or `"never"`.
+4. **Invalid type values** -- `type` must be `"service"`, `"task"`, `"stage"`, or `"workflow"`. `restart` must be `"always"`, `"on-failure"`, or `"never"`.
 
 5. **Empty pipeline array** -- The pipeline must contain at least one item.
 
 6. **Stage without steps** -- Stages (type: `"stage"`) require a `steps` array.
+
+---
+
+### Workflow issues
+
+**Symptom:** A workflow fails, hangs, or doesn't trigger.
+
+**Causes and fixes:**
+
+1. **Workflow already running** -- Workflows reject if they're already in progress.
+   ```bash
+   clier workflow status <name>    # Check if it's already running
+   clier workflow cancel <name>    # Cancel it, then retry
+   ```
+
+2. **Step references non-existent process** -- Workflow steps must reference processes defined in the pipeline.
+   ```bash
+   clier validate                  # Will catch invalid process references
+   ```
+
+3. **Step times out** -- A step's `await` event was never emitted.
+   ```bash
+   clier workflow status <name>    # See which step failed
+   clier logs <process>            # Check if the process produced the expected output
+   clier logs --daemon             # Check orchestration events
+   ```
+
+4. **Condition prevents execution** -- Steps with `if` conditions are skipped when the condition is false.
+   ```bash
+   clier status                    # Check process states
+   clier workflow status <name>    # See which steps were skipped
+   ```
+
+5. **Auto-trigger not firing** -- Workflows with `trigger_on` require ALL listed events to have been received.
+   ```bash
+   clier logs --daemon             # Check which events have been emitted
+   clier emit <event>              # Manually emit the missing event
+   ```
 
 ---
 

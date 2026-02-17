@@ -7,6 +7,7 @@ Complete reference for `clier-pipeline.json` configuration file.
 - [Overview](#overview)
 - [Schema Reference](#schema-reference)
 - [Stage Configuration](#stage-configuration)
+- [Workflow Configuration](#workflow-configuration)
 - [Input Configuration](#input-configuration)
 - [Manual Start Mode](#manual-start-mode)
 - [Event System](#event-system)
@@ -20,7 +21,7 @@ Clier uses a JSON configuration file (default: `clier-pipeline.json`) to define 
 
 - Project metadata
 - Safety limits
-- Pipeline items (services and tasks)
+- Pipeline items (services, tasks, and workflows)
 - Event triggers and patterns
 - Environment variables
 
@@ -110,7 +111,7 @@ Clier uses a JSON configuration file (default: `clier-pipeline.json`) to define 
 {
   "name": string,                 // Required: Unique process name
   "command": string,              // Required: Shell command
-  "type": "service" | "task",     // Required: Process type
+  "type": "service" | "task",     // Required: Process type (also "stage" or "workflow")
   "trigger_on": string[],         // Optional: Event triggers
   "continue_on_failure": boolean, // Optional: Failure handling
   "env": Record<string, string>,  // Optional: Environment variables
@@ -356,6 +357,100 @@ Use `clier status --json` to see which processes belong to which stages:
 
 ```bash
 clier status --json | jq '.stages'
+```
+
+---
+
+## Workflow Configuration
+
+Workflows are sequential, triggerable chains of operations that coordinate multiple pipeline processes as a single unit. For the complete workflow reference, see the dedicated [Workflows Guide](workflows.md).
+
+### Workflow Schema
+
+```typescript
+{
+  "name": string,                 // Required: Unique workflow name
+  "type": "workflow",             // Required: Must be "workflow"
+  "manual": boolean,              // Optional: Only trigger via CLI (default: false)
+  "trigger_on": string[],         // Optional: Events that auto-trigger this workflow
+  "on_failure": string,           // Optional: Default failure handling (default: "abort")
+  "timeout_ms": number,           // Optional: Workflow timeout in ms (default: 600000)
+  "steps": WorkflowStep[]         // Required: Sequential steps to execute
+}
+```
+
+### Workflow Step Schema
+
+```typescript
+{
+  "action": "run" | "stop" | "start" | "restart" | "await" | "emit",
+  "process": string,              // Target process (required for run/stop/start/restart)
+  "event": string,                // Event name (required for await/emit)
+  "await": string,                // Event to wait for after action
+  "timeout_ms": number,           // Per-step timeout
+  "if": Condition,                // Conditional execution
+  "on_failure": string,           // Per-step failure handling override
+  "data": object                  // Data payload (for emit action)
+}
+```
+
+### Step Actions
+
+| Action | Description | Required Fields |
+|--------|-------------|-----------------|
+| `run` | Execute a pipeline task/service | `process` |
+| `stop` | Stop a running process | `process` |
+| `start` | Start a pipeline process | `process` |
+| `restart` | Stop + start a process | `process` |
+| `await` | Wait for an event | `event` |
+| `emit` | Emit a custom event | `event` |
+
+### Conditions
+
+Steps can be conditionally skipped using the `if` field:
+
+```json
+{ "process": "web", "is": "running" }
+{ "not": { "process": "web", "is": "running" } }
+{ "all": [{ "process": "web", "is": "running" }, { "process": "api", "is": "running" }] }
+{ "any": [{ "process": "web", "is": "stopped" }, { "process": "web", "is": "crashed" }] }
+```
+
+### Failure Handling
+
+| Value | Behavior |
+|-------|----------|
+| `"abort"` | Stop workflow immediately, mark as failed (default) |
+| `"continue"` | Log failure, proceed to next step |
+| `"skip_rest"` | Skip remaining steps, complete workflow |
+
+### Workflow Lifecycle Events
+
+Workflows emit events that other pipeline items can trigger on:
+
+- `<name>:started` -- Workflow begins execution
+- `<name>:completed` -- All steps finished successfully
+- `<name>:failed` -- Workflow failed
+- `<name>:cancelled` -- Workflow was manually cancelled
+
+### Example
+
+```json
+{
+  "name": "rebuild-web",
+  "type": "workflow",
+  "manual": true,
+  "steps": [
+    { "action": "stop", "process": "web", "if": { "process": "web", "is": "running" } },
+    { "action": "run", "process": "build-web" },
+    { "action": "start", "process": "web", "await": "web:ready" }
+  ]
+}
+```
+
+```bash
+clier workflow run rebuild-web
+clier flow rebuild-web        # shorthand
 ```
 
 ---

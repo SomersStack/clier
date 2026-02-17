@@ -114,6 +114,26 @@ clier template apply build-task --name compile --add
 
 **Built-in Templates:** `node-api`, `dev-server`, `build-task`, `lint-task`
 
+## Workflow Commands
+
+Workflows are multi-step orchestration chains defined in your pipeline config with `type: "workflow"`. They coordinate stopping, starting, restarting processes, and waiting for events.
+
+```bash
+# Trigger a workflow
+clier workflow run <name>            # Run a named workflow
+clier flow <name>                    # Shorthand alias
+
+# Monitor workflows
+clier workflow status [name]         # Status of one or all workflows
+clier workflow list                  # List all defined workflows
+clier status                         # Includes workflow section
+
+# Cancel a running workflow
+clier workflow cancel <name>
+```
+
+For workflow configuration, run `clier docs pipeline` or see the [Workflows Guide](workflows.md).
+
 ## Typical Workflows
 
 ### First Time Setup
@@ -251,3 +271,4 @@ Run `clier docs pipeline` to see:
 
 - `clier docs pipeline` - Pipeline configuration guide
 - `clier docs agent-instructions` - Essential agent instructions for CLAUDE.md/AGENTS.md
+- [Workflows Guide](workflows.md) - Full workflow configuration and examples

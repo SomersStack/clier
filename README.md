@@ -113,7 +113,7 @@ The `clier-pipeline.json` file is where you define what runs and how it connects
 
 ### Pipeline items
 
-Each entry in the `pipeline` array is either a **service** (long-running, auto-restarted) or a **task** (runs once, exits):
+Each entry in the `pipeline` array is a **service** (long-running, auto-restarted), **task** (runs once, exits), or **workflow** (sequential orchestration chain):
 
 ```json
 {
@@ -197,6 +197,11 @@ clier run <name>            # Start a stopped or manual process
 clier kill <name>           # Force-stop a process (SIGKILL)
 clier send <name> "input"   # Send stdin to a running process
 clier emit <event>          # Manually fire an event
+clier workflow run <name>   # Trigger a workflow
+clier workflow status       # Check workflow status
+clier workflow cancel <name> # Cancel a running workflow
+clier workflow list         # List all defined workflows
+clier flow <name>           # Shorthand for workflow run
 clier update                # Update Clier to the latest version
 ```
 
@@ -225,6 +230,7 @@ clier docs pipeline   # Pipeline configuration guide
 - **[Agent Pipeline Guide](docs/AGENTS-PIPELINE.md)** -- Pipeline configuration reference for AI agents
 - **[Configuration Reference](docs/configuration.md)** -- Complete schema documentation for `clier-pipeline.json`
 - **[API Reference](docs/api-reference.md)** -- TypeScript types and programmatic usage
+- **[Workflows](docs/workflows.md)** -- Workflow orchestration with sequential steps, conditions, and failure handling
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** -- Common issues, debugging steps, and platform-specific notes
 
 ## License

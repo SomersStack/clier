@@ -61,7 +61,7 @@ Create `clier-pipeline.json` in project root:
 |-------|----------|------|---------|-------------|
 | `name` | Yes | string | - | Unique process name |
 | `command` | Yes | string | - | Shell command |
-| `type` | Yes | "service" \| "task" \| "stage" | - | Service=long-running, Task=one-off, Stage=grouping |
+| `type` | Yes | "service" \| "task" \| "stage" \| "workflow" | - | Service=long-running, Task=one-off, Stage=grouping, Workflow=orchestration chain |
 | `trigger_on` | No | string[] | - | Events that start this process (omit = starts immediately) |
 | `manual` | No | boolean | false | Only start via `clier service start` (not auto-started or event-triggered) |
 | `continue_on_failure` | No | boolean | false | true=continue on failure, false=block pipeline |
@@ -469,17 +469,45 @@ clier status
 clier logs
 ```
 
+## Workflow Config (Orchestration Chains)
+
+Workflows coordinate multi-step operations as a single named unit:
+
+```json
+{
+  "name": "rebuild-web",
+  "type": "workflow",
+  "manual": true,
+  "steps": [
+    { "action": "stop", "process": "web", "if": { "process": "web", "is": "running" } },
+    { "action": "run", "process": "build-web" },
+    { "action": "start", "process": "web", "await": "web:ready" }
+  ]
+}
+```
+
+**Step actions:** `run`, `stop`, `start`, `restart`, `await`, `emit`
+
+**Trigger:** `clier workflow run <name>` or `clier flow <name>`, or auto-trigger via `trigger_on`
+
+**Failure handling:** `on_failure: "abort" | "continue" | "skip_rest"` (per-step or workflow-level)
+
+**Conditions:** Skip steps with `if: { "process": "web", "is": "running" }` (supports `not`, `all`, `any`)
+
+For full details, see the [Workflows Guide](workflows.md).
+
 ## Key Points
 
 1. **No `trigger_on`** = starts immediately
 2. **`manual: true`** = only starts via `clier service start` command
 3. **Service vs Task** - Services restart on crash, tasks exit
 4. **Stages** - Use `type: "stage"` to group related items with shared triggers
-5. **Multi-pattern** - ALL matching patterns emit (not just first)
-6. **Event naming** - Use `process:event` convention
-7. **Lenient mode** - `continue_on_failure: true` for optional operations
-8. **Events optional** - Omit `events` field if no coordination needed
-9. **JSON output** - Use `clier status --json` for scripting/automation
+5. **Workflows** - Use `type: "workflow"` for multi-step orchestration chains
+6. **Multi-pattern** - ALL matching patterns emit (not just first)
+7. **Event naming** - Use `process:event` convention
+8. **Lenient mode** - `continue_on_failure: true` for optional operations
+9. **Events optional** - Omit `events` field if no coordination needed
+10. **JSON output** - Use `clier status --json` for scripting/automation
 
 ## Further Reading
 

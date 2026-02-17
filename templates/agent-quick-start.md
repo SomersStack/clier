@@ -9,6 +9,7 @@
 **Service types:**
 - `"type": "service"` = long-running, auto-restarts on crash
 - `"type": "task"` = runs once and exits
+- `"type": "workflow"` = sequential orchestration chain (stop/start/restart processes, await events)
 
 ## Check Status
 
@@ -30,6 +31,8 @@ Run `clier status` to see:
 - Restart: `clier restart <name>` or `clier service restart <name>`
 - Force stop: `clier kill <name>`
 - Send stdin: `clier send <process> "data"`
+
+**Workflows:** `clier workflow run <name>` or `clier flow <name>` -- trigger multi-step orchestration chains
 
 **Entire daemon:** **Run `clier docs commands` and read before using `clier restart` (no args) or `clier reload`**
 

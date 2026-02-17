@@ -154,6 +154,42 @@ clier stop
 
 ---
 
+### 5. Workflow Orchestration
+
+**What it demonstrates**:
+- Sequential multi-step workflows
+- Conditional step execution
+- Process coordination (stop → build → start)
+- Workflow lifecycle events
+
+**Use cases**:
+- Rebuild-and-restart pipelines
+- Rolling restarts with health checks
+- Auto-triggered deployment chains
+- Complex multi-process coordination
+
+**Example workflow**:
+```json
+{
+  "name": "rebuild-web",
+  "type": "workflow",
+  "manual": true,
+  "steps": [
+    { "action": "stop", "process": "web", "if": { "process": "web", "is": "running" } },
+    { "action": "run", "process": "build-web" },
+    { "action": "start", "process": "web", "await": "web:ready" }
+  ]
+}
+```
+
+```bash
+clier flow rebuild-web
+```
+
+[Full documentation](../../docs/workflows.md)
+
+---
+
 ## Example Categories
 
 ### By Complexity
