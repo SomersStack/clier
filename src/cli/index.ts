@@ -592,8 +592,9 @@ export function createCLI(): Command {
     .command("run")
     .description("Trigger a workflow")
     .argument("<name>", "Workflow name")
-    .action(async (name: string) => {
-      const exitCode = await workflowRunCommand(name);
+    .option("--json", "Output progress as NDJSON (machine-readable)")
+    .action(async (name: string, options: { json?: boolean }) => {
+      const exitCode = await workflowRunCommand(name, { json: options.json });
       process.exit(exitCode);
     });
 
@@ -628,8 +629,9 @@ export function createCLI(): Command {
     .command("flow")
     .description("Trigger a workflow (alias for workflow run)")
     .argument("<name>", "Workflow name")
-    .action(async (name: string) => {
-      const exitCode = await workflowRunCommand(name);
+    .option("--json", "Output progress as NDJSON (machine-readable)")
+    .action(async (name: string, options: { json?: boolean }) => {
+      const exitCode = await workflowRunCommand(name, { json: options.json });
       process.exit(exitCode);
     });
 

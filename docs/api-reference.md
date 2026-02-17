@@ -577,6 +577,26 @@ const validatedConfig = configSchema.parse(rawConfig);
 
 ---
 
+## RPC Methods
+
+### workflow.start
+
+Non-blocking RPC that triggers a workflow and returns immediately. Use `workflow.status` to poll for progress.
+
+```typescript
+// Request
+{ method: "workflow.start", params: { name: string } }
+
+// Response
+{ success: true }
+```
+
+Unlike `workflow.run` (which blocks until the workflow completes), `workflow.start` fires and forgets. The CLI uses this combined with `workflow.status` polling to render live progress.
+
+After a workflow completes, its final status is retained for 30 seconds so that polling clients can capture the terminal state before it's cleaned up.
+
+---
+
 ## CLI Integration
 
 The Watcher class is used internally by the CLI. For command-line usage, see:

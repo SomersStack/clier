@@ -156,6 +156,53 @@ clier workflow run <name>
 clier flow <name>          # shorthand alias
 ```
 
+Both commands show live step-by-step progress:
+
+```
+Workflow: fresh-restart (3 steps)
+
+  ✓ Step 1/3  stop api            completed  (0.8s)
+  ◐ Step 2/3  run build           running...
+  ○ Step 3/3  start api           pending
+```
+
+On completion, the final display shows total duration:
+
+```
+✓ Workflow "fresh-restart" completed successfully (5.1s)
+```
+
+### Machine-readable output (`--json`)
+
+Use the `--json` flag for NDJSON output, ideal for extensions, agents, and scripting:
+
+```bash
+clier workflow run <name> --json
+clier flow <name> --json
+```
+
+Each line is a JSON object representing a state change:
+
+```json
+{"type":"started","workflow":"fresh-restart","steps":3,"timestamp":1700000000}
+{"type":"step","index":0,"action":"stop","target":"api","status":"completed","duration_ms":800}
+{"type":"step","index":1,"action":"run","target":"build","status":"running"}
+{"type":"step","index":1,"action":"run","target":"build","status":"completed","duration_ms":3200}
+{"type":"step","index":2,"action":"start","target":"api","status":"completed","duration_ms":1100}
+{"type":"completed","workflow":"fresh-restart","duration_ms":5100}
+```
+
+**NDJSON event types:**
+
+| Type | Fields | Description |
+|------|--------|-------------|
+| `started` | `workflow`, `steps`, `timestamp` | Workflow execution began |
+| `step` | `index`, `action`, `target`, `status`, `duration_ms?`, `error?` | Step status changed |
+| `completed` | `workflow`, `duration_ms` | Workflow finished successfully |
+| `failed` | `workflow`, `duration_ms?`, `error?` | Workflow failed |
+| `cancelled` | `workflow` | Workflow was cancelled |
+| `error` | `error` | CLI-level error (e.g., daemon not running) |
+
 ### Check status
 
 ```bash

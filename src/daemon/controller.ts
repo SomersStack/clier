@@ -10,6 +10,9 @@ import type { ProcessStatus } from "../core/process-manager.js";
 import type { LogEntry } from "../core/log-manager.js";
 import type { ClierEvent } from "../types/events.js";
 import type { WorkflowStatus } from "../core/workflow-engine.js";
+import { createContextLogger } from "../utils/logger.js";
+
+const logger = createContextLogger("DaemonController");
 
 /**
  * Daemon status information
@@ -607,6 +610,24 @@ export class DaemonController {
   async "stages.map"(): Promise<Record<string, string>> {
     const stageMap = this.watcher.getStageMap();
     return stageMap ? Object.fromEntries(stageMap) : {};
+  }
+
+  /**
+   * Start a workflow by name (non-blocking)
+   *
+   * Triggers the workflow and returns immediately. Use workflow.status to poll progress.
+   */
+  async "workflow.start"(params: { name: string }): Promise<{ success: true }> {
+    const engine = this.watcher.getWorkflowEngine();
+    if (!engine) {
+      throw new Error("WorkflowEngine not initialized");
+    }
+    // Fire-and-forget: start but don't await
+    engine.triggerWorkflow(params.name, "manual").catch((err) => {
+      // Error will be captured in workflow status
+      logger.error("Workflow failed", { name: params.name, error: err instanceof Error ? err.message : String(err) });
+    });
+    return { success: true };
   }
 
   /**

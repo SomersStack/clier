@@ -61,9 +61,13 @@ interface WorkflowRun {
   promise: Promise<void>;
 }
 
+/** How long to retain completed run status for polling (30 seconds) */
+const COMPLETED_RUN_RETENTION_MS = 30_000;
+
 export class WorkflowEngine {
   private workflows = new Map<string, WorkflowItem>();
   private activeRuns = new Map<string, WorkflowRun>();
+  private lastCompletedRuns = new Map<string, WorkflowRunStatus>();
   private receivedEvents = new Map<string, Set<string>>();
 
   constructor(
@@ -175,6 +179,11 @@ export class WorkflowEngine {
     try {
       await promise;
     } finally {
+      // Retain final status for CLI polling before removing from active
+      this.lastCompletedRuns.set(name, { ...status });
+      setTimeout(() => {
+        this.lastCompletedRuns.delete(name);
+      }, COMPLETED_RUN_RETENTION_MS);
       this.activeRuns.delete(name);
     }
   }
@@ -224,6 +233,7 @@ export class WorkflowEngine {
 
   private buildStatus(wf: WorkflowItem): WorkflowStatus {
     const active = this.activeRuns.get(wf.name);
+    const lastCompleted = !active ? this.lastCompletedRuns.get(wf.name) : undefined;
     return {
       name: wf.name,
       manual: wf.manual ?? false,
@@ -231,7 +241,7 @@ export class WorkflowEngine {
       on_failure: wf.on_failure ?? "abort",
       timeout_ms: wf.timeout_ms ?? DEFAULT_WORKFLOW_TIMEOUT_MS,
       stepCount: wf.steps.length,
-      active: active?.status,
+      active: active?.status ?? lastCompleted,
     };
   }
 

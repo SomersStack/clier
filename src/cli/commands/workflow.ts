@@ -7,38 +7,296 @@
 import chalk from "chalk";
 import Table from "cli-table3";
 import { getDaemonClient } from "../../daemon/client.js";
-import type { WorkflowStatus } from "../../core/workflow-engine.js";
+import type { WorkflowStatus, WorkflowRunStatus, WorkflowStepStatus } from "../../core/workflow-engine.js";
 import {
   printSuccess,
   printError,
   printWarning,
 } from "../utils/formatter.js";
 
+/** Spinner frames for running steps */
+const SPINNER = ["◐", "◓", "◑", "◒"];
+
+/** Poll interval in ms */
+const POLL_INTERVAL_MS = 500;
+
 /**
- * Run (trigger) a workflow by name
+ * Format duration in milliseconds to human-readable string
  */
-export async function workflowRunCommand(name: string): Promise<number> {
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+/**
+ * Get the step target label (process or event name)
+ */
+function stepTarget(step: WorkflowStepStatus): string {
+  return step.process || step.event || "-";
+}
+
+/**
+ * Get the step duration if completed
+ */
+function stepDuration(step: WorkflowStepStatus): string {
+  if (step.startedAt && step.completedAt) {
+    return formatDuration(step.completedAt - step.startedAt);
+  }
+  return "";
+}
+
+/**
+ * Render the human-friendly progress display
+ */
+function renderProgress(
+  name: string,
+  run: WorkflowRunStatus,
+  spinnerIdx: number,
+): string {
+  const totalSteps = run.steps.length;
+  const lines: string[] = [];
+
+  lines.push(chalk.bold(`Workflow: ${name} (${totalSteps} steps)`));
+  lines.push("");
+
+  for (const step of run.steps) {
+    const num = `Step ${step.index + 1}/${totalSteps}`;
+    const target = `${step.action} ${stepTarget(step)}`;
+    const duration = stepDuration(step);
+
+    let icon: string;
+    let statusText: string;
+
+    switch (step.status) {
+      case "completed":
+        icon = chalk.green("✓");
+        statusText = chalk.green("completed") + (duration ? chalk.gray(`  (${duration})`) : "");
+        break;
+      case "running":
+        icon = chalk.cyan(SPINNER[spinnerIdx % SPINNER.length]);
+        statusText = chalk.cyan("running...");
+        break;
+      case "failed":
+        icon = chalk.red("✗");
+        statusText = chalk.red("failed") + (step.error ? chalk.red(` — ${step.error}`) : "");
+        break;
+      case "skipped":
+        icon = chalk.gray("○");
+        statusText = chalk.gray("skipped");
+        break;
+      case "pending":
+      default:
+        icon = chalk.gray("○");
+        statusText = chalk.gray("pending");
+        break;
+    }
+
+    lines.push(`  ${icon} ${chalk.white(num)}  ${target.padEnd(20)} ${statusText}`);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Run (trigger) a workflow by name, with live progress display
+ */
+export async function workflowRunCommand(
+  name: string,
+  options?: { json?: boolean },
+): Promise<number> {
+  const json = options?.json ?? false;
+
   try {
     const client = await getDaemonClient();
 
-    console.log(chalk.cyan(`\nTriggering workflow: ${name}`));
+    // Start workflow (non-blocking)
+    await client.request<{ success: true }>("workflow.start", { name });
 
-    await client.request<{ success: true }>("workflow.run", { name });
+    // Small delay to let the workflow initialize before first poll
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
-    printSuccess(`Workflow "${name}" completed successfully`);
-    console.log();
-
-    client.disconnect();
-    return 0;
+    if (json) {
+      return await pollJson(client, name);
+    } else {
+      return await pollHuman(client, name);
+    }
   } catch (error) {
     if (error instanceof Error && error.message.includes("not running")) {
-      printWarning("Clier daemon is not running");
-      console.log("  Start it with: clier start");
+      if (json) {
+        console.log(JSON.stringify({ type: "error", error: "Clier daemon is not running" }));
+      } else {
+        printWarning("Clier daemon is not running");
+        console.log("  Start it with: clier start");
+      }
       return 1;
     }
 
-    printError(error instanceof Error ? error.message : String(error));
+    const msg = error instanceof Error ? error.message : String(error);
+    if (json) {
+      console.log(JSON.stringify({ type: "error", error: msg }));
+    } else {
+      printError(msg);
+    }
     return 1;
+  }
+}
+
+/**
+ * Poll and display human-friendly progress
+ */
+async function pollHuman(
+  client: { request: <T>(method: string, params?: Record<string, unknown>) => Promise<T>; disconnect: () => void },
+  name: string,
+): Promise<number> {
+  let spinnerIdx = 0;
+  let linesWritten = 0;
+
+  const poll = async (): Promise<WorkflowStatus> => {
+    return client.request<WorkflowStatus>("workflow.status", { name });
+  };
+
+  const clearAndRender = (output: string) => {
+    // Move cursor up to overwrite previous output
+    if (linesWritten > 0) {
+      process.stdout.write(`\x1b[${linesWritten}A\x1b[0J`);
+    }
+    process.stdout.write(output + "\n");
+    linesWritten = output.split("\n").length;
+  };
+
+  // Initial render
+  console.log();
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const status = await poll();
+    const run = status.active;
+
+    if (!run) {
+      // Workflow hasn't started yet or already cleaned up
+      clearAndRender(chalk.gray("  Waiting for workflow to start..."));
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      spinnerIdx++;
+      continue;
+    }
+
+    clearAndRender(renderProgress(name, run, spinnerIdx));
+
+    // Check terminal states
+    if (run.status === "completed" || run.status === "failed" || run.status === "cancelled") {
+      const totalDuration = run.completedAt
+        ? formatDuration(run.completedAt - run.startedAt)
+        : "";
+
+      console.log();
+      if (run.status === "completed") {
+        printSuccess(
+          `Workflow "${name}" completed successfully` +
+            (totalDuration ? ` (${totalDuration})` : ""),
+        );
+      } else if (run.status === "failed") {
+        printError(
+          `Workflow "${name}" failed` +
+            (run.error ? `: ${run.error}` : "") +
+            (totalDuration ? ` (${totalDuration})` : ""),
+        );
+      } else {
+        printWarning(`Workflow "${name}" was cancelled`);
+      }
+      console.log();
+
+      client.disconnect();
+      return run.status === "completed" ? 0 : 1;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    spinnerIdx++;
+  }
+}
+
+/**
+ * Poll and emit NDJSON progress
+ */
+async function pollJson(
+  client: { request: <T>(method: string, params?: Record<string, unknown>) => Promise<T>; disconnect: () => void },
+  name: string,
+): Promise<number> {
+  const emitted = (line: Record<string, unknown>) => {
+    console.log(JSON.stringify(line));
+  };
+
+  let prevStepStates: string[] = [];
+  let startEmitted = false;
+
+  const poll = async (): Promise<WorkflowStatus> => {
+    return client.request<WorkflowStatus>("workflow.status", { name });
+  };
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const status = await poll();
+    const run = status.active;
+
+    if (!run) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      continue;
+    }
+
+    // Emit started event once
+    if (!startEmitted) {
+      emitted({
+        type: "started",
+        workflow: name,
+        steps: run.steps.length,
+        timestamp: run.startedAt,
+      });
+      prevStepStates = run.steps.map(() => "pending");
+      startEmitted = true;
+    }
+
+    // Diff step states and emit changes
+    for (let i = 0; i < run.steps.length; i++) {
+      const step = run.steps[i]!;
+      const prevState = prevStepStates[i];
+
+      if (step.status !== prevState) {
+        const line: Record<string, unknown> = {
+          type: "step",
+          index: step.index,
+          action: step.action,
+          target: stepTarget(step),
+          status: step.status,
+        };
+        if (step.startedAt && step.completedAt) {
+          line.duration_ms = step.completedAt - step.startedAt;
+        }
+        if (step.error) {
+          line.error = step.error;
+        }
+        emitted(line);
+        prevStepStates[i] = step.status;
+      }
+    }
+
+    // Check terminal states
+    if (run.status === "completed" || run.status === "failed" || run.status === "cancelled") {
+      const line: Record<string, unknown> = {
+        type: run.status,
+        workflow: name,
+      };
+      if (run.completedAt) {
+        line.duration_ms = run.completedAt - run.startedAt;
+      }
+      if (run.error) {
+        line.error = run.error;
+      }
+      emitted(line);
+
+      client.disconnect();
+      return run.status === "completed" ? 0 : 1;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
 }
 

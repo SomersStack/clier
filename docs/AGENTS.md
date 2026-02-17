@@ -119,9 +119,13 @@ clier template apply build-task --name compile --add
 Workflows are multi-step orchestration chains defined in your pipeline config with `type: "workflow"`. They coordinate stopping, starting, restarting processes, and waiting for events.
 
 ```bash
-# Trigger a workflow
+# Trigger a workflow (shows live step-by-step progress)
 clier workflow run <name>            # Run a named workflow
 clier flow <name>                    # Shorthand alias
+
+# Machine-readable output (NDJSON, one JSON object per line)
+clier workflow run <name> --json     # NDJSON progress for scripting/agents
+clier flow <name> --json             # Same via alias
 
 # Monitor workflows
 clier workflow status [name]         # Status of one or all workflows
@@ -131,6 +135,8 @@ clier status                         # Includes workflow section
 # Cancel a running workflow
 clier workflow cancel <name>
 ```
+
+The `--json` flag outputs NDJSON (newline-delimited JSON) with event types: `started`, `step`, `completed`, `failed`, `cancelled`, `error`. Useful for extensions and AI agents that need to parse workflow progress programmatically.
 
 For workflow configuration, run `clier docs pipeline` or see the [Workflows Guide](workflows.md).
 
