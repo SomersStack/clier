@@ -15,7 +15,15 @@
       "name": "build",
       "command": "npm run build",
       "type": "task",
-      "trigger_on": ["test:success"]
+      "trigger_on": [
+        "test:success"
+      ]
+    },
+    {
+      "name": "bump package version",
+      "type": "task",
+      "command": "npm version minor --no-git-tag-version",
+      "manual": true
     },
     {
       "name": "redeploy-local",
