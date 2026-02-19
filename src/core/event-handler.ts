@@ -58,6 +58,15 @@ export class EventHandler {
   private eventHistory: ClierEvent[] = [];
 
   /**
+   * Strip the instance suffix (#N) from a process name to get the base name.
+   * Returns the name unchanged if it has no instance suffix.
+   */
+  static baseName(processName: string): string {
+    const hashIndex = processName.indexOf("#");
+    return hashIndex === -1 ? processName : processName.substring(0, hashIndex);
+  }
+
+  /**
    * Create a new EventHandler
    *
    * @param patternMatcher - PatternMatcher instance for stdout pattern matching
@@ -129,7 +138,9 @@ export class EventHandler {
     // Add to history
     this.addToHistory(event);
 
-    const item = this.pipelineItems.get(event.processName);
+    // Resolve instance name (e.g., "worker#1") to base name ("worker") for config lookup
+    const resolvedName = EventHandler.baseName(event.processName);
+    const item = this.pipelineItems.get(resolvedName);
     if (!item) {
       // Event from unknown process, ignore
       return;

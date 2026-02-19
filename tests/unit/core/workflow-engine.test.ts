@@ -9,12 +9,18 @@ import type { EventHandlerFn } from "../../../src/types/events.js";
 // --- Mocks ---
 
 function createMockProcessManager(): ProcessManager {
-  return {
+  const mock = {
     getStatus: vi.fn().mockReturnValue(undefined),
     isRunning: vi.fn().mockReturnValue(false),
+    isAnyInstanceRunning: vi.fn().mockImplementation((name: string) => {
+      const status = mock.getStatus(name);
+      return status?.status === "running";
+    }),
     stopProcess: vi.fn().mockResolvedValue(undefined),
+    stopAllInstances: vi.fn().mockResolvedValue(undefined),
     restartProcess: vi.fn().mockResolvedValue(undefined),
   } as unknown as ProcessManager;
+  return mock;
 }
 
 function createMockEventHandler(): EventHandler {

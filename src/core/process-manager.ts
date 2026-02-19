@@ -388,6 +388,68 @@ export class ProcessManager extends EventEmitter {
   }
 
   /**
+   * Get statuses of all instances of a base process name (matching `baseName#*` entries)
+   *
+   * @param baseName - The base process name (without instance suffix)
+   * @returns Array of process statuses for all instances
+   */
+  getInstancesOf(baseName: string): ProcessStatus[] {
+    const prefix = `${baseName}#`;
+    return Array.from(this.processes.entries())
+      .filter(([name]) => name === baseName || name.startsWith(prefix))
+      .map(([, p]) => p.status);
+  }
+
+  /**
+   * Check if any instance of a base process name is currently running
+   *
+   * @param baseName - The base process name (without instance suffix)
+   * @returns True if any instance is running
+   */
+  isAnyInstanceRunning(baseName: string): boolean {
+    const prefix = `${baseName}#`;
+    for (const [name, process] of this.processes) {
+      if ((name === baseName || name.startsWith(prefix)) && process.isRunning) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Stop all running instances of a base process name
+   *
+   * @param baseName - The base process name (without instance suffix)
+   */
+  async stopAllInstances(baseName: string): Promise<void> {
+    const prefix = `${baseName}#`;
+    const stopPromises: Promise<void>[] = [];
+    for (const [name, process] of this.processes) {
+      if ((name === baseName || name.startsWith(prefix)) && process.isRunning) {
+        stopPromises.push(process.stop());
+      }
+    }
+    await Promise.all(stopPromises);
+  }
+
+  /**
+   * Count of currently running instances of a base process name
+   *
+   * @param baseName - The base process name (without instance suffix)
+   * @returns Number of running instances
+   */
+  runningInstanceCount(baseName: string): number {
+    const prefix = `${baseName}#`;
+    let count = 0;
+    for (const [name, process] of this.processes) {
+      if ((name === baseName || name.startsWith(prefix)) && process.isRunning) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
    * Setup event listeners for a managed process
    */
   private setupProcessListeners(process: ManagedProcess): void {

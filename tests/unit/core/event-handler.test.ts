@@ -599,6 +599,107 @@ describe("EventHandler", () => {
     });
   });
 
+  describe("baseName resolution for instances", () => {
+    it("should strip instance suffix from process name", () => {
+      expect(EventHandler.baseName("worker#1")).toBe("worker");
+      expect(EventHandler.baseName("worker#42")).toBe("worker");
+      expect(EventHandler.baseName("worker")).toBe("worker");
+    });
+
+    it("should resolve worker#1 exit to worker config and emit worker:success", () => {
+      const item = createPipelineItem({
+        name: "worker",
+        type: "task",
+        events: {
+          on_stdout: [],
+          on_stderr: true,
+          on_crash: true,
+        },
+      });
+
+      handler.registerPipelineItem(item);
+
+      const emittedEvents: ClierEvent[] = [];
+      handler.on("worker:success", (event) => emittedEvents.push(event));
+
+      // Event comes from instance "worker#1"
+      const exitEvent: ClierEvent = {
+        name: "process:exit",
+        processName: "worker#1",
+        type: "custom",
+        data: 0,
+        timestamp: Date.now(),
+      };
+
+      handler.handleEvent(exitEvent);
+
+      expect(emittedEvents).toHaveLength(1);
+      expect(emittedEvents[0].name).toBe("worker:success");
+      // The event processName in the emitted event uses the base name (from item.name)
+      expect(emittedEvents[0].processName).toBe("worker");
+    });
+
+    it("should resolve worker#2 crash to worker config and emit worker:crashed", () => {
+      const item = createPipelineItem({
+        name: "worker",
+        type: "task",
+        events: {
+          on_stdout: [],
+          on_stderr: true,
+          on_crash: true,
+        },
+      });
+
+      handler.registerPipelineItem(item);
+
+      const emittedEvents: ClierEvent[] = [];
+      handler.on("worker:crashed", (event) => emittedEvents.push(event));
+
+      const exitEvent: ClierEvent = {
+        name: "process:exit",
+        processName: "worker#2",
+        type: "custom",
+        data: 1,
+        timestamp: Date.now(),
+      };
+
+      handler.handleEvent(exitEvent);
+
+      expect(emittedEvents).toHaveLength(1);
+      expect(emittedEvents[0].name).toBe("worker:crashed");
+      expect(emittedEvents[0].processName).toBe("worker");
+    });
+
+    it("should resolve instance stdout patterns to base name config", () => {
+      const item = createPipelineItem({
+        name: "worker",
+        events: {
+          on_stdout: [{ pattern: "done", emit: "worker:done" }],
+          on_stderr: true,
+          on_crash: true,
+        },
+      });
+
+      handler.registerPipelineItem(item);
+
+      const emittedEvents: ClierEvent[] = [];
+      handler.on("worker:done", (event) => emittedEvents.push(event));
+
+      const stdoutEvent: ClierEvent = {
+        name: "worker#3",
+        processName: "worker#3",
+        type: "stdout",
+        data: "task done",
+        timestamp: Date.now(),
+      };
+
+      handler.handleEvent(stdoutEvent);
+
+      expect(emittedEvents).toHaveLength(1);
+      expect(emittedEvents[0].processName).toBe("worker");
+    });
+  });
+
   describe("on/emit", () => {
     it("should allow subscribing to events", () => {
       const callback = vi.fn();

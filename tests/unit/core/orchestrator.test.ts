@@ -792,6 +792,123 @@ describe("Orchestrator", () => {
     });
   });
 
+  describe("allow_duplicates fan-out", () => {
+    it("should spawn a new instance when allow_duplicates is true and trigger fires again", async () => {
+      const config = createConfig([
+        createPipelineItem({ name: "producer", continue_on_failure: true }),
+        createPipelineItem({
+          name: "worker",
+          trigger_on: ["producer:error"],
+          allow_duplicates: true,
+        }),
+      ]);
+
+      mockProcessManager.startProcess = vi.fn().mockResolvedValue(undefined);
+      mockProcessManager.isRunning = vi.fn().mockReturnValue(false);
+
+      orchestrator.loadPipeline(config);
+
+      const event: ClierEvent = {
+        name: "producer:error",
+        processName: "producer",
+        type: "error",
+        timestamp: Date.now(),
+      };
+
+      // First trigger — spawns worker#1
+      await orchestrator.handleEvent(event);
+      expect(mockProcessManager.startProcess).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "worker#1" }),
+      );
+
+      // Second trigger — spawns worker#2
+      await orchestrator.handleEvent(event);
+      expect(mockProcessManager.startProcess).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "worker#2" }),
+      );
+
+      expect(mockProcessManager.startProcess).toHaveBeenCalledTimes(2);
+    });
+
+    it("should block second trigger without allow_duplicates when process is running", async () => {
+      const config = createConfig([
+        createPipelineItem({ name: "producer", continue_on_failure: true }),
+        createPipelineItem({
+          name: "worker",
+          trigger_on: ["producer:error"],
+          // allow_duplicates defaults to false/undefined
+        }),
+      ]);
+
+      // After first start, isRunning returns true for worker
+      mockProcessManager.startProcess = vi.fn().mockImplementation(async (cfg: { name: string }) => {
+        if (cfg.name === "worker") {
+          (mockProcessManager.isRunning as ReturnType<typeof vi.fn>).mockImplementation(
+            (name: string) => name === "worker"
+          );
+        }
+      });
+
+      orchestrator.loadPipeline(config);
+
+      const event: ClierEvent = {
+        name: "producer:error",
+        processName: "producer",
+        type: "error",
+        timestamp: Date.now(),
+      };
+
+      await orchestrator.handleEvent(event);
+      await orchestrator.handleEvent(event);
+
+      // Only started once
+      expect(mockProcessManager.startProcess).toHaveBeenCalledOnce();
+    });
+
+    it("should clear receivedEvents after each allow_duplicates spawn (AND triggers re-required)", async () => {
+      const config = createConfig([
+        createPipelineItem({ name: "api", continue_on_failure: true }),
+        createPipelineItem({ name: "db", continue_on_failure: true }),
+        createPipelineItem({
+          name: "worker",
+          trigger_on: ["api:error", "db:error"],
+          allow_duplicates: true,
+        }),
+      ]);
+
+      orchestrator.loadPipeline(config);
+
+      // First cycle: api:error + db:error → worker#1
+      await orchestrator.handleEvent({
+        name: "api:error",
+        processName: "api",
+        type: "error",
+        timestamp: Date.now(),
+      });
+      expect(mockProcessManager.startProcess).not.toHaveBeenCalled();
+
+      await orchestrator.handleEvent({
+        name: "db:error",
+        processName: "db",
+        type: "error",
+        timestamp: Date.now(),
+      });
+      expect(mockProcessManager.startProcess).toHaveBeenCalledOnce();
+      expect(mockProcessManager.startProcess).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "worker#1" }),
+      );
+
+      // Second event, only db:error — should NOT trigger since api:error was cleared
+      await orchestrator.handleEvent({
+        name: "db:error",
+        processName: "db",
+        type: "error",
+        timestamp: Date.now(),
+      });
+      expect(mockProcessManager.startProcess).toHaveBeenCalledOnce();
+    });
+  });
+
   describe("Event Template Substitution", () => {
     it("should substitute event templates in command when enabled", async () => {
       const config = createConfig([

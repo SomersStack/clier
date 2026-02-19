@@ -369,7 +369,10 @@ export class WorkflowEngine {
       }
 
       case "stop": {
-        if (this.processManager.isRunning(step.process!)) {
+        // Stop all instances (including allow_duplicates instances like "worker#1", "worker#2")
+        if (this.processManager.isAnyInstanceRunning(step.process!)) {
+          await this.processManager.stopAllInstances(step.process!);
+        } else if (this.processManager.isRunning(step.process!)) {
           await this.processManager.stopProcess(step.process!);
         }
         break;
@@ -461,6 +464,10 @@ export class WorkflowEngine {
 
   private evaluateCondition(condition: WorkflowCondition): boolean {
     if ("process" in condition && "is" in condition) {
+      // For "running" checks, also consider allow_duplicates instances
+      if (condition.is === "running") {
+        return this.processManager.isAnyInstanceRunning(condition.process);
+      }
       const status = this.processManager.getStatus(condition.process);
       if (!status) {
         // Process not found — treat as stopped

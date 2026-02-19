@@ -81,6 +81,8 @@ const pipelineItemSchema = z.object({
   restart: z.enum(["always", "on-failure", "never"]).optional(),
   /** Success filter: determine success by log pattern instead of exit code */
   success_filter: successFilterSchema.optional(),
+  /** Allow concurrent duplicate instances when trigger fires again (only for tasks with trigger_on) */
+  allow_duplicates: z.boolean().optional().default(false),
 });
 
 /**
@@ -255,6 +257,50 @@ export const configSchema = z
       .min(1, "Pipeline must contain at least one item"),
   })
   .strict()
+  .refine(
+    (config) => {
+      // Reject '#' in pipeline item names (reserved for instance suffixes)
+      for (const entry of config.pipeline) {
+        if (entry.name.includes("#")) return false;
+        if (entry.type === "stage") {
+          for (const step of entry.steps) {
+            if (step.name.includes("#")) return false;
+          }
+        }
+      }
+      return true;
+    },
+    {
+      message: "Pipeline item names must not contain '#' (reserved for instance suffixes)",
+    },
+  )
+  .refine(
+    (config) => {
+      // Validate allow_duplicates: only valid on tasks with trigger_on
+      for (const entry of config.pipeline) {
+        if (entry.type === "service" || entry.type === "task") {
+          if (entry.allow_duplicates) {
+            if (entry.type !== "task" || !entry.trigger_on || entry.trigger_on.length === 0) {
+              return false;
+            }
+          }
+        }
+        if (entry.type === "stage") {
+          for (const step of entry.steps) {
+            if (step.allow_duplicates) {
+              if (step.type !== "task" || !step.trigger_on || step.trigger_on.length === 0) {
+                return false;
+              }
+            }
+          }
+        }
+      }
+      return true;
+    },
+    {
+      message: "allow_duplicates is only valid on tasks with trigger_on",
+    },
+  )
   .refine(
     (config) => {
       // Collect all names: top-level entries + steps inside stages

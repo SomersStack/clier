@@ -544,16 +544,19 @@ export class Watcher {
     this.eventBus.on("process:exit", (event: ClierEvent) => {
       this.eventHandler!.handleEvent(event);
 
-      // Track crashes for circuit breaker
+      // Resolve instance name to base name for config lookups
+      const baseName = EventHandler.baseName(event.processName);
+
+      // Track crashes for circuit breaker (aggregate by base name)
       const exitData = event.data as { code?: number | null } | undefined;
       const exitCode = exitData?.code ?? null;
       if (exitCode !== null && exitCode !== 0) {
-        this.recordProcessCrash(event.processName);
+        this.recordProcessCrash(baseName);
       }
 
       // Check if this process has a success_filter - if so, evaluate and update completion status
       const pipelineItem = this.flattenedConfig?.pipeline.find(
-        (p) => p.name === event.processName,
+        (p) => p.name === baseName,
       );
       if (pipelineItem?.success_filter) {
         const logs = event.data as {

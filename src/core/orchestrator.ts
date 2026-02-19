@@ -61,6 +61,7 @@ export class Orchestrator {
   private startedProcesses = new Set<string>();
   private manuallyTriggeredProcesses = new Set<string>();
   private receivedEvents = new Map<string, Set<string>>();
+  private instanceCounters = new Map<string, number>();
   private projectRoot?: string;
   private options: OrchestratorOptions;
 
@@ -111,6 +112,7 @@ export class Orchestrator {
     this.startedProcesses.clear();
     this.manuallyTriggeredProcesses.clear();
     this.receivedEvents.clear();
+    this.instanceCounters.clear();
 
     // Build pipeline item map and initialize per-process event tracking
     for (const item of flattenedConfig.pipeline) {
@@ -351,18 +353,27 @@ export class Orchestrator {
             continue;
           }
 
-          // Don't start if already running
-          if (this.processManager.isRunning(dependent.name)) {
-            logger.debug("Process already running, skipping", {
-              processName: dependent.name,
-            });
-            continue;
+          // For allow_duplicates tasks, skip the isRunning guard and spawn a new instance
+          if (dependent.allow_duplicates) {
+            // Clear received events so future triggers require fresh events
+            received?.clear();
+
+            const instanceName = this.nextInstanceName(dependent.name);
+            await this.startProcess(dependent, event, instanceName);
+          } else {
+            // Don't start if already running
+            if (this.processManager.isRunning(dependent.name)) {
+              logger.debug("Process already running, skipping", {
+                processName: dependent.name,
+              });
+              continue;
+            }
+
+            // Clear received events so future triggers require fresh events
+            received?.clear();
+
+            await this.startProcess(dependent, event);
           }
-
-          // Clear received events so future triggers require fresh events
-          received?.clear();
-
-          await this.startProcess(dependent, event);
         } else {
           logger.debug("Not all triggers satisfied for process", {
             processName: dependent.name,
@@ -440,6 +451,17 @@ export class Orchestrator {
       throw new Error(`Stage "${stageName}" not found in pipeline`);
     }
 
+    // For allow_duplicates tasks, spawn a new instance instead of throwing
+    if (item.allow_duplicates) {
+      const instanceName = this.nextInstanceName(stageName);
+      logger.info("Manually triggering stage (new instance)", { stageName, instanceName });
+      await this.startProcess(item, undefined, instanceName);
+
+      // Track as manually triggered for clear restart functionality
+      this.manuallyTriggeredProcesses.add(stageName);
+      return;
+    }
+
     // Check if process is currently running (not just if it was ever started)
     if (this.processManager.isRunning(stageName)) {
       throw new Error(`Stage "${stageName}" is already running`);
@@ -514,37 +536,40 @@ export class Orchestrator {
   private async startProcess(
     item: PipelineItem,
     triggerEvent?: ClierEvent,
+    instanceName?: string,
   ): Promise<void> {
     if (!this.config) {
       logger.error("Cannot start process: No configuration loaded");
       throw new Error("No configuration loaded");
     }
 
+    const effectiveName = instanceName ?? item.name;
+
     logger.info("Starting process", {
-      processName: item.name,
+      processName: effectiveName,
       command: item.command,
       type: item.type,
       triggeredBy: triggerEvent?.name,
     });
 
     try {
-      const processConfig = this.buildProcessConfig(item, triggerEvent);
+      const processConfig = this.buildProcessConfig(item, triggerEvent, instanceName);
       await this.processManager.startProcess(processConfig);
-      this.startedProcesses.add(item.name);
+      this.startedProcesses.add(effectiveName);
 
       logger.info("Process started successfully", {
-        processName: item.name,
+        processName: effectiveName,
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       logger.error("Failed to start process", {
-        processName: item.name,
+        processName: effectiveName,
         command: item.command,
         error: errorMsg,
       });
 
       // Re-throw with more context
-      throw new Error(`Failed to start process "${item.name}": ${errorMsg}`);
+      throw new Error(`Failed to start process "${effectiveName}": ${errorMsg}`);
     }
   }
 
@@ -557,6 +582,7 @@ export class Orchestrator {
   private buildProcessConfig(
     item: PipelineItem,
     triggerEvent?: ClierEvent,
+    instanceName?: string,
   ): ProcessConfig {
     let command = item.command;
     let env = item.env;
@@ -600,7 +626,7 @@ export class Orchestrator {
     }
 
     const config: ProcessConfig = {
-      name: item.name,
+      name: instanceName ?? item.name,
       command,
       // Use item's cwd if specified, otherwise default to project root
       cwd: item.cwd || this.projectRoot,
@@ -644,6 +670,16 @@ export class Orchestrator {
     }
 
     return config;
+  }
+
+  /**
+   * Generate a unique instance name for allow_duplicates processes
+   * Returns names like "worker#1", "worker#2", etc.
+   */
+  private nextInstanceName(baseName: string): string {
+    const counter = (this.instanceCounters.get(baseName) ?? 0) + 1;
+    this.instanceCounters.set(baseName, counter);
+    return `${baseName}#${counter}`;
   }
 
   /**

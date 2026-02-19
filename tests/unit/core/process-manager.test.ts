@@ -445,6 +445,100 @@ describe("ProcessManager", () => {
     });
   });
 
+  describe("instance methods", () => {
+    it("getInstancesOf should return all instances of a base name", async () => {
+      await manager.startProcess({
+        name: "worker#1",
+        command: "sleep 10",
+        type: "task",
+      });
+      await manager.startProcess({
+        name: "worker#2",
+        command: "sleep 10",
+        type: "task",
+      });
+      await manager.startProcess({
+        name: "other",
+        command: "sleep 10",
+        type: "task",
+      });
+
+      const instances = manager.getInstancesOf("worker");
+      expect(instances).toHaveLength(2);
+      expect(instances.map((s) => s.name)).toContain("worker#1");
+      expect(instances.map((s) => s.name)).toContain("worker#2");
+    });
+
+    it("isAnyInstanceRunning should return true when an instance is running", async () => {
+      await manager.startProcess({
+        name: "worker#1",
+        command: "sleep 10",
+        type: "task",
+      });
+
+      expect(manager.isAnyInstanceRunning("worker")).toBe(true);
+      expect(manager.isAnyInstanceRunning("nonexistent")).toBe(false);
+    });
+
+    it("stopAllInstances should stop all running instances", async () => {
+      await manager.startProcess({
+        name: "worker#1",
+        command: "sleep 10",
+        type: "task",
+      });
+      await manager.startProcess({
+        name: "worker#2",
+        command: "sleep 10",
+        type: "task",
+      });
+
+      expect(manager.isAnyInstanceRunning("worker")).toBe(true);
+
+      await manager.stopAllInstances("worker");
+
+      // Wait for processes to fully stop
+      await new Promise((r) => setTimeout(r, 100));
+
+      expect(manager.isAnyInstanceRunning("worker")).toBe(false);
+    });
+
+    it("runningInstanceCount should return correct count", async () => {
+      expect(manager.runningInstanceCount("worker")).toBe(0);
+
+      await manager.startProcess({
+        name: "worker#1",
+        command: "sleep 10",
+        type: "task",
+      });
+      expect(manager.runningInstanceCount("worker")).toBe(1);
+
+      await manager.startProcess({
+        name: "worker#2",
+        command: "sleep 10",
+        type: "task",
+      });
+      expect(manager.runningInstanceCount("worker")).toBe(2);
+    });
+
+    it("getInstancesOf should also include base name process", async () => {
+      await manager.startProcess({
+        name: "worker",
+        command: "sleep 10",
+        type: "task",
+      });
+      await manager.startProcess({
+        name: "worker#1",
+        command: "sleep 10",
+        type: "task",
+      });
+
+      const instances = manager.getInstancesOf("worker");
+      expect(instances).toHaveLength(2);
+      expect(instances.map((s) => s.name)).toContain("worker");
+      expect(instances.map((s) => s.name)).toContain("worker#1");
+    });
+  });
+
   describe("child process cleanup", () => {
     it("should kill child processes spawned by shell commands", async () => {
       // This test verifies that when we stop a process, any child processes

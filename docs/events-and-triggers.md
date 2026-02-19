@@ -20,6 +20,7 @@ How clier processes communicate through events and coordinate startup with trigg
   - [Configuration](#configuration)
   - [Available Variables](#available-variables)
   - [Example](#example)
+- [Concurrent Instances (allow_duplicates)](#concurrent-instances-allow_duplicates)
 - [Patterns & Examples](#patterns--examples)
   - [Sequential Pipeline](#sequential-pipeline-lint--build--deploy)
   - [Fan-out](#fan-out-one-event-triggers-multiple-processes)
@@ -195,6 +196,8 @@ Once a triggered process exits (completes or crashes), it can be triggered again
 - A currently running process **cannot** be started again by events (prevents duplicate instances)
 - A process that has exited **can** be re-triggered by fresh events
 
+To allow concurrent instances of a triggered task (fan-out), see [Concurrent Instances (allow_duplicates)](#concurrent-instances-allow_duplicates).
+
 ### continue_on_failure
 
 `continue_on_failure` controls whether error and crash events from a process propagate to its dependents. It is set on the **source** process (the one that fails), not on the dependent.
@@ -294,6 +297,75 @@ node report.js --process=api --event=api:crashed
 ```
 
 And environment variables `FAILURE_TYPE=crashed` and `FAILED_AT=1706012345678`.
+
+## Concurrent Instances (allow_duplicates)
+
+By default, if a triggered process is already running when its trigger fires again, the new start is silently skipped. This prevents duplicate instances but means the event is lost.
+
+`allow_duplicates` changes this behavior: each trigger fires spawns a **new concurrent instance** with a unique name. This is useful for fan-out patterns where each event should spawn an independent handler.
+
+### Configuration
+
+```json
+{
+  "name": "cleanup",
+  "type": "task",
+  "command": "node cleanup.js --source={{event.source}}",
+  "trigger_on": ["api:error"],
+  "enable_event_templates": true,
+  "allow_duplicates": true
+}
+```
+
+### Constraints
+
+- Only valid on **tasks** with **`trigger_on`** — services and entry points cannot use `allow_duplicates`
+- Pipeline item names must not contain `#` (reserved for instance suffixes)
+
+### Instance Naming
+
+Each concurrent instance gets a monotonically increasing suffix: `cleanup#1`, `cleanup#2`, `cleanup#3`, etc. The counter resets when the pipeline is reloaded.
+
+Instance names are unique keys in the process manager, so each instance gets its own log buffer, status entry, and lifecycle. In `clier status`, instances appear as separate rows.
+
+### Event Emission
+
+Events from instances use the **base name**, not the instance name. When `cleanup#2` exits with code 0, the emitted event is `cleanup:success` — not `cleanup#2:success`. This means downstream triggers that depend on `cleanup:success` work correctly without knowing about instances.
+
+### Circuit Breaker
+
+Crash counts aggregate by base name. If `cleanup#1`, `cleanup#2`, and `cleanup#3` all crash, that counts as 3 crashes against `cleanup` for circuit breaker purposes.
+
+### Example: Error Recovery Fan-out
+
+Each API error spawns an independent cleanup task:
+
+```json
+{
+  "pipeline": [
+    {
+      "name": "api",
+      "type": "service",
+      "command": "node api.js",
+      "continue_on_failure": true,
+      "events": {
+        "on_stdout": [{ "pattern": "ERROR", "emit": "api:error" }],
+        "on_crash": true
+      }
+    },
+    {
+      "name": "cleanup",
+      "type": "task",
+      "command": "node cleanup.js --error={{event.source}}",
+      "trigger_on": ["api:error"],
+      "enable_event_templates": true,
+      "allow_duplicates": true
+    }
+  ]
+}
+```
+
+When the API logs its first error, `cleanup#1` starts. If another error occurs while `cleanup#1` is still running, `cleanup#2` starts concurrently. Each instance runs independently to completion.
 
 ## Patterns & Examples
 

@@ -1126,4 +1126,141 @@ describe("Config Schema Validation", () => {
       expect(result).toBeDefined();
     });
   });
+
+  describe("allow_duplicates Configuration", () => {
+    it("should accept allow_duplicates: true on task with trigger_on", () => {
+      const config = {
+        project_name: "dup-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "producer",
+            command: "node produce.js",
+            type: "service",
+            events: {
+              on_stdout: [{ pattern: "error", emit: "producer:error" }],
+            },
+          },
+          {
+            name: "cleanup",
+            command: "node cleanup.js",
+            type: "task",
+            trigger_on: ["producer:error"],
+            allow_duplicates: true,
+          },
+        ],
+      };
+
+      const result = configSchema.parse(config);
+      expect(result.pipeline[1]?.allow_duplicates).toBe(true);
+    });
+
+    it("should default allow_duplicates to false", () => {
+      const config = {
+        project_name: "default-dup-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "task1",
+            command: "node app.js",
+            type: "task",
+          },
+        ],
+      };
+
+      const result = configSchema.parse(config);
+      expect(result.pipeline[0]?.allow_duplicates).toBe(false);
+    });
+
+    it("should reject allow_duplicates on a service", () => {
+      const config = {
+        project_name: "dup-service-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "backend",
+            command: "node server.js",
+            type: "service",
+            trigger_on: ["some:event"],
+            allow_duplicates: true,
+          },
+        ],
+      };
+
+      expect(() => configSchema.parse(config)).toThrow(/allow_duplicates/);
+    });
+
+    it("should reject allow_duplicates on a task without trigger_on", () => {
+      const config = {
+        project_name: "dup-no-trigger-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "standalone-task",
+            command: "node task.js",
+            type: "task",
+            allow_duplicates: true,
+          },
+        ],
+      };
+
+      expect(() => configSchema.parse(config)).toThrow(/allow_duplicates/);
+    });
+
+    it("should reject '#' character in pipeline item names", () => {
+      const config = {
+        project_name: "hash-name-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "worker#1",
+            command: "node worker.js",
+            type: "task",
+          },
+        ],
+      };
+
+      expect(() => configSchema.parse(config)).toThrow(/#/);
+    });
+
+    it("should reject '#' character in stage step names", () => {
+      const config = {
+        project_name: "hash-step-name-test",
+        safety: {
+          max_ops_per_minute: 60,
+          debounce_ms: 100,
+        },
+        pipeline: [
+          {
+            name: "build-stage",
+            type: "stage",
+            steps: [
+              {
+                name: "step#bad",
+                command: "npm test",
+                type: "task",
+              },
+            ],
+          },
+        ],
+      };
+
+      expect(() => configSchema.parse(config)).toThrow(/#/);
+    });
+  });
 });

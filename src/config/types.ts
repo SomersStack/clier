@@ -67,6 +67,8 @@ export type PipelineItem = {
     /** Regex pattern to match in stderr to determine success */
     stderr_pattern?: string;
   };
+  /** Allow concurrent duplicate instances when trigger fires again (only for tasks with trigger_on) */
+  allow_duplicates?: boolean;
 };
 
 /**
