@@ -119,7 +119,10 @@ Clier uses a JSON configuration file (default: `clier-pipeline.json`) to define 
   "events": EventsConfig,         // Optional: Event configuration
   "manual": boolean,              // Optional: Manual start only
   "input": InputConfig,           // Optional: Stdin input support
-  "restart": "always" | "on-failure" | "never"  // Optional: Restart policy
+  "restart": "always" | "on-failure" | "never",  // Optional: Restart policy
+  "enable_event_templates": boolean,  // Optional: Enable template substitution
+  "success_filter": SuccessFilter,    // Optional: Log-based success detection
+  "allow_duplicates": boolean     // Optional: Concurrent fan-out instances
 }
 ```
 
@@ -128,8 +131,8 @@ Clier uses a JSON configuration file (default: `clier-pipeline.json`) to define 
 **`name`** (required)
 - Type: `string`
 - Description: Unique identifier for this process
-- Constraints: Non-empty, must be unique across pipeline
-- Used in: PM2 process name, log files, event names
+- Constraints: Non-empty, must be unique across pipeline, must not contain `#` (reserved for instance suffixes)
+- Used in: Process name, log files, event names
 - Example: `"backend"`, `"lint"`, `"api-server"`
 
 **`command`** (required)
@@ -234,6 +237,37 @@ Example:
   "type": "service",
   "restart": "on-failure",
   "input": { "enabled": true }
+}
+```
+
+**`enable_event_templates`** (optional)
+- Type: `boolean`
+- Default: `false`
+- Description: Enable `{{variable}}` template substitution in `command` and `env` values when the process is started by a trigger event
+- See [Events & Triggers — Event Templates](events-and-triggers.md#event-templates) for available variables
+
+**`success_filter`** (optional)
+- Type: `{ stdout_pattern?: string, stderr_pattern?: string }`
+- Description: Override exit-code-based success detection with log pattern matching
+- At least one of `stdout_pattern` or `stderr_pattern` must be provided
+- See [Events & Triggers — Success Filter](events-and-triggers.md#success-filter) for details
+
+**`allow_duplicates`** (optional)
+- Type: `boolean`
+- Default: `false`
+- Description: Allow concurrent instances when a trigger fires while the process is already running
+- Constraints: Only valid on **tasks** with **`trigger_on`**
+- Each instance gets a unique name suffix (`worker#1`, `worker#2`, etc.)
+- See [Events & Triggers — Concurrent Instances](events-and-triggers.md#concurrent-instances-allow_duplicates) for details
+
+Example:
+```json
+{
+  "name": "cleanup",
+  "command": "node cleanup.js",
+  "type": "task",
+  "trigger_on": ["api:error"],
+  "allow_duplicates": true
 }
 ```
 
