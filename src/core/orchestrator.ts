@@ -344,9 +344,9 @@ export class Orchestrator {
             continue;
           }
 
-          // Don't start if already started
-          if (this.startedProcesses.has(dependent.name)) {
-            logger.debug("Process already started, skipping", {
+          // Don't start if already running
+          if (this.processManager.isRunning(dependent.name)) {
+            logger.debug("Process already running, skipping", {
               processName: dependent.name,
             });
             continue;
@@ -402,7 +402,7 @@ export class Orchestrator {
       (item) =>
         item.trigger_on &&
         item.trigger_on.length > 0 &&
-        !this.startedProcesses.has(item.name),
+        !this.processManager.isRunning(item.name),
     );
   }
 

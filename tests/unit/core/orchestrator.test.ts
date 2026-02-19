@@ -40,6 +40,7 @@ describe("Orchestrator", () => {
     mockProcessManager.startProcess = vi.fn().mockResolvedValue(undefined);
     mockProcessManager.stopProcess = vi.fn().mockResolvedValue(undefined);
     mockProcessManager.isProcessRunning = vi.fn().mockResolvedValue(false);
+    mockProcessManager.isRunning = vi.fn().mockReturnValue(false);
 
     orchestrator = new Orchestrator(mockProcessManager);
   });
@@ -221,6 +222,15 @@ describe("Orchestrator", () => {
 
       orchestrator.loadPipeline(config);
 
+      // After first start, isRunning returns true for frontend
+      mockProcessManager.startProcess = vi.fn().mockImplementation(async (cfg: { name: string }) => {
+        if (cfg.name === "frontend") {
+          (mockProcessManager.isRunning as ReturnType<typeof vi.fn>).mockImplementation(
+            (name: string) => name === "frontend"
+          );
+        }
+      });
+
       const event: ClierEvent = {
         name: "backend:ready",
         processName: "backend",
@@ -231,8 +241,44 @@ describe("Orchestrator", () => {
       await orchestrator.handleEvent(event);
       await orchestrator.handleEvent(event); // Same event again
 
-      // Should only start once
+      // Should only start once (second time skipped because isRunning returns true)
       expect(mockProcessManager.startProcess).toHaveBeenCalledOnce();
+    });
+
+    it("should re-trigger process after it exits and event fires again", async () => {
+      const config = createConfig([
+        createPipelineItem({ name: "backend" }),
+        createPipelineItem({ name: "frontend", trigger_on: ["backend:ready"] }),
+      ]);
+
+      orchestrator.loadPipeline(config);
+
+      // After first start, isRunning returns true for frontend
+      mockProcessManager.startProcess = vi.fn().mockImplementation(async (cfg: { name: string }) => {
+        if (cfg.name === "frontend") {
+          (mockProcessManager.isRunning as ReturnType<typeof vi.fn>).mockImplementation(
+            (name: string) => name === "frontend"
+          );
+        }
+      });
+
+      const event: ClierEvent = {
+        name: "backend:ready",
+        processName: "backend",
+        type: "custom",
+        timestamp: Date.now(),
+      };
+
+      // First trigger — starts frontend
+      await orchestrator.handleEvent(event);
+      expect(mockProcessManager.startProcess).toHaveBeenCalledOnce();
+
+      // Frontend exits (crashes, completes, etc.)
+      (mockProcessManager.isRunning as ReturnType<typeof vi.fn>).mockReturnValue(false);
+
+      // Second trigger — should re-start frontend since it's no longer running
+      await orchestrator.handleEvent(event);
+      expect(mockProcessManager.startProcess).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -456,13 +502,22 @@ describe("Orchestrator", () => {
       expect(waiting.map((p) => p.name)).toContain("admin");
     });
 
-    it("should return empty array when all processes started", async () => {
+    it("should return empty array when all processes are running", async () => {
       const config = createConfig([
         createPipelineItem({ name: "backend" }),
         createPipelineItem({ name: "frontend", trigger_on: ["backend:ready"] }),
       ]);
 
       orchestrator.loadPipeline(config);
+
+      // Mock: after frontend starts, isRunning returns true for it
+      mockProcessManager.startProcess = vi.fn().mockImplementation(async (cfg: { name: string }) => {
+        if (cfg.name === "frontend") {
+          (mockProcessManager.isRunning as ReturnType<typeof vi.fn>).mockImplementation(
+            (name: string) => name === "frontend"
+          );
+        }
+      });
 
       await orchestrator.handleEvent({
         name: "backend:ready",
