@@ -60,7 +60,7 @@ export class Orchestrator {
   private stageMap = new Map<string, string>();
   private startedProcesses = new Set<string>();
   private manuallyTriggeredProcesses = new Set<string>();
-  private receivedEvents = new Set<string>();
+  private receivedEvents = new Map<string, Set<string>>();
   private projectRoot?: string;
   private options: OrchestratorOptions;
 
@@ -112,9 +112,13 @@ export class Orchestrator {
     this.manuallyTriggeredProcesses.clear();
     this.receivedEvents.clear();
 
-    // Build pipeline item map
+    // Build pipeline item map and initialize per-process event tracking
     for (const item of flattenedConfig.pipeline) {
       this.pipelineItems.set(item.name, item);
+
+      if (item.trigger_on && item.trigger_on.length > 0) {
+        this.receivedEvents.set(item.name, new Set());
+      }
     }
 
     // Validate pipeline
@@ -315,9 +319,6 @@ export class Orchestrator {
       type: event.type,
     });
 
-    // Track received event
-    this.receivedEvents.add(event.name);
-
     // Find processes waiting for this event
     const dependents = this.findDependents(event.name);
 
@@ -333,6 +334,12 @@ export class Orchestrator {
 
     for (const dependent of dependents) {
       try {
+        // Track this event for the dependent process
+        const received = this.receivedEvents.get(dependent.name);
+        if (received) {
+          received.add(event.name);
+        }
+
         // Check if all triggers are satisfied
         if (this.areAllTriggersSatisfied(dependent)) {
           // Check continue_on_failure for error/crash events
@@ -352,12 +359,15 @@ export class Orchestrator {
             continue;
           }
 
+          // Clear received events so future triggers require fresh events
+          received?.clear();
+
           await this.startProcess(dependent, event);
         } else {
           logger.debug("Not all triggers satisfied for process", {
             processName: dependent.name,
             required: dependent.trigger_on,
-            received: Array.from(this.receivedEvents),
+            received: received ? Array.from(received) : [],
           });
         }
       } catch (error) {
@@ -654,7 +664,12 @@ export class Orchestrator {
       return true;
     }
 
-    return item.trigger_on.every((trigger) => this.receivedEvents.has(trigger));
+    const received = this.receivedEvents.get(item.name);
+    if (!received) {
+      return false;
+    }
+
+    return item.trigger_on.every((trigger) => received.has(trigger));
   }
 
   /**

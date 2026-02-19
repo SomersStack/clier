@@ -280,6 +280,53 @@ describe("Orchestrator", () => {
       await orchestrator.handleEvent(event);
       expect(mockProcessManager.startProcess).toHaveBeenCalledTimes(2);
     });
+
+    it("should not let stale events satisfy multi-trigger processes", async () => {
+      const config = createConfig([
+        createPipelineItem({ name: "api", continue_on_failure: true }),
+        createPipelineItem({ name: "database", continue_on_failure: true }),
+        createPipelineItem({
+          name: "alerter",
+          trigger_on: ["api:error", "database:error"],
+        }),
+      ]);
+
+      orchestrator.loadPipeline(config);
+
+      // API fails — api:error received, but alerter waits for both
+      await orchestrator.handleEvent({
+        name: "api:error",
+        processName: "api",
+        type: "error",
+        timestamp: Date.now(),
+      });
+      expect(mockProcessManager.startProcess).not.toHaveBeenCalled();
+
+      // API recovers, runs fine for a long time...
+      // Then database fails — database:error received
+      // Both triggers should need to be fresh, not use stale api:error
+      // But since api:error was received and not yet consumed, alerter starts
+      await orchestrator.handleEvent({
+        name: "database:error",
+        processName: "database",
+        type: "error",
+        timestamp: Date.now(),
+      });
+      // This IS expected to start — both events fired within the same cycle
+      expect(mockProcessManager.startProcess).toHaveBeenCalledOnce();
+
+      // Now alerter finishes. Events were cleared on trigger.
+      // Only database:error fires again — alerter should NOT start
+      // because the previous api:error was consumed
+      await orchestrator.handleEvent({
+        name: "database:error",
+        processName: "database",
+        type: "error",
+        timestamp: Date.now(),
+      });
+      // Still only 1 call — stale api:error was cleared, so alerter doesn't trigger
+      expect(mockProcessManager.startProcess).toHaveBeenCalledOnce();
+    });
   });
 
   describe("handleEvent - continue_on_failure", () => {
