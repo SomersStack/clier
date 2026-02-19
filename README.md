@@ -229,6 +229,7 @@ clier docs pipeline   # Pipeline configuration guide
 - **[Agent CLI Guide](docs/AGENTS.md)** -- Quick-reference command list optimized for AI agents
 - **[Agent Pipeline Guide](docs/AGENTS-PIPELINE.md)** -- Pipeline configuration reference for AI agents
 - **[Configuration Reference](docs/configuration.md)** -- Complete schema documentation for `clier-pipeline.json`
+- **[Events & Triggers](docs/events-and-triggers.md)** -- Event lifecycle, trigger mechanics, and process coordination
 - **[API Reference](docs/api-reference.md)** -- TypeScript types and programmatic usage
 - **[Workflows](docs/workflows.md)** -- Workflow orchestration with sequential steps, conditions, and failure handling
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** -- Common issues, debugging steps, and platform-specific notes
